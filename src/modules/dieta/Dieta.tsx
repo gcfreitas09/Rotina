@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { Minus, Pencil, Plus, Trash2, X } from "../../components/icones.tsx";
+import { useEffect, useState } from "react";
+import { Minus, Pencil, Plus, Trash2 } from "../../components/icones.tsx";
 import type { Alimento, Dia, DiaDieta, Refeicao, TipoRefeicao } from "../../data/types.ts";
 import { excluir, salvar, useColecao, useConfig } from "../../data/store.ts";
 import { DIAS, DIAS_CURTOS, DIAS_LONGOS, brCurta, diaDaSemana, hoje, somarDias } from "../../data/datas.ts";
 import { lerNumero, litros, novoId, num } from "../../data/formato.ts";
 import { Campo, DiasRepetir, Dialogo, EscopoGrupo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import Copo from "../../components/Copo.tsx";
+import LinhaAlimento, { recalcular, useTabelaTaco, type AlimentoTexto } from "./LinhaAlimento.tsx";
 import { Conta, pulso } from "../../components/movimento.tsx";
 import { criarRepetido, doGrupo, editarGrupo, editarUm } from "../../data/grupos.ts";
 
@@ -178,8 +179,6 @@ export default function Dieta() {
   );
 }
 
-type AlimentoTexto = { id: string; nome: string; quantidade: string; kcal: string; proteina: string };
-
 function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInicial: Dia; aoFechar: () => void }) {
   const grupo = r ? (doGrupo("refeicoes", r.grupo) as Refeicao[]) : [];
   const [escopo, setEscopo] = useState<"um" | "todos">(grupo.length > 1 ? "todos" : "um");
@@ -187,15 +186,20 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
   const [nome, setNome] = useState(r?.nome ?? TIPOS_REFEICAO.lanche);
   const [horario, setHorario] = useState(r?.horario ?? "16:00");
   const [alimentos, setAlimentos] = useState<AlimentoTexto[]>(
-    (r?.alimentos ?? []).map((a) => ({ id: a.id, nome: a.nome, quantidade: a.quantidade, kcal: a.kcal === null ? "" : num(a.kcal), proteina: a.proteina === null ? "" : num(a.proteina) })),
+    (r?.alimentos ?? []).map((a) => ({ id: a.id, nome: a.nome, quantidade: a.quantidade, kcal: a.kcal === null ? "" : num(a.kcal), proteina: a.proteina === null ? "" : num(a.proteina), ref: a.ref, manualKcal: !a.autoKcal && a.kcal !== null, manualProt: !a.autoProt && a.proteina !== null })),
   );
   const [dias, setDias] = useState<Dia[]>(r ? grupo.map((x) => x.dia).sort() : [diaInicial]);
   const [dia, setDia] = useState<Dia>(r?.dia ?? diaInicial);
   const [erros, setErros] = useState<Record<string, string>>({});
   const multiplo = !r || escopo === "todos" || grupo.length <= 1;
 
-  const mudarAlimento = (id: string, p: Partial<AlimentoTexto>) => setAlimentos(alimentos.map((a) => (a.id === id ? { ...a, ...p } : a)));
-  const novoAlimento = () => setAlimentos([...alimentos, { id: novoId("a"), nome: "", quantidade: "", kcal: "", proteina: "" }]);
+  const tabela = useTabelaTaco();
+  // A tabela chega depois que o formulário abre: calcula o que já foi digitado sem valores à mão.
+  useEffect(() => {
+    if (tabela) setAlimentos((lista) => lista.map((x) => (x.kcal || x.proteina ? x : recalcular(x, tabela))));
+  }, [tabela]);
+  const trocarAlimento = (novo: AlimentoTexto) => setAlimentos((lista) => lista.map((a) => (a.id === novo.id ? novo : a)));
+  const novoAlimento = () => setAlimentos([...alimentos, { id: novoId("a"), nome: "", quantidade: "", kcal: "", proteina: "", manualKcal: false, manualProt: false }]);
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +215,12 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
       if (!a.nome.trim()) er["a" + a.id] = "Dê um nome ao alimento.";
       else if (Number.isNaN(kcal) || (kcal !== null && kcal < 0)) er["a" + a.id] = "Calorias: use um número, como 120.";
       else if (Number.isNaN(proteina) || (proteina !== null && proteina < 0)) er["a" + a.id] = "Proteína: use um número, como 12,5.";
-      lista.push({ id: a.id, nome: a.nome.trim(), quantidade: a.quantidade.trim(), kcal, proteina });
+            lista.push({
+        id: a.id, nome: a.nome.trim(), quantidade: a.quantidade.trim(), kcal, proteina,
+        ...(a.ref !== undefined ? { ref: a.ref } : {}),
+        ...(!a.manualKcal && kcal !== null ? { autoKcal: true } : {}),
+        ...(!a.manualProt && proteina !== null ? { autoProt: true } : {}),
+      });
     });
     setErros(er);
     if (Object.keys(er).length) return;
@@ -269,18 +278,9 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
         </Campo>
 
         <fieldset className="campo" style={{ border: 0, padding: 0, margin: 0 }}>
-          <span>Alimentos <span style={{ fontWeight: 400 }}>— calorias e proteína são opcionais</span></span>
+          <span>Alimentos <span style={{ fontWeight: 400 }}>— kcal e proteína saem da tabela TACO</span></span>
           {alimentos.map((a) => (
-            <div key={a.id} className="alimento-form">
-              <input className="entrada" value={a.nome} onChange={(e) => mudarAlimento(a.id, { nome: e.target.value })} placeholder="Alimento" aria-label="Alimento" aria-invalid={!!erros["a" + a.id]} />
-              <input className="entrada" value={a.quantidade} onChange={(e) => mudarAlimento(a.id, { quantidade: e.target.value })} placeholder="Quantidade" aria-label="Quantidade" />
-              <input className="entrada num" inputMode="decimal" value={a.kcal} onChange={(e) => mudarAlimento(a.id, { kcal: e.target.value })} placeholder="kcal" aria-label="Calorias" />
-              <input className="entrada num" inputMode="decimal" value={a.proteina} onChange={(e) => mudarAlimento(a.id, { proteina: e.target.value })} placeholder="prot. g" aria-label="Proteína em gramas" />
-              <button type="button" className="icone-btn" onClick={() => setAlimentos(alimentos.filter((x) => x.id !== a.id))} aria-label={`Remover ${a.nome || "alimento"}`}>
-                <X size={16} strokeWidth={1.6} />
-              </button>
-              {erros["a" + a.id] && <p className="erro-campo" role="alert" style={{ gridColumn: "1 / -1" }}>{erros["a" + a.id]}</p>}
-            </div>
+            <LinhaAlimento key={a.id} a={a} tabela={tabela} erro={erros["a" + a.id]} aoMudar={trocarAlimento} aoRemover={() => setAlimentos(alimentos.filter((x) => x.id !== a.id))} />
           ))}
           <button type="button" className="botao pequeno" style={{ justifySelf: "start" }} onClick={novoAlimento}>
             <Plus size={16} strokeWidth={1.8} aria-hidden="true" /> Alimento

@@ -94,6 +94,11 @@ export interface Alimento {
   quantidade: string;
   kcal: number | null;
   proteina: number | null;
+  /** Alimento da TACO usado no cálculo (id em modules/dieta/taco.json). */
+  ref?: number;
+  /** Calculados pelo app (ausente = digitado à mão ou vazio). */
+  autoKcal?: boolean;
+  autoProt?: boolean;
 }
 
 /** Refeição de um dia do plano. Mesma lógica de `grupo` dos blocos. */

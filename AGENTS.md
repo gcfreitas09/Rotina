@@ -53,6 +53,11 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   **Listas no texto do cartão**: linha que começa com `- ` (ou `* `) vira item com bolinha (`TextoCartao`, CSS `.item-lista::before`); o texto guardado continua com `- `. Enter numa linha de lista continua a lista, Enter numa vazia encerra (`continuarLista` em `logica.ts`).
   **Resposta em comparação** (`comparacao: { itens[], linhas[{criterio, valores[]}] }`, até 3 itens): chave no formulário do cartão abre `EditorComparacao`; `limparComparacao` (logica.ts, testada) tira coluna sem nome e linha vazia antes de salvar; no verso aparece em grade (`ComparacaoVista`, `.comp`, spans com role=table, não `<table>`, porque o cartão é um `<button>`). Enter nos campos pula para o próximo, não envia o cartão.
   **Imagem no cartão** (`imagem`, `imagemVerso`): `imagem.ts` reduz para 900 px e grava JPEG 0,76 em data URL dentro do registro (vai junto na sincronia). Nada de PNG/WebP cru: Safari não codifica WebP e o localStorage tem ~5 MB. `storage.gravar` devolve false sem espaço; `store.substituir` então não altera o estado e dispara `rotina:sem-espaco` (aviso em `ui.tsx`).
+- `src/modules/dieta/nutricao.ts` — kcal/proteína automáticas: lê a quantidade ("2 ovos", "1/2 xícara", "150 g"), acha o alimento
+  (`PREFERIDO` = forma comum de cada nome genérico, por nome exato da TACO) e converte medida caseira em gramas (`MEDIDAS`, aproximadas).
+  `taco.json` é gerado por `node scripts/taco.mjs` (TACO 4ª ed. via brolesi.github.io/taco + `EXTRAS` com fonte: leite, whey, pasta de
+  amendoim etc., que a TACO não tem ou tem sem valor). Carrega sob demanda (chunk de ~11 KB gz). `LinhaAlimento.tsx` = linha do formulário.
+  Campo digitado à mão (`manualKcal`/`manualProt`) nunca é sobrescrito; salvo com `autoKcal`/`autoProt` e `ref` (id TACO).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 

@@ -3,7 +3,8 @@
 //   node scripts/verificar.mjs lighthouse  — Lighthouse mobile (performance, acessibilidade, boas práticas)
 //   node scripts/verificar.mjs hover       — mouse nas matérias não cria scroll lateral (1100 a 2560 px)
 //   node scripts/verificar.mjs flashcards — pasta → cartões → estudar (virar, acertei, errei)
-//   node scripts/verificar.mjs movimento   — animações não deixam nada escondido (com e sem "reduzir movimento")
+//   node scripts/verificar.mjs nutricao    — refeição: kcal e proteína calculadas pela TACO a partir do alimento e da quantidade
+//   node scripts/verificar.mjs movimento  — animações não deixam nada escondido (com e sem "reduzir movimento")
 // Precisa do build (npm run build). Usa puppeteer/lighthouse de ~/.claude/tools/qa (nunca do projeto).
 // Screenshots vão para a pasta temporária do sistema (ou ROTINA_SHOTS), nunca para o projeto.
 import { createRequire } from "node:module";
@@ -464,6 +465,79 @@ async function flashcards() {
   console.log(falhas.length ? `FLASHCARDS FALHOU (${falhas.length})` : "FLASHCARDS OK");
 }
 
+// Refeição: o app calcula kcal e proteína pela TACO (alimento + quantidade), aceita escolha na lista e respeita valor digitado.
+async function nutricao() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await (await browser.createBrowserContext()).newPage();
+  await page.setViewport({ width: 390, height: 844 });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 250) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+  const linha = async (i) => (await page.$$(".dialogo .alimento-form"))[i];
+  const campo = async (i, rotulo) => (await linha(i)).$(`input[aria-label="${rotulo}"]`);
+  const valor = async (i, rotulo) => (await campo(i, rotulo)).evaluate((e) => e.value);
+  const info = async (i) => (await linha(i)).$eval(".alimento-info", (e) => e.textContent).catch(() => "");
+  const escrever = async (i, rotulo, t) => { const el = await campo(i, rotulo); await el.evaluate((e) => { e.scrollIntoView({ block: "center" }); e.select(); }); await el.type(t); await espera(200); };
+
+  console.log("\nNutrição (390 px)");
+  await page.goto(BASE + "#/saude/dieta", { waitUntil: "networkidle0" });
+  await espera(900);
+  await clicar("button::-p-text(Refeição)");
+  await espera(500);
+  await clicar(".dialogo button::-p-text(Alimento)");
+  await escrever(0, "Alimento", "ovo");
+  await page.waitForSelector('.sugestoes [role="option"]', { timeout: 5000 });
+  const opcoes = await page.$$eval('.sugestoes [role="option"]', (os) => os.map((o) => o.textContent));
+  checar(opcoes[0]?.startsWith("Ovo, de galinha, inteiro, cozido"), `Sugere o ovo cozido primeiro (${opcoes[0]})`);
+  await page.screenshot({ path: path.join(SHOTS, "nutricao-sugestoes.png") });
+  await escrever(0, "Quantidade", "2 ovos");
+  checar((await valor(0, "Calorias")) === "146" && (await valor(0, "Proteína em gramas")) === "13,3", `2 ovos = 146 kcal e 13,3 g (${await valor(0, "Calorias")}, ${await valor(0, "Proteína em gramas")})`);
+  checar((await info(0)).includes("2 unidades ≈ 100 g"), `Mostra como calculou (${await info(0)})`);
+
+  await clicar(".dialogo button::-p-text(Alimento)");
+  await escrever(1, "Alimento", "arroz");
+  await escrever(1, "Quantidade", "4 colheres de sopa");
+  checar((await valor(1, "Calorias")) === "128" && (await valor(1, "Proteína em gramas")) === "2,5", `4 colheres de sopa de arroz = 128 kcal (${await valor(1, "Calorias")})`);
+
+  await clicar(".dialogo button::-p-text(Alimento)");
+  await escrever(2, "Alimento", "pao");
+  await clicar(".sugestoes li::-p-text(Pão, trigo, forma, integral)");
+  await escrever(2, "Quantidade", "2 fatias");
+  checar((await valor(2, "Calorias")) === "127" && (await info(2)).includes("integral"), `Escolher na lista usa o pão integral (${await valor(2, "Calorias")} kcal, ${await info(2)})`);
+
+  await escrever(1, "Calorias", "999");
+  checar((await info(1)).includes("Calorias digitadas por você"), "Valor digitado à mão fica e é avisado");
+  await escrever(1, "Quantidade", "8 colheres de sopa");
+  checar((await valor(1, "Calorias")) === "999", "Mudar a quantidade não apaga o valor digitado");
+  checar((await valor(1, "Proteína em gramas")) === "5", `…mas a proteína (não digitada) segue a quantidade (${await valor(1, "Proteína em gramas")})`);
+
+  await clicar(".dialogo button::-p-text(Alimento)");
+  await escrever(3, "Alimento", "xyzw");
+  await escrever(3, "Quantidade", "100 g");
+  checar((await info(3)).includes("Não achei"), "Alimento fora da tabela é avisado");
+  const sobra = await page.evaluate(() => { const d = document.querySelector(".dialogo"); return [document.documentElement.scrollWidth - document.documentElement.clientWidth, d.scrollWidth - d.clientWidth]; });
+  checar(sobra[0] === 0 && sobra[1] === 0, `Sem rolagem lateral no formulário (${sobra})`);
+  await page.screenshot({ path: path.join(SHOTS, "nutricao-form.png") });
+  await clicar("button::-p-text(Criar refeição)");
+  await espera(600);
+  const ref = (await ls("refeicoes")).filter((r) => r.alimentos.some((a) => a.nome === "ovo"));
+  const al = ref[0]?.alimentos ?? [];
+  checar(ref.length >= 1 && al[0].kcal === 146 && al[0].autoKcal === true && al[1].kcal === 999 && !al[1].autoKcal && al[1].autoProt === true && al[2].ref === 52 && al[3].kcal === null, `Salva valores, origem e alimento escolhido (${JSON.stringify(al.map((a) => [a.kcal, a.autoKcal, a.autoProt, a.ref]))})`);
+
+  // Reabrir e mudar a quantidade recalcula (o valor digitado continua)
+  await clicar(`button[aria-label="Editar ${ref[0]?.nome}"]`);
+  if (await page.$("button::-p-text(Todos os)")) await clicar("button::-p-text(Todos os)");
+  await escrever(0, "Quantidade", "3 ovos");
+  checar((await valor(0, "Calorias")) === "219" && (await valor(1, "Calorias")) === "999", `Ao editar, 3 ovos recalcula para 219 kcal (${await valor(0, "Calorias")})`);
+  checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await browser.close();
+  console.log(falhas.length ? `NUTRICAO FALHOU (${falhas.length})` : "NUTRICAO OK");
+}
+
 // Hover e foco não podem criar scroll lateral em nenhuma lista fixa (bug real: chevron deslizando 3 px na Escola).
 async function hover() {
   const puppeteer = qa("puppeteer");
@@ -535,6 +609,7 @@ try {
   else if (modo === "flashcards") await flashcards();
   else if (modo === "hover") await hover();
   else if (modo === "parado") await parado();
+  else if (modo === "nutricao") await nutricao();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));
