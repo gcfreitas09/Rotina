@@ -6,6 +6,9 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - Dev: `npm run dev` → http://localhost:5173 · Preview do build: `npm run preview` → http://localhost:4173
 - MAMP (se a pasta for para `htdocs/rotina`): http://localhost:8888/rotina/ (`.htaccess` serve `dist/`)
 - Produção: ainda não publicado (precisa de HTTPS para o celular instalar como app).
+- GitHub: `git@github.com:gcfreitas09/rotina.git` (branch `main`, autor dos commits igual ao dos outros projetos).
+  Fora do repositório por design: `.env.local` (URL e chave do Supabase), `dist/`, `node_modules/`, `rotina-site.zip`.
+  Em outro computador: `npm install`, criar `.env.local` a partir de `.env.example`, `npm run build`.
 
 ## Restrições do pedido (palavras do Guilherme)
 - Todo texto em pt-BR; datas dd/mm/aaaa; semana começa na segunda; notas com vírgula e uma casa (7,5).
