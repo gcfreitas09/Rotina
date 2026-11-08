@@ -13,6 +13,7 @@ import { atrasada, filtrar } from "../tarefas/logica.ts";
 import { LinhaTarefa } from "../tarefas/Tarefas.tsx";
 import { agendadas, notaAtual, resultado } from "../escola/logica.ts";
 import { alternarRefeicao, refeicoesDoDia, registroDoDia, somarAgua } from "../dieta/Dieta.tsx";
+import { estadoRefeicao } from "../dieta/diario.ts";
 import { fichaDoDia } from "../treino/Treino.tsx";
 import { TIPOS } from "../horarios/Horarios.tsx";
 
@@ -75,7 +76,7 @@ export default function Hoje() {
   const regras = { mediaAprovacao: cfg.mediaAprovacao, minimoExame: cfg.minimoExame };
   const medias = materias.map((m) => notaAtual(resultado(m, regras))).filter((v): v is number => v !== null);
   const mediaGeral = medias.length ? medias.reduce((t, v) => t + v, 0) / medias.length : null;
-  const refsFeitas = refs.filter((r) => reg.feitas.includes(r.id)).length;
+  const refsFeitas = refs.filter((r) => estadoRefeicao(reg, r) === "toda").length;
 
   const revisar = cartoes.filter((c) => paraRevisar(c, h)).length;
   const [rapida, setRapida] = useState("");
@@ -250,11 +251,12 @@ export default function Hoje() {
           ) : (
             <ul className="bilhetes">
               {refs.map((r) => {
-                const feita = reg.feitas.includes(r.id);
+                const estado = estadoRefeicao(reg, r);
+                const feita = estado === "toda";
                 return (
                   <li key={r.id}>
                     <label className={`bilhete ${feita ? "feito" : ""}`}>
-                      <input type="checkbox" className="check" checked={feita} onChange={(e) => { pulso(e.currentTarget); alternarRefeicao(h, r.id, registros); }} aria-label={`Marcar ${r.nome} como feita`} />
+                      <input type="checkbox" className="check" checked={feita} ref={(el) => { if (el) el.indeterminate = estado === "parte"; }} onChange={(e) => { pulso(e.currentTarget); alternarRefeicao(h, r.id, registros); }} aria-label={`Marcar ${r.nome} como feita`} />
                       <span>
                         <span className="num suave">{r.horario}</span>
                         <span className="item-titulo">{r.nome}</span>

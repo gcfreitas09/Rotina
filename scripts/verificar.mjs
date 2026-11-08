@@ -600,6 +600,88 @@ async function marcas() {
   console.log(falhas.length ? `MARCAS FALHOU (${falhas.length})` : "MARCAS OK");
 }
 
+// Diário da dieta: check por alimento, refeição "em parte", resumo do dia e "Comi fora do plano" (com cálculo pela tabela).
+async function diario() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await (await browser.createBrowserContext()).newPage();
+  await page.setViewport({ width: 390, height: 844 });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 300) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+  const hojeIso = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+  const reg = async () => (await ls("diasDieta")).find((d) => d.id === hojeIso) ?? { feitas: [], comidos: [], extras: [] };
+  // os números do resumo contam animados: espera parar de mudar antes de ler
+  const resumo = async () => { let a = "", b = "x"; for (let i = 0; i < 20 && a !== b; i++) { a = b; await espera(150); b = await page.$eval(".resumo-dieta", (e) => e.textContent).catch(() => ""); } return b; };
+  const marcarAlimento = async (i) => { const cs = await page.$$(".alimentos-check input"); await cs[i].evaluate((e) => e.scrollIntoView({ block: "center" })); await cs[i].click(); await espera(); };
+  const refCheck = () => page.$eval('input[aria-label="Marcar Café teste inteira como comida"]', (e) => ({ checked: e.checked, parte: e.indeterminate }));
+
+  console.log("\nDiário da dieta (390 px)");
+  await page.goto(BASE + "#/saude/dieta", { waitUntil: "networkidle0" });
+  await page.evaluate(() => {
+    const n = Date.now();
+    const alimentos = [
+      { id: "a1", nome: "Ovo", quantidade: "2 ovos", kcal: 146, proteina: 13.3 },
+      { id: "a2", nome: "Pão francês", quantidade: "1", kcal: 150, proteina: 4 },
+      { id: "a3", nome: "Café", quantidade: "1 xícara", kcal: 5, proteina: 0.4 },
+    ];
+    localStorage.setItem("rotina:refeicoes", JSON.stringify([0, 1, 2, 3, 4, 5, 6].map((d) => ({ id: "r" + d, _m: n, grupo: "g", nome: "Café teste", tipo: "cafe", dia: d, horario: "07:00", alimentos }))));
+    localStorage.setItem("rotina:diasDieta", "[]");
+  });
+  await page.reload({ waitUntil: "networkidle0" });
+  await espera(1200);
+  checar((await page.$$(".alimentos-check input")).length === 3, "Cada alimento da refeição de hoje tem seu check");
+  await marcarAlimento(0);
+  let r = await reg();
+  let c = await refCheck();
+  checar(r.comidos?.length === 1 && !r.feitas.length && c.parte && !c.checked, `1 alimento comido: refeição fica "em parte" (${JSON.stringify(r.comidos)})`);
+  checar((await resumo()).includes("1 de 3 alimentos") && (await resumo()).includes("146"), `Resumo conta 1 de 3 e 146 kcal (${await resumo()})`);
+  await marcarAlimento(1); await marcarAlimento(2);
+  r = await reg(); c = await refCheck();
+  checar(r.feitas.length === 1 && !r.comidos?.length && c.checked && !c.parte, "Todos os alimentos comidos: refeição marcada inteira");
+  checar((await resumo()).includes("100") && (await resumo()).includes("3 de 3"), "Resumo mostra 100% do plano");
+  await marcarAlimento(1);
+  c = await refCheck();
+  checar(c.parte && (await reg()).comidos?.length === 2, "Desmarcar um alimento volta para \"em parte\"");
+  await page.screenshot({ path: path.join(SHOTS, "diario-plano.png") });
+
+  // Fora do plano
+  await clicar("button::-p-text(Comi fora do plano)");
+  await espera(500);
+  const nome = await page.$('.dialogo input[aria-label="Alimento"]');
+  await nome.type("chocolate"); await espera(200);
+  await (await page.$('.dialogo input[aria-label="Quantidade"]')).type("30 g"); await espera(200);
+  const kcal = await page.$eval('.dialogo input[aria-label="Calorias"]', (e) => e.value);
+  checar(kcal === "162", `Chocolate 30 g calculado pela tabela (${kcal} kcal)`);
+  await clicar("button::-p-text(Anotar no dia)");
+  await espera(600);
+  r = await reg();
+  checar(r.extras?.length === 1 && r.extras[0].kcal === 162 && r.extras[0].autoKcal, "Fora do plano fica salvo no dia com kcal calculada");
+  checar((await resumo()).includes("fora 162"), `Resumo soma o que foi comido fora (${await resumo()})`);
+  await page.screenshot({ path: path.join(SHOTS, "diario-fora.png") });
+  await clicar('button[aria-label="Tirar chocolate do dia"]');
+  await clicar(".confirmar button::-p-text(Excluir), [role=alertdialog] button::-p-text(Excluir), .dialogo button::-p-text(Excluir)");
+  await espera(400);
+  checar(!(await reg()).extras?.length, "Tirar do dia pede confirmação e remove");
+  await clicar("button::-p-text(Desfazer)");
+  await espera(400);
+  checar((await reg()).extras?.length === 1, "Desfazer devolve o alimento");
+
+  // Hoje: o bilhete mostra a refeição em parte
+  await page.evaluate(() => (location.hash = "/hoje"));
+  await espera(1200);
+  const bilhete = await page.$eval('input[aria-label="Marcar Café teste como feita"]', (e) => e.indeterminate).catch(() => null);
+  checar(bilhete === true, "No Hoje, a refeição em parte aparece como em parte");
+  const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  checar(sobra === 0, "Sem rolagem lateral");
+  checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await browser.close();
+  console.log(falhas.length ? `DIARIO FALHOU (${falhas.length})` : "DIARIO OK");
+}
+
 // Hover e foco não podem criar scroll lateral em nenhuma lista fixa (bug real: chevron deslizando 3 px na Escola).
 async function hover() {
   const puppeteer = qa("puppeteer");
@@ -673,6 +755,7 @@ try {
   else if (modo === "parado") await parado();
   else if (modo === "nutricao") await nutricao();
   else if (modo === "marcas") await marcas();
+  else if (modo === "diario") await diario();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

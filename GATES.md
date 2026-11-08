@@ -7,12 +7,12 @@ Scope: Web app Rotina (React + TS, localStorage + sincronia Supabase) com Hoje, 
 - [x] G1: Fórmulas de notas, ponto extra, recuperação limitada e mescla da sincronia passam nos testes
   CHECK: npm test
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=294a52e2f0be81815d1641d9ed8a7abf424751c922809692c9e8170df8bb143b; exit=0; EXPECT=matched; output-sha256=a2f962a8de8dbea3df5e38bc0b1a9dd96c0c1a83d3b3bd4e817a07c7cd78df42; output-bytes=2850; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=294a52e2f0be81815d1641d9ed8a7abf424751c922809692c9e8170df8bb143b; exit=0; EXPECT=matched; output-sha256=a096bcbb2410c753944fada335c7ba0155e7cf34af704562cbbb507a0648522e; output-bytes=3339; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G2: Tipagem e build de produção passam
   CHECK: npm run build
   EXPECT: built in
-  EVIDENCE: automatic-evidence=v1; definition-sha256=46d72eccd628b28a4b0e974e69890ad856bb5d28a16876531804fc540a571513; exit=0; EXPECT=matched; output-sha256=54bddd64e11326ea4bdd33d5405ad6f84a5fc7c14ceba0fb3f4f73dfa1aa7b8d; output-bytes=1071; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=46d72eccd628b28a4b0e974e69890ad856bb5d28a16876531804fc540a571513; exit=0; EXPECT=matched; output-sha256=82c3d6f94cffd2cca8b5ce2440b8d75133ef7019fdc63215d2f34c749d90e394; output-bytes=1071; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G3: Telas em 1440/900/390 sem rolagem lateral, sem erro de console, e fluxos (recuperação, ponto extra, validação, dieta repetida e editável, horários repetidos, tarefas com desfazer, tema escuro) funcionam no navegador
   CHECK: node scripts/verificar.mjs navegador
@@ -27,7 +27,7 @@ Scope: Web app Rotina (React + TS, localStorage + sincronia Supabase) com Hoje, 
 - [x] G5: Projeto e entregável dentro do orçamento de peso, sem arquivo inútil
   CHECK: node ~/.claude/tools/peso.mjs . --entregavel dist
   EXPECT: PESO OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=68bf6d4d67a9755463ed8170990a5db6bfc50f6e02526198ec34c5c868d856d1; exit=0; EXPECT=matched; output-sha256=a4169fbcf25089d38626a76ab27281fb049d0c5f03421c8deae8b2f053c4bf7b; output-bytes=256; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=68bf6d4d67a9755463ed8170990a5db6bfc50f6e02526198ec34c5c868d856d1; exit=0; EXPECT=matched; output-sha256=3b5f9a4c91ec5dcef9f594a3846731754a304484ebff83a256a358403730f8af; output-bytes=256; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G6: Screenshots olhados e criticados (claro e escuro, três larguras, diálogo, cronômetro)
   EVIDENCE: 08/11/2026 — olhados 390/900/1440 (Hoje, Escola, matéria, Horários grade, Dieta escura, Treino, Treinando com cronômetro, diálogo). Corrigidos: rótulo 7,0 da régua sobre os nomes, última data cortada no gráfico de linha, semestre incompleto vermelho no comparativo, aviso cobrindo o diálogo.
@@ -59,7 +59,7 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
 - [x] G14: A urgência (prazo + prioridade) classifica certo: atrasada sempre urgente; hoje+alta urgente; além de 7 dias tranquila
   CHECK: node --test tests/urgencia.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d5528d06cf707b42b58e54e620a7bf74ffd14be7c7e5a0bb7ecf696cfb4cc02e; exit=0; EXPECT=matched; output-sha256=50f2051e95a31df8c2ce4f720d326e3e57f1670b09a513b0f26be2e054e89e65; output-bytes=488; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d5528d06cf707b42b58e54e620a7bf74ffd14be7c7e5a0bb7ecf696cfb4cc02e; exit=0; EXPECT=matched; output-sha256=d97f3b32dc09ab03f3d756b6fb56f2de47075200f7006f411537e077eaf5b844; output-bytes=489; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 ## Sem scroll lateral na lista da Escola (pedido de 08/11/2026: "100% parado e perfeito")
 
@@ -73,7 +73,7 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
 - [x] G10: Repetição dos flashcards (caixas de Leitner) calcula a próxima revisão certa: acerto sobe de caixa e espaça, erro volta para a caixa 1 e revisa hoje
   CHECK: node --test tests/flashcards.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=ffa4fc2dfa68161eb06f840d64cf214f353c7021a1bc5bdfd1170e685126f771; exit=0; EXPECT=matched; output-sha256=7c671b8534455a03d92a07ccfb1464dd1412f24ef8df0412134f55a451aa0662; output-bytes=922; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=ffa4fc2dfa68161eb06f840d64cf214f353c7021a1bc5bdfd1170e685126f771; exit=0; EXPECT=matched; output-sha256=609f3ca649f9e8a9525dc6c8274fb4373bfdf678f5da5e5105ab8fe24644fd38; output-bytes=928; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G11: No navegador: criar pasta de História, criar cartão "O que foi a Revolução Francesa?", estudar, virar, "Acertei" tira da fila; dificuldade no cartão, ordem aleatória e filtro Difícil funcionam
   CHECK: node scripts/verificar.mjs flashcards
@@ -88,7 +88,7 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
 - [x] G16: A partir do alimento e da quantidade ("2 ovos", "4 colheres de sopa", "1 copo", "150 g"), o cálculo pela TACO dá os valores certos, e a tabela tem todos os alimentos preferidos
   CHECK: node --test tests/nutricao.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=8e62886e15e40090b817d3fe4701c5a71779a0dddb013882bdfb49a5170d1228; exit=0; EXPECT=matched; output-sha256=5a1ae384fd71ca2f548cec726d85b22660fd2a220cc1a85161d45cb4e12b2f09; output-bytes=779; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=8e62886e15e40090b817d3fe4701c5a71779a0dddb013882bdfb49a5170d1228; exit=0; EXPECT=matched; output-sha256=77b2965a75402656ae6ebe2f2312c4f8442c33a2f82e0cbddf75bfc9e0715983; output-bytes=783; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G17: No formulário de refeição (390 px): sugestões da tabela, kcal e proteína preenchidas sozinhas, escolha na lista, valor digitado respeitado, alimento desconhecido avisado, recalcula ao editar, sem rolagem lateral
   CHECK: node scripts/verificar.mjs nutricao
@@ -99,3 +99,15 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
   CHECK: node scripts/verificar.mjs marcas
   EXPECT: MARCAS OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=3f672f30c8ef6e086d1ea02a98bf6edbc9683a5707ffa82e6ecbae017c0e830b; exit=0; EXPECT=matched; output-sha256=9206cce5ca0111fce95f7f9fdbe8caf999f17728022cad0a512c048053bf1e0e; output-bytes=682; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+
+## Diário da dieta (pedido de 08/11/2026: check por alimento + "comi fora do plano")
+
+- [x] G19: Marcar alimento por alimento: refeição fica "em parte", todos = inteira, desmarcar volta; resumo do dia conta o seguido e soma o comido fora
+  CHECK: node --test tests/diario.test.ts
+  EXPECT: ℹ fail 0
+  EVIDENCE: automatic-evidence=v1; definition-sha256=b0830b91a5be9651da8aeb1921300c7dc3b15005118cd9c40267aef4c5cfd709; exit=0; EXPECT=matched; output-sha256=38f9a863a2c9567a5acd4526b5be61697e3becfe871a3673bcd81b0ce427c273; output-bytes=612; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+
+- [x] G20: No celular: checks por alimento, check indeterminado, resumo, "Comi fora do plano" calculado pela tabela, tirar com confirmação e Desfazer, Hoje mostra "em parte"
+  CHECK: node scripts/verificar.mjs diario
+  EXPECT: DIARIO OK
+  EVIDENCE: automatic-evidence=v1; definition-sha256=8102ce489e57882002ec8acb182af9f5d93b3fdfa2df3be2d046c96a623532fb; exit=0; EXPECT=matched; output-sha256=1fbe1cf4d26e2a8ba822a4a9c1c99c73d24d0f889175e2084c3cae82bb20b6c2; output-bytes=869; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries

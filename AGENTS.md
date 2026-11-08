@@ -61,6 +61,10 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Carrega sob demanda (chunk ~11 KB gz). `LinhaAlimento.tsx` = linha do formulário; `buscaOnline.ts` = produtos de marca.
   Campo digitado à mão (`manualKcal`/`manualProt`) nunca é sobrescrito; salvo com `autoKcal`/`autoProt`, `ref` (id local) ou
   `base` (produto de marca com os valores do rótulo, para recalcular sem internet).
+- `src/modules/dieta/diario.ts` — diário do dia (testado em `tests/diario.test.ts`): check por alimento. Refeição inteira comida fica em
+  `DiaDieta.feitas` (como antes, registros antigos continuam valendo); comida em parte vai para `comidos` ("refeicaoId/alimentoId"),
+  e o check da refeição fica indeterminado. "Comi fora do plano" = `DiaDieta.extras` (Alimento, mesmo cálculo automático).
+  Resumo do dia: % de alimentos do plano comidos + kcal/proteína (plano + fora). Pedido do Guilherme em 08/11/2026.
 - `api/alimentos.js` (função do Vercel) + `api/_off.js` — `/api/alimentos?q=` busca produtos do Brasil na Open Food Facts
   (search.openfoodfacts.org não manda CORS, por isso não dá para chamar do navegador). O mesmo `_off.js` roda no `npm run dev`
   e no `preview` via plugin em `vite.config.ts`. No MAMP não há essa rota: a lista avisa e fica só a tabela local.

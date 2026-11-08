@@ -987,3 +987,24 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .sugestoes-titulo { min-height: 0 !important; padding: 8px 10px 4px !important; font-size: 11.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--grafite-suave); cursor: default !important; }
 .sugestoes-status { min-height: 0 !important; padding: 8px 10px !important; font-size: 12.5px; color: var(--grafite-suave); cursor: default !important; }
 .sugestao-marca { color: var(--grafite-suave); }
+
+/* Dieta: check por alimento, resumo do dia, fora do plano */
+.check:indeterminate { border-color: var(--musgo); background: color-mix(in srgb, var(--musgo) 18%, var(--folha)); }
+.check:indeterminate::after { width: 10px; height: 0; border: 0; border-top: 2.4px solid var(--musgo); border-radius: 2px; transform: none; }
+.check-pequeno { width: 20px; height: 20px; margin: 0; border-radius: 5px; }
+.check-pequeno::after { width: 9px; height: 5px; border-width: 2px; border-top: 0; border-right: 0; }
+.alimentos-check { gap: 0; margin-top: 2px; }
+.alimentos-check label { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+.alimentos-check .alimento-txt { flex: 1; min-width: 0; }
+.alimentos-check .alimento-kcal { font-size: 12.5px; }
+.alimentos-check li.comido .alimento-txt > span:first-child { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--grafite) 45%, transparent); color: var(--grafite-suave); }
+.resumo-dieta { margin-bottom: 18px; }
+.resumo-dieta .mini-regua { margin-top: 8px; }
+.resumo-dieta small { white-space: normal; }
+.resumo-dieta .n-val { font-size: clamp(24px, 7.4vw, 32px); white-space: nowrap; }
+.resumo-dieta .n-val .unidade { font-size: 0.45em; }
+.resumo-dieta .n-rot { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resumo-dieta > div { padding-inline: 12px; }
+.fora-plano header { flex-wrap: wrap; gap: 8px; }
+.fora-plano header .botao { white-space: nowrap; }
+.fora-plano header h2 small { font-size: 14px; font-weight: 500; color: var(--grafite-suave); margin-left: 6px; }

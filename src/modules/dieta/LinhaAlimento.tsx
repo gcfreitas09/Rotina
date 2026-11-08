@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useId, useState } from "react";
 import { X } from "../../components/icones.tsx";
-import { num } from "../../data/formato.ts";
+import { lerNumero, novoId, num } from "../../data/formato.ts";
+import type { Alimento } from "../../data/types.ts";
 import { buscarAlimentos, calcular, type Encontrado, type LinhaTaco } from "./nutricao.ts";
 import { useBuscaOnline } from "./buscaOnline.ts";
 
@@ -16,6 +17,37 @@ export interface AlimentoTexto {
   /** A pessoa digitou o valor: o app não sobrescreve aquele campo. */
   manualKcal: boolean;
   manualProt: boolean;
+}
+
+export const linhaVazia = (): AlimentoTexto => ({ id: novoId("a"), nome: "", quantidade: "", kcal: "", proteina: "", manualKcal: false, manualProt: false });
+
+/** Alimento salvo → campos do formulário. */
+export function paraTexto(a: Alimento): AlimentoTexto {
+  return {
+    id: a.id, nome: a.nome, quantidade: a.quantidade,
+    kcal: a.kcal === null ? "" : num(a.kcal), proteina: a.proteina === null ? "" : num(a.proteina),
+    escolha: a.base ?? a.ref,
+    manualKcal: !a.autoKcal && a.kcal !== null, manualProt: !a.autoProt && a.proteina !== null,
+  };
+}
+
+/** Campos do formulário → alimento salvo. Linha vazia = { alimento: null }. */
+export function paraAlimento(a: AlimentoTexto): { alimento: Alimento | null; erro?: string } {
+  if (!a.nome.trim() && !a.quantidade.trim() && !a.kcal && !a.proteina) return { alimento: null };
+  const kcal = lerNumero(a.kcal);
+  const proteina = lerNumero(a.proteina);
+  if (!a.nome.trim()) return { alimento: null, erro: "Dê um nome ao alimento." };
+  if (Number.isNaN(kcal) || (kcal !== null && kcal < 0)) return { alimento: null, erro: "Calorias: use um número, como 120." };
+  if (Number.isNaN(proteina) || (proteina !== null && proteina < 0)) return { alimento: null, erro: "Proteína: use um número, como 12,5." };
+  return {
+    alimento: {
+      id: a.id, nome: a.nome.trim(), quantidade: a.quantidade.trim(), kcal, proteina,
+      ...(typeof a.escolha === "number" ? { ref: a.escolha } : {}),
+      ...(a.escolha && typeof a.escolha === "object" ? { base: { ...a.escolha, id: String(a.escolha.id) } } : {}),
+      ...(!a.manualKcal && kcal !== null ? { autoKcal: true } : {}),
+      ...(!a.manualProt && proteina !== null ? { autoProt: true } : {}),
+    },
+  };
 }
 
 // A tabela (≈ 28 KB) só carrega quando um formulário de refeição abre.

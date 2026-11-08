@@ -115,8 +115,13 @@ export interface Refeicao extends Base {
 
 /** Registro diário da dieta. id = aaaa-mm-dd. */
 export interface DiaDieta extends Base {
+  /** Refeições comidas inteiras. */
   feitas: string[];
   aguaMl: number;
+  /** Alimentos do plano comidos (refeição comida em parte), como "refeicaoId/alimentoId". Ver modules/dieta/diario.ts. */
+  comidos?: string[];
+  /** Comido fora do plano neste dia. */
+  extras?: Alimento[];
 }
 
 export interface Exercicio {

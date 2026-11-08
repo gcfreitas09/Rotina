@@ -3,10 +3,11 @@ import { Minus, Pencil, Plus, Trash2 } from "../../components/icones.tsx";
 import type { Alimento, Dia, DiaDieta, Refeicao, TipoRefeicao } from "../../data/types.ts";
 import { excluir, salvar, useColecao, useConfig } from "../../data/store.ts";
 import { DIAS, DIAS_CURTOS, DIAS_LONGOS, brCurta, diaDaSemana, hoje, somarDias } from "../../data/datas.ts";
-import { lerNumero, litros, novoId, num } from "../../data/formato.ts";
+import { litros, num } from "../../data/formato.ts";
+import { alternarAlimentoNoDia, alternarRefeicaoNoDia, comeu, estadoRefeicao, resumoDia, type ResumoDia } from "./diario.ts";
 import { Campo, DiasRepetir, Dialogo, EscopoGrupo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import Copo from "../../components/Copo.tsx";
-import LinhaAlimento, { recalcular, useTabelaTaco, type AlimentoTexto } from "./LinhaAlimento.tsx";
+import LinhaAlimento, { linhaVazia, paraAlimento, paraTexto, recalcular, useTabelaTaco, type AlimentoTexto } from "./LinhaAlimento.tsx";
 import { Conta, pulso } from "../../components/movimento.tsx";
 import { criarRepetido, doGrupo, editarGrupo, editarUm } from "../../data/grupos.ts";
 
@@ -44,9 +45,39 @@ export function somarAgua(data: string, ml: number, registros: DiaDieta[]) {
 }
 
 export function alternarRefeicao(data: string, refId: string, registros: DiaDieta[]) {
-  const r = registroDoDia(registros, data);
-  const feitas = r.feitas.includes(refId) ? r.feitas.filter((x) => x !== refId) : [...r.feitas, refId];
-  salvar("diasDieta", { ...r, feitas, _x: false });
+  salvar("diasDieta", { ...alternarRefeicaoNoDia(registroDoDia(registros, data), refId), _x: false });
+}
+
+export function alternarAlimento(data: string, r: Refeicao, alimentoId: string, registros: DiaDieta[]) {
+  salvar("diasDieta", { ...alternarAlimentoNoDia(registroDoDia(registros, data), r, alimentoId), _x: false });
+}
+
+const kcalProt = (a: { kcal: number | null; proteina: number | null }) =>
+  [a.kcal !== null && `${num(a.kcal, 0)} kcal`, a.proteina !== null && `${num(a.proteina, a.proteina < 10 ? 1 : 0)} g prot.`].filter(Boolean).join(" · ");
+
+/** Fim do dia: quanto do plano foi seguido, o que foi comido (do plano + fora) e a proteína. */
+function ResumoHoje({ s }: { s: ResumoDia }) {
+  const pct = s.seguido === null ? null : Math.round(s.seguido * 100);
+  return (
+    <div className="numeros numeros-3 resumo-dieta" aria-label="Resumo de hoje">
+      <div>
+        <span className="n-rot">Seguido</span>
+        <span className="n-val">{pct === null ? "—" : <><Conta className="num" valor={pct} formatar={(v) => String(Math.round(v))} /><span className="unidade">%</span></>}</span>
+        <small>{s.itensTotal ? `${s.itensComidos} de ${s.itensTotal} alimentos` : "sem plano hoje"}</small>
+        {pct !== null && <span className="mini-regua" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>}
+      </div>
+      <div>
+        <span className="n-rot">Comido hoje</span>
+        <span className="n-val"><Conta className="num" valor={s.total.kcal} formatar={(v) => num(Math.round(v), 0)} /><span className="unidade"> kcal</span></span>
+        <small>plano {num(s.doPlano.kcal, 0)} · fora {num(s.fora.kcal, 0)}</small>
+      </div>
+      <div>
+        <span className="n-rot">Proteína</span>
+        <span className="n-val"><Conta className="num" valor={s.total.proteina} formatar={(v) => num(Math.round(v), 0)} /><span className="unidade"> g</span></span>
+        <small>meta do plano {num(s.plano.proteina, 0)} g</small>
+      </div>
+    </div>
+  );
 }
 
 export default function Dieta() {
@@ -62,7 +93,15 @@ export default function Dieta() {
   const reg = registroDoDia(registros, h);
   const ehHoje = dia === diaHoje;
   const plano = totais(doDia);
-  const feitas = totais(doDia.filter((r) => reg.feitas.includes(r.id)));
+  const resumo = resumoDia(reg, refeicoesDoDia(refeicoes, diaHoje));
+  const [foraAberto, setForaAberto] = useState(false);
+  const extras = reg.extras ?? [];
+  const tirarExtra = (id: string) =>
+    excluirComDesfazer({ pergunta: "Tirar este alimento do dia?", detalhe: extras.find((x) => x.id === id)?.nome ?? "", feito: "Alimento tirado do dia." }, () => {
+      const antes = registroDoDia(registros, h);
+      salvar("diasDieta", { ...antes, extras: (antes.extras ?? []).filter((x) => x.id !== id), _x: false });
+      return () => salvar("diasDieta", { ...antes, _x: false });
+    });
 
   return (
     <>
@@ -93,18 +132,18 @@ export default function Dieta() {
         <header><h2>Últimos 7 dias</h2></header>
         <table className="tabela">
           <thead>
-            <tr><th>Dia</th><th>Refeições</th><th>Água</th><th>kcal</th></tr>
+            <tr><th>Dia</th><th>Plano</th><th>Água</th><th>kcal</th></tr>
           </thead>
           <tbody>
             {Array.from({ length: 7 }, (_, i) => somarDias(h, -i)).map((data) => {
               const rg = registroDoDia(registros, data);
               const plan = refeicoesDoDia(refeicoes, diaDaSemana(data));
-              const ok = plan.filter((p) => rg.feitas.includes(p.id));
-              const k = totais(ok).kcal;
+              const rs = resumoDia(rg, plan);
+              const k = rs.total.kcal || null;
               return (
                 <tr key={data}>
                   <td>{DIAS_CURTOS[diaDaSemana(data)]} <span className="suave num">{brCurta(data)}</span></td>
-                  <td className="num">{ok.length}/{plan.length}</td>
+                  <td className="num">{rs.seguido === null ? "—" : `${Math.round(rs.seguido * 100)}%`}</td>
                   <td className={`num ${rg.aguaMl >= cfg.metaAguaMl ? "" : "suave"}`}>{litros(rg.aguaMl)} L</td>
                   <td className="num">{k === null ? "—" : num(k, 0)}</td>
                 </tr>
@@ -128,39 +167,57 @@ export default function Dieta() {
             </button>
           ))}
         </div>
-        <p className="suave" style={{ margin: "12px 0 4px", fontSize: 13.5 }}>
-          {ehHoje ? "Hoje — marque o que já comeu." : `Plano de ${DIAS_LONGOS[dia]}.`}
+        <p className="suave" style={{ margin: "12px 0 10px", fontSize: 13.5 }}>
+          {ehHoje ? "Hoje — marque cada alimento que comer." : `Plano de ${DIAS_LONGOS[dia]}.`}
           {plano.kcal !== null && <> Plano: <span className="num">{num(plano.kcal, 0)}</span> kcal</>}
           {plano.proteina !== null && <> · <span className="num">{num(plano.proteina, 0)}</span> g de proteína</>}
         </p>
-        {ehHoje && (plano.kcal !== null || plano.proteina !== null) && (
-          <p className="suave" style={{ fontSize: 13.5, marginBottom: 8 }}>
-            Comido até agora: <span className="num">{num(feitas.kcal ?? 0, 0)}</span> kcal · <span className="num">{num(feitas.proteina ?? 0, 0)}</span> g de proteína
-          </p>
-        )}
+        {ehHoje && <ResumoHoje s={resumo} />}
         {doDia.length === 0 ? (
           <Vazio texto={`Nenhuma refeição em ${DIAS_LONGOS[dia]}.`} acao="Adicionar refeição" aoAgir={() => setEditando("nova")} />
         ) : (
           <ul className="lista">
             {doDia.map((r) => {
-              const feita = ehHoje && reg.feitas.includes(r.id);
+              const estado = ehHoje ? estadoRefeicao(reg, r) : "nada";
               const t = totais([r]);
               return (
                 <li key={r.id}>
-                  <div className={`item ${feita ? "feito" : ""}`} style={{ alignItems: "flex-start" }}>
+                  <div className={`item ${estado === "toda" ? "feito" : ""}`} style={{ alignItems: "flex-start" }}>
                     {ehHoje ? (
-                      <input type="checkbox" className="check" checked={feita} onChange={(e) => { pulso(e.currentTarget); alternarRefeicao(h, r.id, registros); }} aria-label={`Marcar ${r.nome} como feita`} />
+                      <input
+                        type="checkbox"
+                        className="check"
+                        checked={estado === "toda"}
+                        ref={(el) => { if (el) el.indeterminate = estado === "parte"; }}
+                        onChange={(e) => { pulso(e.currentTarget); alternarRefeicao(h, r.id, registros); }}
+                        aria-label={`Marcar ${r.nome} inteira como comida`}
+                      />
                     ) : <span className="num suave" style={{ width: 44, paddingTop: 12, fontSize: 13 }}>{r.horario}</span>}
                     <div className="item-corpo" style={{ paddingTop: 10 }}>
                       <p className="item-titulo">{r.nome} {ehHoje && <span className="num suave" style={{ fontWeight: 400, fontSize: 13 }}>{r.horario}</span>}</p>
-                      <ul className="alimentos">
-                        {r.alimentos.map((a) => (
-                          <li key={a.id}><span>{a.nome}</span> <span className="suave">{a.quantidade}</span></li>
-                        ))}
-                      </ul>
-                      {(t.kcal !== null || t.proteina !== null) && (
-                        <p className="item-meta num">{t.kcal !== null && `${num(t.kcal, 0)} kcal`}{t.kcal !== null && t.proteina !== null && " · "}{t.proteina !== null && `${num(t.proteina, 0)} g prot.`}</p>
+                      {ehHoje && r.alimentos.length > 0 ? (
+                        <ul className="alimentos alimentos-check">
+                          {r.alimentos.map((a) => {
+                            const ok = comeu(reg, r, a.id);
+                            return (
+                              <li key={a.id} className={ok ? "comido" : ""}>
+                                <label>
+                                  <input type="checkbox" className="check check-pequeno" checked={ok} onChange={(e) => { pulso(e.currentTarget); alternarAlimento(h, r, a.id, registros); }} />
+                                  <span className="alimento-txt"><span>{a.nome}</span> <span className="suave">{a.quantidade}</span></span>
+                                  {a.kcal !== null && <span className="num suave alimento-kcal">{num(a.kcal, 0)}</span>}
+                                </label>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <ul className="alimentos">
+                          {r.alimentos.map((a) => (
+                            <li key={a.id}><span>{a.nome}</span> <span className="suave">{a.quantidade}</span></li>
+                          ))}
+                        </ul>
                       )}
+                      {(t.kcal !== null || t.proteina !== null) && <p className="item-meta num">{kcalProt(t)}</p>}
                     </div>
                     <button className="icone-btn" onClick={() => setEditando(r)} aria-label={`Editar ${r.nome}`}><Pencil size={17} strokeWidth={1.6} /></button>
                   </div>
@@ -171,11 +228,83 @@ export default function Dieta() {
         )}
       </section>
 
+      {ehHoje && (
+        <section className="secao fora-plano">
+          <header>
+            <h2>Fora do plano {extras.length > 0 && <small className="num">{num(resumo.fora.kcal, 0)} kcal</small>}</h2>
+            <button className="botao pequeno" onClick={() => setForaAberto(true)}><Plus size={16} strokeWidth={1.8} aria-hidden="true" /> Comi fora do plano</button>
+          </header>
+          {extras.length === 0 ? (
+            <p className="suave" style={{ fontSize: 13.5 }}>Comeu algo que não estava no plano? Anote aqui, que as calorias e a proteína entram no total do dia.</p>
+          ) : (
+            <ul className="lista">
+              {extras.map((x) => (
+                <li key={x.id}>
+                  <div className="item">
+                    <div className="item-corpo">
+                      <p className="item-titulo">{x.nome} <span className="suave" style={{ fontWeight: 400 }}>{x.quantidade}</span></p>
+                      {(x.kcal !== null || x.proteina !== null) && <p className="item-meta num">{kcalProt(x)}</p>}
+                    </div>
+                    <button className="icone-btn" onClick={() => tirarExtra(x.id)} aria-label={`Tirar ${x.nome} do dia`}><Trash2 size={17} strokeWidth={1.6} /></button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       </div>
       </div>
 
+      {foraAberto && <ForaForm data={h} aoFechar={() => setForaAberto(false)} />}
       {editando && <RefeicaoForm r={editando === "nova" ? null : editando} diaInicial={dia} aoFechar={() => setEditando(null)} />}
     </>
+  );
+}
+
+/** "Comi fora do plano": um ou mais alimentos com cálculo automático, somados ao dia. */
+function ForaForm({ data, aoFechar }: { data: string; aoFechar: () => void }) {
+  const registros = useColecao("diasDieta");
+  const tabela = useTabelaTaco();
+  const [linhas, setLinhas] = useState<AlimentoTexto[]>(() => [linhaVazia()]);
+  const [erros, setErros] = useState<Record<string, string>>({});
+  const trocar = (novo: AlimentoTexto) => setLinhas((l) => l.map((a) => (a.id === novo.id ? novo : a)));
+  const enviar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const er: Record<string, string> = {};
+    const lista: Alimento[] = [];
+    for (const a of linhas) {
+      const c = paraAlimento(a);
+      if (c.erro) er["a" + a.id] = c.erro;
+      else if (c.alimento) lista.push(c.alimento);
+    }
+    if (!lista.length && !Object.keys(er).length) er["a" + linhas[0].id] = "Escreva o que você comeu.";
+    setErros(er);
+    if (Object.keys(er).length) return;
+    const r = registroDoDia(registros, data);
+    salvar("diasDieta", { ...r, extras: [...(r.extras ?? []), ...lista], _x: false });
+    mostrarAviso(lista.length > 1 ? `${lista.length} alimentos anotados no dia.` : `${lista[0].nome} anotado no dia.`);
+    aoFechar();
+  };
+  return (
+    <Dialogo titulo="Comi fora do plano" aoFechar={aoFechar}>
+      <form className="form" onSubmit={enviar} noValidate>
+        <fieldset className="campo" style={{ border: 0, padding: 0, margin: 0 }}>
+          <span>O que você comeu <span style={{ fontWeight: 400 }}>— kcal e proteína são calculadas sozinhas</span></span>
+          {linhas.map((a) => (
+            <LinhaAlimento key={a.id} a={a} tabela={tabela} erro={erros["a" + a.id]} aoMudar={trocar} aoRemover={() => setLinhas((l) => (l.length > 1 ? l.filter((x) => x.id !== a.id) : [linhaVazia()]))} />
+          ))}
+          <button type="button" className="botao pequeno" style={{ justifySelf: "start" }} onClick={() => setLinhas((l) => [...l, linhaVazia()])}>
+            <Plus size={16} strokeWidth={1.8} aria-hidden="true" /> Outro alimento
+          </button>
+        </fieldset>
+        <div className="acoes">
+          <button type="button" className="botao" onClick={aoFechar}>Cancelar</button>
+          <button className="botao primario">Anotar no dia</button>
+        </div>
+      </form>
+    </Dialogo>
   );
 }
 
@@ -186,7 +315,7 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
   const [nome, setNome] = useState(r?.nome ?? TIPOS_REFEICAO.lanche);
   const [horario, setHorario] = useState(r?.horario ?? "16:00");
   const [alimentos, setAlimentos] = useState<AlimentoTexto[]>(
-    (r?.alimentos ?? []).map((a) => ({ id: a.id, nome: a.nome, quantidade: a.quantidade, kcal: a.kcal === null ? "" : num(a.kcal), proteina: a.proteina === null ? "" : num(a.proteina), escolha: a.base ?? a.ref, manualKcal: !a.autoKcal && a.kcal !== null, manualProt: !a.autoProt && a.proteina !== null })),
+    (r?.alimentos ?? []).map(paraTexto),
   );
   const [dias, setDias] = useState<Dia[]>(r ? grupo.map((x) => x.dia).sort() : [diaInicial]);
   const [dia, setDia] = useState<Dia>(r?.dia ?? diaInicial);
@@ -199,7 +328,7 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
     if (tabela) setAlimentos((lista) => lista.map((x) => (x.kcal || x.proteina ? x : recalcular(x, tabela))));
   }, [tabela]);
   const trocarAlimento = (novo: AlimentoTexto) => setAlimentos((lista) => lista.map((a) => (a.id === novo.id ? novo : a)));
-  const novoAlimento = () => setAlimentos([...alimentos, { id: novoId("a"), nome: "", quantidade: "", kcal: "", proteina: "", manualKcal: false, manualProt: false }]);
+  const novoAlimento = () => setAlimentos([...alimentos, linhaVazia()]);
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,19 +338,9 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
     if (multiplo && dias.length === 0) er.dias = "Escolha pelo menos um dia.";
     const lista: Alimento[] = [];
     alimentos.forEach((a) => {
-      if (!a.nome.trim() && !a.quantidade.trim() && !a.kcal && !a.proteina) return; // linha vazia: ignora
-      const kcal = lerNumero(a.kcal);
-      const proteina = lerNumero(a.proteina);
-      if (!a.nome.trim()) er["a" + a.id] = "Dê um nome ao alimento.";
-      else if (Number.isNaN(kcal) || (kcal !== null && kcal < 0)) er["a" + a.id] = "Calorias: use um número, como 120.";
-      else if (Number.isNaN(proteina) || (proteina !== null && proteina < 0)) er["a" + a.id] = "Proteína: use um número, como 12,5.";
-            lista.push({
-        id: a.id, nome: a.nome.trim(), quantidade: a.quantidade.trim(), kcal, proteina,
-        ...(typeof a.escolha === "number" ? { ref: a.escolha } : {}),
-        ...(a.escolha && typeof a.escolha === "object" ? { base: { ...a.escolha, id: String(a.escolha.id) } } : {}),
-        ...(!a.manualKcal && kcal !== null ? { autoKcal: true } : {}),
-        ...(!a.manualProt && proteina !== null ? { autoProt: true } : {}),
-      });
+      const c = paraAlimento(a);
+      if (c.erro) er["a" + a.id] = c.erro;
+      else if (c.alimento) lista.push(c.alimento);
     });
     setErros(er);
     if (Object.keys(er).length) return;
