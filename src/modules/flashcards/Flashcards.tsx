@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, Pencil, Plus, Trash2 } from "../../components/icones.tsx";
+import Segmentos from "../../components/Segmentos.tsx";
+import { ArrowLeft, ImagePlus, Pencil, Plus, Trash2, X } from "../../components/icones.tsx";
 import type { Baralho, Cartao, Dificuldade } from "../../data/types.ts";
 import { excluir, salvar, useColecao } from "../../data/store.ts";
 import { hoje } from "../../data/datas.ts";
@@ -7,6 +8,7 @@ import { novoId } from "../../data/formato.ts";
 import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import { Conta, gsap, reduzido, useGSAP } from "../../components/movimento.tsx";
 import { navegar } from "../../rota.ts";
+import { comprimirImagem } from "./imagem.ts";
 import { DIFICULDADES, OPCOES_PADRAO, ULTIMA_CAIXA, dificuldadeDe, dominio, fila, paraRevisar, responder, type OpcoesEstudo } from "./logica.ts";
 
 /** Como estudar (ordem e dificuldade). Fica na memória enquanto o app está aberto. */
@@ -27,29 +29,62 @@ function SeloDificuldade({ c }: { c: Cartao }) {
   return <span className={`selo-dif dif-${d}`}>{DIFICULDADES.find((x) => x.id === d)?.nome}</span>;
 }
 
-/** Ordem e filtro de dificuldade da próxima sessão de estudo. */
-function OpcoesDeEstudo() {
+/** Dificuldade (faixa com a contagem de cada uma) e ordem aleatória da próxima sessão de estudo. */
+function OpcoesDeEstudo({ cartoes }: { cartoes: Cartao[] }) {
   const [o, setO] = useState(opcoesEstudo);
   const mudar = (n: OpcoesEstudo) => { opcoesEstudo = n; setO(n); };
+  const itens = [
+    { id: "todas" as const, nome: "Todas", n: cartoes.length },
+    ...DIFICULDADES.map((d) => ({ id: d.id, nome: d.nome, n: cartoes.filter((c) => dificuldadeDe(c) === d.id).length })),
+  ];
+  const aleatoria = o.ordem === "aleatoria";
   return (
     <div className="opcoes-estudo">
-      <div className="opcoes-linha">
-        <span className="opcoes-rotulo">Ordem</span>
-        <div className="opcoes" role="group" aria-label="Ordem do estudo">
-          <button type="button" className="opcao" aria-pressed={o.ordem === "caixa"} onClick={() => mudar({ ...o, ordem: "caixa" })}>Inteligente</button>
-          <button type="button" className="opcao" aria-pressed={o.ordem === "aleatoria"} onClick={() => mudar({ ...o, ordem: "aleatoria" })}>Aleatória</button>
+      <Segmentos itens={itens} atual={o.dificuldade ?? "todas"} aoMudar={(id) => mudar({ ...o, dificuldade: id === "todas" ? null : id })} rotulo="Filtrar por dificuldade" />
+      <button type="button" role="switch" aria-checked={aleatoria} className="interruptor" onClick={() => mudar({ ...o, ordem: aleatoria ? "caixa" : "aleatoria" })}>
+        <span className="interruptor-trilho" aria-hidden="true"><i /></span>
+        <span className="interruptor-texto">
+          <strong>Ordem aleatória</strong>
+          <small>{aleatoria ? "Mistura tudo, sem olhar a caixa." : "Vencidos primeiro, caixa menor e difíceis antes."}</small>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/** Escolher, trocar e remover a imagem de um lado do cartão. */
+function CampoImagem({ valor, aoMudar, rotulo }: { valor?: string; aoMudar: (v?: string) => void; rotulo: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [lendo, setLendo] = useState(false);
+  const escolher = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arq = e.target.files?.[0];
+    e.target.value = "";
+    if (!arq) return;
+    setLendo(true);
+    setErro(null);
+    try {
+      aoMudar(await comprimirImagem(arq));
+    } catch (x) {
+      setErro(x instanceof Error ? x.message : "Não deu para usar essa imagem.");
+    } finally {
+      setLendo(false);
+    }
+  };
+  return (
+    <div className="campo-imagem">
+      <span className="campo-imagem-rotulo">{rotulo}</span>
+      {valor ? (
+        <div className="campo-imagem-previa">
+          <img src={valor} alt={`Prévia: ${rotulo.toLowerCase()}`} />
+          <button type="button" className="icone-btn" onClick={() => aoMudar(undefined)} aria-label={`Remover ${rotulo.toLowerCase()}`}><X size={18} strokeWidth={1.8} /></button>
         </div>
-      </div>
-      <div className="opcoes-linha">
-        <span className="opcoes-rotulo">Dificuldade</span>
-        <div className="opcoes" role="group" aria-label="Filtrar por dificuldade">
-          <button type="button" className="opcao" aria-pressed={o.dificuldade === null} onClick={() => mudar({ ...o, dificuldade: null })}>Todas</button>
-          {DIFICULDADES.map((d) => (
-            <button type="button" key={d.id} className={`opcao dif-${d.id}`} aria-pressed={o.dificuldade === d.id} onClick={() => mudar({ ...o, dificuldade: d.id })}>{d.nome}</button>
-          ))}
-        </div>
-      </div>
-      <p className="suave opcoes-dica">{o.ordem === "aleatoria" ? "Mistura tudo, sem olhar a caixa." : "Vencidos primeiro, caixa menor e difíceis antes."}</p>
+      ) : null}
+      <button type="button" className="botao pequeno" onClick={() => ref.current?.click()} disabled={lendo}>
+        <ImagePlus size={16} strokeWidth={1.7} aria-hidden="true" /> {lendo ? "Preparando…" : valor ? "Trocar imagem" : "Adicionar imagem"}
+      </button>
+      <input ref={ref} type="file" accept="image/*" hidden onChange={escolher} aria-label={rotulo} />
+      {erro && <p className="erro-campo" role="alert">{erro}</p>}
     </div>
   );
 }
@@ -181,6 +216,8 @@ function Pasta({ b }: { b: Baralho }) {
   const [verso, setVerso] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [dif, setDif] = useState<Dificuldade>("medio");
+  const [img, setImg] = useState<string | undefined>();
+  const [imgVerso, setImgVerso] = useState<string | undefined>();
   const [editando, setEditando] = useState<Cartao | null>(null);
   const [editPasta, setEditPasta] = useState(false);
   const refFrente = useRef<HTMLTextAreaElement>(null);
@@ -189,9 +226,9 @@ function Pasta({ b }: { b: Baralho }) {
 
   const adicionar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!frente.trim() || !verso.trim()) return setErro("Escreva a pergunta e a resposta.");
-    salvar("cartoes", { id: novoId("c"), baralhoId: b.id, frente: frente.trim(), verso: verso.trim(), caixa: 1, proxima: h, acertos: 0, erros: 0, dificuldade: dif });
-    setFrente(""); setVerso(""); setErro(null);
+    if ((!frente.trim() && !img) || (!verso.trim() && !imgVerso)) return setErro("Escreva (ou envie uma imagem) para a pergunta e para a resposta.");
+    salvar("cartoes", { id: novoId("c"), baralhoId: b.id, frente: frente.trim(), verso: verso.trim(), caixa: 1, proxima: h, acertos: 0, erros: 0, dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}) });
+    setFrente(""); setVerso(""); setErro(null); setImg(undefined); setImgVerso(undefined);
     refFrente.current?.focus();
     mostrarAviso("Cartão adicionado.");
   };
@@ -231,16 +268,17 @@ function Pasta({ b }: { b: Baralho }) {
                 Estudar {rev ? `${rev} de hoje` : "agora"}
               </button>
             </header>
-            {cartoes.length > 0 && <OpcoesDeEstudo />}
+            {cartoes.length > 0 && <OpcoesDeEstudo cartoes={cartoes} />}
             {cartoes.length === 0 ? (
               <p className="suave">Nenhum cartão ainda. Escreva a primeira pergunta ao lado.</p>
             ) : (
               <ul className="cartoes-lista">
                 {cartoes.map((c) => (
                   <li key={c.id} className="ficha-cartao">
+                    {c.imagem && <img className="ficha-img" src={c.imagem} alt={c.frente || "Imagem da pergunta"} loading="lazy" decoding="async" />}
                     <div className="ficha-texto">
-                      <p className="ficha-frente">{c.frente}</p>
-                      <p className="ficha-verso">{c.verso}</p>
+                      {c.frente && <p className="ficha-frente">{c.frente}</p>}
+                      {(c.verso || c.imagemVerso) && <p className="ficha-verso">{c.verso || "Resposta em imagem"}</p>}
                     </div>
                     <div className="ficha-rodape">
                       <SeloDificuldade c={c} />
@@ -263,9 +301,11 @@ function Pasta({ b }: { b: Baralho }) {
               <Campo rotulo="Pergunta (frente)">
                 <textarea ref={refFrente} rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} placeholder="Ex.: O que foi a Revolução Francesa?" />
               </Campo>
+              <CampoImagem valor={img} aoMudar={setImg} rotulo="Imagem da pergunta" />
               <Campo rotulo="Resposta (verso)">
                 <textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} placeholder="Ex.: Revolução na França (1789–1799) que derrubou a monarquia absolutista…" />
               </Campo>
+              <CampoImagem valor={imgVerso} aoMudar={setImgVerso} rotulo="Imagem da resposta" />
               <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
               {erro && <p className="erro-campo" role="alert">{erro}</p>}
               <button className="botao primario"><Plus size={16} strokeWidth={2} aria-hidden="true" /> Adicionar cartão</button>
@@ -284,17 +324,22 @@ function CartaoForm({ c, aoFechar }: { c: Cartao; aoFechar: () => void }) {
   const [frente, setFrente] = useState(c.frente);
   const [verso, setVerso] = useState(c.verso);
   const [dif, setDif] = useState<Dificuldade>(dificuldadeDe(c));
+  const [img, setImg] = useState(c.imagem);
+  const [imgVerso, setImgVerso] = useState(c.imagemVerso);
   const [erro, setErro] = useState<string | null>(null);
   return (
     <Dialogo titulo="Editar cartão" aoFechar={aoFechar}>
       <form className="form" noValidate onSubmit={(e) => {
         e.preventDefault();
-        if (!frente.trim() || !verso.trim()) return setErro("Escreva a pergunta e a resposta.");
-        salvar("cartoes", { ...c, frente: frente.trim(), verso: verso.trim(), dificuldade: dif });
+        if ((!frente.trim() && !img) || (!verso.trim() && !imgVerso)) return setErro("Escreva (ou envie uma imagem) para a pergunta e para a resposta.");
+        const { imagem: _a, imagemVerso: _b, ...resto } = c;
+        salvar("cartoes", { ...resto, frente: frente.trim(), verso: verso.trim(), dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}) });
         aoFechar();
       }}>
         <Campo rotulo="Pergunta (frente)"><textarea rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} /></Campo>
+        <CampoImagem valor={img} aoMudar={setImg} rotulo="Imagem da pergunta" />
         <Campo rotulo="Resposta (verso)"><textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} /></Campo>
+        <CampoImagem valor={imgVerso} aoMudar={setImgVerso} rotulo="Imagem da resposta" />
         <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
         {erro && <p className="erro-campo" role="alert">{erro}</p>}
         <div className="acoes" style={{ justifyContent: "space-between" }}>
@@ -404,15 +449,17 @@ function Estudar({ b }: { b: Baralho }) {
       </div>
       <div className="estudo-progresso" aria-hidden="true"><i style={{ width: `${(pos / total) * 100}%` }} /></div>
 
-      <button className={`cartao-3d ${virado ? "virado" : ""}`} onClick={() => setVirado((v) => !v)} aria-label={virado ? `Resposta: ${atual.verso}. Toque para ver a pergunta.` : `Pergunta: ${atual.frente}. Toque para ver a resposta.`}>
-        <span className="face frente">
+      <button className={`cartao-3d ${virado ? "virado" : ""}`} onClick={() => setVirado((v) => !v)} aria-label={virado ? `Resposta: ${atual.verso || "imagem"}. Toque para ver a pergunta.` : `Pergunta: ${atual.frente || "imagem"}. Toque para ver a resposta.`}>
+        <span className={`face frente ${atual.imagem ? "com-img" : ""}`}>
           <span className="face-rotulo">Pergunta</span>
-          <span className="face-texto">{atual.frente}</span>
+          {atual.imagem && <img className="face-img" src={atual.imagem} alt={atual.frente || "Imagem da pergunta"} draggable={false} />}
+          {atual.frente && <span className="face-texto">{atual.frente}</span>}
           <span className="face-dica">Toque para virar</span>
         </span>
-        <span className="face verso">
+        <span className={`face verso ${atual.imagemVerso ? "com-img" : ""}`}>
           <span className="face-rotulo">Resposta</span>
-          <span className="face-texto">{atual.verso}</span>
+          {atual.imagemVerso && <img className="face-img" src={atual.imagemVerso} alt={atual.verso || "Imagem da resposta"} draggable={false} />}
+          {atual.verso && <span className="face-texto">{atual.verso}</span>}
         </span>
       </button>
 

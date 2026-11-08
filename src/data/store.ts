@@ -48,8 +48,12 @@ export function lista<C extends NomeColecao>(c: C): Colecoes[C][] {
 }
 
 function substituir<C extends NomeColecao>(c: C, nova: Colecoes[C][], local = true) {
+  if (!gravar(c, nova)) {
+    // Sem espaço: não finge que salvou.
+    window.dispatchEvent(new Event("rotina:sem-espaco"));
+    return;
+  }
   estado = { ...estado, [c]: nova };
-  gravar(c, nova);
   emitir(c);
   if (local) aoMudar?.();
 }
@@ -99,7 +103,7 @@ export function excluirTudo() {
   const agora = Date.now();
   for (const c of COLECOES) {
     estado = { ...estado, [c]: estado[c].map((r) => ({ ...r, _x: true, _m: agora })) };
-    gravar(c, estado[c]);
+    gravar(c, estado[c]); // só lápides: ficam menores, não estouram o espaço
   }
   emitir(null);
   aoMudar?.();

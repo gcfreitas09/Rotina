@@ -63,6 +63,10 @@ export function confirmar(titulo: string, texto: string, botao = "Excluir"): Pro
 }
 
 let timerAviso: ReturnType<typeof setTimeout> | undefined;
+if (typeof window !== "undefined") {
+  window.addEventListener("rotina:sem-espaco", () => mostrarAviso("Sem espaço no aparelho: nada foi salvo. Apague imagens de cartões e tente de novo."));
+}
+
 export function mostrarAviso(texto: string, desfazer?: () => void) {
   clearTimeout(timerAviso);
   aviso = { texto, desfazer, id: Date.now() };

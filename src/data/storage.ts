@@ -40,14 +40,39 @@ export function ler<C extends NomeColecao>(c: C): Colecoes[C][] {
   }
 }
 
-export function gravar<C extends NomeColecao>(c: C, lista: Colecoes[C][]): void {
-  disponivel()?.setItem(PREFIXO + c, JSON.stringify(lista));
+/** Grava a coleção. Devolve false se o aparelho não tem mais espaço (imagens enchem rápido). */
+export function gravar<C extends NomeColecao>(c: C, lista: Colecoes[C][]): boolean {
+  try {
+    disponivel()?.setItem(PREFIXO + c, JSON.stringify(lista));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Limite prático do localStorage (≈ 5 milhões de caracteres), com folga. */
+export const LIMITE_LOCAL = 4_400_000;
+
+/** Caracteres hoje usados pelo app no localStorage. */
+export function usoLocal(): number {
+  const ls = disponivel();
+  if (!ls) return 0;
+  let t = 0;
+  try {
+    for (let i = 0; i < ls.length; i++) {
+      const k = ls.key(i);
+      if (k?.startsWith(PREFIXO)) t += k.length + (ls.getItem(k)?.length ?? 0);
+    }
+  } catch {
+    /* sem acesso: conta como vazio */
+  }
+  return t;
 }
 
 /** get/save por módulo, como pedido: storage.tarefas.get(), storage.materias.save(lista)… */
 export const storage = Object.fromEntries(
   COLECOES.map((c) => [c, { get: () => ler(c), save: (lista: never[]) => gravar(c, lista) }]),
-) as { [C in NomeColecao]: { get: () => Colecoes[C][]; save: (lista: Colecoes[C][]) => void } };
+) as { [C in NomeColecao]: { get: () => Colecoes[C][]; save: (lista: Colecoes[C][]) => boolean } };
 
 // ---------------------------------------------------------------- metadados locais (não sincronizam)
 

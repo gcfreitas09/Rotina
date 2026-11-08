@@ -164,6 +164,9 @@ export interface Cartao extends Base {
   erros: number;
   /** Dificuldade escolhida por quem estuda. Cartão antigo, sem o campo, vale "medio". */
   dificuldade?: Dificuldade;
+  /** Imagem da pergunta e da resposta (JPEG reduzido, como data URL). Ver modules/flashcards/imagem.ts. */
+  imagem?: string;
+  imagemVerso?: string;
 }
 
 export type Dificuldade = "facil" | "medio" | "dificil";
