@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import Segmentos from "../../components/Segmentos.tsx";
 import { ArrowLeft, ImagePlus, Pencil, Plus, Trash2, X } from "../../components/icones.tsx";
-import type { Baralho, Cartao, Dificuldade } from "../../data/types.ts";
+import type { Baralho, Cartao, Comparacao, Dificuldade } from "../../data/types.ts";
 import { excluir, salvar, useColecao } from "../../data/store.ts";
 import { hoje } from "../../data/datas.ts";
 import { novoId } from "../../data/formato.ts";
@@ -9,7 +9,7 @@ import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../c
 import { Conta, gsap, reduzido, useGSAP } from "../../components/movimento.tsx";
 import { navegar } from "../../rota.ts";
 import { comprimirImagem } from "./imagem.ts";
-import { DIFICULDADES, OPCOES_PADRAO, ULTIMA_CAIXA, continuarLista, dificuldadeDe, dominio, fila, linhasDoTexto, paraRevisar, responder, type OpcoesEstudo } from "./logica.ts";
+import { DIFICULDADES, MAX_ITENS_COMPARACAO, OPCOES_PADRAO, comparacaoVazia, limparComparacao, ULTIMA_CAIXA, continuarLista, dificuldadeDe, dominio, fila, linhasDoTexto, paraRevisar, responder, type OpcoesEstudo } from "./logica.ts";
 
 /** Texto do cartão: linha que começa com "- " ganha bolinha de item. */
 function TextoCartao({ texto }: { texto: string }) {
@@ -32,6 +32,87 @@ function teclaLista(e: React.KeyboardEvent<HTMLTextAreaElement>, definir: (v: st
   e.preventDefault();
   definir(r.valor);
   requestAnimationFrame(() => el.setSelectionRange(r.cursor, r.cursor));
+}
+
+/** Comparação na resposta: colunas = o que se compara, linhas = aspectos com a resposta de cada coluna. */
+function ComparacaoVista({ c }: { c: Comparacao }) {
+  return (
+    <span className="comp" role="table" aria-label={`Comparação entre ${c.itens.join(" e ")}`} style={{ ["--cols" as string]: c.itens.length }}>
+      <span className="comp-linha comp-topo" role="row">
+        <span className="comp-cel" role="columnheader" aria-hidden="true" />
+        {c.itens.map((n, i) => <span key={i} className="comp-cel comp-item" role="columnheader">{n}</span>)}
+      </span>
+      {c.linhas.map((l, i) => (
+        <span key={i} className="comp-linha" role="row">
+          <span className="comp-cel comp-criterio" role="rowheader">{l.criterio}</span>
+          {c.itens.map((_, k) => <span key={k} className="comp-cel" role="cell">{l.valores[k]}</span>)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Editor da comparação: nomes do que se compara no topo, um aspecto por linha com a resposta de cada um. */
+function EditorComparacao({ valor, aoMudar }: { valor: Comparacao; aoMudar: (c: Comparacao) => void }) {
+  const raiz = useRef<HTMLDivElement>(null);
+  const n = valor.itens.length;
+  const nomeItem = (i: number) => valor.itens[i].trim() || `item ${i + 1}`;
+  const setItem = (i: number, t: string) => aoMudar({ ...valor, itens: valor.itens.map((x, k) => (k === i ? t : x)) });
+  const setLinha = (j: number, parte: Partial<Comparacao["linhas"][number]>) => aoMudar({ ...valor, linhas: valor.linhas.map((l, k) => (k === j ? { ...l, ...parte } : l)) });
+  const setValor = (j: number, i: number, t: string) => setLinha(j, { valores: valor.linhas[j].valores.map((x, k) => (k === i ? t : x)) });
+  // Enter não envia o cartão: pula para o próximo campo.
+  const proximo = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const todos = [...(raiz.current?.querySelectorAll<HTMLInputElement>("input") ?? [])];
+    todos[todos.indexOf(e.currentTarget) + 1]?.focus();
+  };
+  return (
+    <div className="comp-editor" ref={raiz} style={{ ["--cols" as string]: n }}>
+      <div className="comp-ed-linha">
+        <span className="comp-ed-rotulo">Comparar</span>
+        {valor.itens.map((t, i) => (
+          <span key={i} className="comp-ed-cel">
+            <input className="entrada" value={t} onChange={(e) => setItem(i, e.target.value)} onKeyDown={proximo} placeholder={["Mitose", "Meiose", "Fissão"][i] ?? "Item"} aria-label={`Nome do item ${i + 1}`} />
+            {n > 2 && <button type="button" className="icone-btn comp-x" aria-label={`Remover coluna ${nomeItem(i)}`} onClick={() => aoMudar({ itens: valor.itens.filter((_, k) => k !== i), linhas: valor.linhas.map((l) => ({ ...l, valores: l.valores.filter((_, k) => k !== i) })) })}><X size={16} strokeWidth={1.8} /></button>}
+          </span>
+        ))}
+      </div>
+      {valor.linhas.map((l, j) => (
+        <div key={j} className="comp-ed-linha">
+          <span className="comp-ed-cel comp-ed-criterio">
+            <input className="entrada" value={l.criterio} onChange={(e) => setLinha(j, { criterio: e.target.value })} onKeyDown={proximo} placeholder="Aspecto" aria-label={`Aspecto da linha ${j + 1}`} />
+          </span>
+          {valor.itens.map((_, i) => (
+            <span key={i} className="comp-ed-cel">
+              <input className="entrada" value={l.valores[i] ?? ""} onChange={(e) => setValor(j, i, e.target.value)} onKeyDown={proximo} placeholder="Resposta" aria-label={`${l.criterio.trim() || `Linha ${j + 1}`}: ${nomeItem(i)}`} />
+            </span>
+          ))}
+          {valor.linhas.length > 1 && <button type="button" className="icone-btn comp-x" aria-label={`Remover linha ${l.criterio.trim() || j + 1}`} onClick={() => aoMudar({ ...valor, linhas: valor.linhas.filter((_, k) => k !== j) })}><X size={16} strokeWidth={1.8} /></button>}
+        </div>
+      ))}
+      <div className="comp-ed-acoes">
+        <button type="button" className="botao pequeno" onClick={() => aoMudar({ ...valor, linhas: [...valor.linhas, { criterio: "", valores: valor.itens.map(() => "") }] })}><Plus size={16} strokeWidth={2} aria-hidden="true" /> Adicionar linha</button>
+        {n < MAX_ITENS_COMPARACAO && <button type="button" className="botao pequeno" onClick={() => aoMudar({ itens: [...valor.itens, ""], linhas: valor.linhas.map((l) => ({ ...l, valores: [...l.valores, ""] })) })}><Plus size={16} strokeWidth={2} aria-hidden="true" /> Adicionar item</button>}
+      </div>
+    </div>
+  );
+}
+
+/** Liga a resposta em comparação e mostra o editor. */
+function BlocoComparacao({ ligada, aoLigar, valor, aoMudar }: { ligada: boolean; aoLigar: (v: boolean) => void; valor: Comparacao; aoMudar: (c: Comparacao) => void }) {
+  return (
+    <div className="campo-comp">
+      <button type="button" role="switch" aria-checked={ligada} className="interruptor" onClick={() => aoLigar(!ligada)}>
+        <span className="interruptor-trilho" aria-hidden="true"><i /></span>
+        <span className="interruptor-texto">
+          <strong>Resposta em comparação</strong>
+          <small>Compare dois ou três itens, aspecto por aspecto.</small>
+        </span>
+      </button>
+      {ligada && <EditorComparacao valor={valor} aoMudar={aoMudar} />}
+    </div>
+  );
 }
 
 /** Como estudar (ordem e dificuldade). Fica na memória enquanto o app está aberto. */
@@ -241,6 +322,8 @@ function Pasta({ b }: { b: Baralho }) {
   const [dif, setDif] = useState<Dificuldade>("medio");
   const [img, setImg] = useState<string | undefined>();
   const [imgVerso, setImgVerso] = useState<string | undefined>();
+  const [compLigada, setCompLigada] = useState(false);
+  const [comp, setComp] = useState<Comparacao>(comparacaoVazia);
   const [editando, setEditando] = useState<Cartao | null>(null);
   const [editPasta, setEditPasta] = useState(false);
   const refFrente = useRef<HTMLTextAreaElement>(null);
@@ -249,8 +332,11 @@ function Pasta({ b }: { b: Baralho }) {
 
   const adicionar = (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!frente.trim() && !img) || (!verso.trim() && !imgVerso)) return setErro("Escreva (ou envie uma imagem) para a pergunta e para a resposta.");
-    salvar("cartoes", { id: novoId("c"), baralhoId: b.id, frente: frente.trim(), verso: verso.trim(), caixa: 1, proxima: h, acertos: 0, erros: 0, dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}) });
+    const compLimpa = compLigada ? limparComparacao(comp) : undefined;
+    if (compLigada && !compLimpa) return setErro("Na comparação, dê nome a pelo menos dois itens e preencha uma linha.");
+    if ((!frente.trim() && !img) || (!verso.trim() && !imgVerso && !compLimpa)) return setErro("Escreva (ou envie uma imagem) para a pergunta e para a resposta.");
+    salvar("cartoes", { id: novoId("c"), baralhoId: b.id, frente: frente.trim(), verso: verso.trim(), caixa: 1, proxima: h, acertos: 0, erros: 0, dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}), ...(compLimpa ? { comparacao: compLimpa } : {}) });
+    setCompLigada(false); setComp(comparacaoVazia());
     setFrente(""); setVerso(""); setErro(null); setImg(undefined); setImgVerso(undefined);
     refFrente.current?.focus();
     mostrarAviso("Cartão adicionado.");
@@ -301,7 +387,7 @@ function Pasta({ b }: { b: Baralho }) {
                     {c.imagem && <img className="ficha-img" src={c.imagem} alt={c.frente || "Imagem da pergunta"} loading="lazy" decoding="async" />}
                     <div className="ficha-texto">
                       {c.frente && <p className="ficha-frente">{c.frente.replace(/^\s*[-*]\s+/gm, "• ")}</p>}
-                      {(c.verso || c.imagemVerso) && <p className="ficha-verso">{c.verso ? c.verso.replace(/^\s*[-*]\s+/gm, "• ") : "Resposta em imagem"}</p>}
+                      {(c.verso || c.imagemVerso || c.comparacao) && <p className="ficha-verso">{c.verso ? c.verso.replace(/^\s*[-*]\s+/gm, "• ") : c.comparacao ? `Comparação: ${c.comparacao.itens.join(" × ")}` : "Resposta em imagem"}</p>}
                     </div>
                     <div className="ficha-rodape">
                       <SeloDificuldade c={c} />
@@ -329,6 +415,7 @@ function Pasta({ b }: { b: Baralho }) {
                 <textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} onKeyDown={(e) => teclaLista(e, setVerso)} placeholder="Ex.: Revolução na França (1789–1799) que derrubou a monarquia absolutista…" />
               </Campo>
               <CampoImagem valor={imgVerso} aoMudar={setImgVerso} rotulo="Imagem da resposta" />
+              <BlocoComparacao ligada={compLigada} aoLigar={setCompLigada} valor={comp} aoMudar={setComp} />
               <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
               {erro && <p className="erro-campo" role="alert">{erro}</p>}
               <button className="botao primario"><Plus size={16} strokeWidth={2} aria-hidden="true" /> Adicionar cartão</button>
@@ -349,20 +436,25 @@ function CartaoForm({ c, aoFechar }: { c: Cartao; aoFechar: () => void }) {
   const [dif, setDif] = useState<Dificuldade>(dificuldadeDe(c));
   const [img, setImg] = useState(c.imagem);
   const [imgVerso, setImgVerso] = useState(c.imagemVerso);
+  const [compLigada, setCompLigada] = useState(!!c.comparacao);
+  const [comp, setComp] = useState<Comparacao>(c.comparacao ?? comparacaoVazia());
   const [erro, setErro] = useState<string | null>(null);
   return (
     <Dialogo titulo="Editar cartão" aoFechar={aoFechar}>
       <form className="form" noValidate onSubmit={(e) => {
         e.preventDefault();
-        if ((!frente.trim() && !img) || (!verso.trim() && !imgVerso)) return setErro("Escreva (ou envie uma imagem) para a pergunta e para a resposta.");
-        const { imagem: _a, imagemVerso: _b, ...resto } = c;
-        salvar("cartoes", { ...resto, frente: frente.trim(), verso: verso.trim(), dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}) });
+        const compLimpa = compLigada ? limparComparacao(comp) : undefined;
+        if (compLigada && !compLimpa) return setErro("Na comparação, dê nome a pelo menos dois itens e preencha uma linha.");
+        if ((!frente.trim() && !img) || (!verso.trim() && !imgVerso && !compLimpa)) return setErro("Escreva (ou envie uma imagem) para a pergunta e para a resposta.");
+        const { imagem: _a, imagemVerso: _b, comparacao: _c, ...resto } = c;
+        salvar("cartoes", { ...resto, frente: frente.trim(), verso: verso.trim(), dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}), ...(compLimpa ? { comparacao: compLimpa } : {}) });
         aoFechar();
       }}>
         <Campo rotulo="Pergunta (frente)"><textarea rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} onKeyDown={(e) => teclaLista(e, setFrente)} /></Campo>
         <CampoImagem valor={img} aoMudar={setImg} rotulo="Imagem da pergunta" />
         <Campo rotulo="Resposta (verso)" dica="Comece a linha com - e espaço para fazer uma lista."><textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} onKeyDown={(e) => teclaLista(e, setVerso)} /></Campo>
         <CampoImagem valor={imgVerso} aoMudar={setImgVerso} rotulo="Imagem da resposta" />
+        <BlocoComparacao ligada={compLigada} aoLigar={setCompLigada} valor={comp} aoMudar={setComp} />
         <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
         {erro && <p className="erro-campo" role="alert">{erro}</p>}
         <div className="acoes" style={{ justifyContent: "space-between" }}>
@@ -472,17 +564,18 @@ function Estudar({ b }: { b: Baralho }) {
       </div>
       <div className="estudo-progresso" aria-hidden="true"><i style={{ width: `${(pos / total) * 100}%` }} /></div>
 
-      <button className={`cartao-3d ${virado ? "virado" : ""}`} onClick={() => setVirado((v) => !v)} aria-label={virado ? `Resposta: ${atual.verso || "imagem"}. Toque para ver a pergunta.` : `Pergunta: ${atual.frente || "imagem"}. Toque para ver a resposta.`}>
+      <button className={`cartao-3d ${virado ? "virado" : ""}`} onClick={() => setVirado((v) => !v)} aria-label={virado ? `Resposta: ${atual.verso || (atual.comparacao ? "comparação" : "imagem")}. Toque para ver a pergunta.` : `Pergunta: ${atual.frente || "imagem"}. Toque para ver a resposta.`}>
         <span className={`face frente ${atual.imagem ? "com-img" : ""}`}>
           <span className="face-rotulo">Pergunta</span>
           {atual.imagem && <img className="face-img" src={atual.imagem} alt={atual.frente || "Imagem da pergunta"} draggable={false} />}
           {atual.frente && <span className="face-texto"><TextoCartao texto={atual.frente} /></span>}
           <span className="face-dica">Toque para virar</span>
         </span>
-        <span className={`face verso ${atual.imagemVerso ? "com-img" : ""}`}>
+        <span className={`face verso ${atual.imagemVerso ? "com-img" : ""} ${atual.comparacao ? "com-comp" : ""}`}>
           <span className="face-rotulo">Resposta</span>
           {atual.imagemVerso && <img className="face-img" src={atual.imagemVerso} alt={atual.verso || "Imagem da resposta"} draggable={false} />}
           {atual.verso && <span className="face-texto"><TextoCartao texto={atual.verso} /></span>}
+          {atual.comparacao && <ComparacaoVista c={atual.comparacao} />}
         </span>
       </button>
 

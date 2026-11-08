@@ -1,4 +1,4 @@
-import type { Cartao, Dificuldade } from "../../data/types.ts";
+import type { Cartao, Comparacao, Dificuldade } from "../../data/types.ts";
 import { somarDias } from "../../data/datas.ts";
 
 /** Dias até a próxima revisão em cada caixa (Leitner). Caixa 1 = revisar de novo hoje. */
@@ -90,4 +90,24 @@ export function continuarLista(valor: string, cursor: number): { valor: string; 
   }
   const ins = "\n" + m[1];
   return { valor: valor.slice(0, cursor) + ins + valor.slice(cursor), cursor: cursor + ins.length };
+}
+
+export const MAX_ITENS_COMPARACAO = 3;
+
+/**
+ * Prepara a comparação para salvar: tira colunas sem nome (e os valores delas) e linhas totalmente vazias.
+ * Devolve undefined se sobrar menos de 2 itens ou nenhuma linha preenchida.
+ */
+export function limparComparacao(c: Comparacao): Comparacao | undefined {
+  const manter = c.itens.map((n) => n.trim()).map((n, i) => ({ n, i })).filter((x) => x.n);
+  if (manter.length < 2) return undefined;
+  const linhas = c.linhas
+    .map((l) => ({ criterio: l.criterio.trim(), valores: manter.map((x) => (l.valores[x.i] ?? "").trim()) }))
+    .filter((l) => l.criterio || l.valores.some(Boolean));
+  if (!linhas.length) return undefined;
+  return { itens: manter.map((x) => x.n), linhas };
+}
+
+export function comparacaoVazia(): Comparacao {
+  return { itens: ["", ""], linhas: [{ criterio: "", valores: ["", ""] }] };
 }

@@ -167,6 +167,13 @@ export interface Cartao extends Base {
   /** Imagem da pergunta e da resposta (JPEG reduzido, como data URL). Ver modules/flashcards/imagem.ts. */
   imagem?: string;
   imagemVerso?: string;
+  /** Resposta em forma de comparação: o que se compara (colunas) e as respostas por aspecto (linhas). */
+  comparacao?: Comparacao;
+}
+
+export interface Comparacao {
+  itens: string[];
+  linhas: { criterio: string; valores: string[] }[];
 }
 
 export type Dificuldade = "facil" | "medio" | "dificil";

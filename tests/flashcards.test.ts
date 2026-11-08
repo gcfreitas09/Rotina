@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { continuarLista, dificuldadeDe, dominio, embaralhar, fila, linhasDoTexto, paraRevisar, responder } from "../src/modules/flashcards/logica.ts";
+import { comparacaoVazia, continuarLista, dificuldadeDe, dominio, embaralhar, fila, limparComparacao, linhasDoTexto, paraRevisar, responder } from "../src/modules/flashcards/logica.ts";
 import type { Cartao } from "../src/data/types.ts";
 
 const c = (p: Partial<Cartao> = {}): Cartao => ({ id: "c", _m: 0, baralhoId: "b", frente: "O que foi a Revolução Francesa?", verso: "…", caixa: 1, proxima: "2026-11-08", acertos: 0, erros: 0, ...p });
@@ -88,4 +88,16 @@ test("Enter numa lista continua com '- ' e numa lista vazia encerra", () => {
   assert.equal(continuarLista("texto", 5), null);
   assert.deepEqual(continuarLista("- um\n- ", 7), { valor: "- um\n", cursor: 5 });
   assert.deepEqual(continuarLista("- ", 2), { valor: "", cursor: 0 });
+});
+
+test("comparação: tira coluna sem nome e linha vazia, exige 2 itens e 1 linha", () => {
+  const r = limparComparacao({ itens: ["Mitose", " ", "Meiose"], linhas: [
+    { criterio: "Divisões", valores: ["1", "x", "2"] },
+    { criterio: "", valores: ["", "", ""] },
+    { criterio: "Filhas", valores: ["2", "", "4"] },
+  ] });
+  assert.deepEqual(r, { itens: ["Mitose", "Meiose"], linhas: [{ criterio: "Divisões", valores: ["1", "2"] }, { criterio: "Filhas", valores: ["2", "4"] }] });
+  assert.equal(limparComparacao({ itens: ["Só um", ""], linhas: [{ criterio: "a", valores: ["1", ""] }] }), undefined);
+  assert.equal(limparComparacao({ itens: ["A", "B"], linhas: [{ criterio: "", valores: ["", ""] }] }), undefined);
+  assert.equal(limparComparacao(comparacaoVazia()), undefined);
 });

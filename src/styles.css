@@ -945,3 +945,25 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .texto-md .item-lista { position: relative; padding-left: 1.15em; margin-top: 0.2em; }
 .texto-md .item-lista::before { content: ""; position: absolute; left: 0.18em; top: 0.58em; width: 0.4em; height: 0.4em; border-radius: 50%; background: currentColor; }
 .ficha-frente, .ficha-verso { white-space: pre-line; }
+
+/* Comparação na resposta */
+.comp { display: grid; flex: 1 1 0; min-height: 0; overflow-y: auto; align-content: start; gap: 6px; margin-top: 10px; font-size: clamp(14px, 3.6vw, 17px); line-height: 1.35; }
+.cartao-3d .com-comp .face-texto { flex: none; font-size: clamp(15px, 3.8vw, 19px); margin-top: 4px; }
+.comp-linha { display: grid; grid-template-columns: minmax(64px, 0.6fr) repeat(var(--cols, 2), minmax(0, 1fr)); gap: 8px; padding: 8px 0; border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent); text-align: left; }
+.comp-topo { border-top: 0; padding-top: 0; }
+.comp-cel { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.comp[style*="--cols: 3"] { font-size: 13.5px; }
+.comp[style*="--cols: 3"] .comp-item { font-size: 15px; }
+.comp-item { font: 700 clamp(15px, 4vw, 19px)/1.2 var(--f-titulo); letter-spacing: -0.01em; }
+.comp-criterio { hyphens: manual; overflow-wrap: normal; font-size: 0.74em; font-weight: 650; letter-spacing: 0.02em; text-transform: uppercase; opacity: 0.7; padding-top: 0.15em; }
+.campo-comp { display: grid; gap: 6px; }
+.comp-editor { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--linha-forte); border-radius: 12px; }
+.comp-ed-linha { display: grid; grid-template-columns: minmax(72px, 0.8fr) repeat(var(--cols, 2), minmax(0, 1fr)); gap: 6px; align-items: center; position: relative; }
+.comp-ed-linha:has(.comp-x:last-child) { padding-right: 0; }
+.comp-ed-rotulo { font-size: 12.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--grafite-suave); }
+.comp-ed-cel { position: relative; min-width: 0; display: block; }
+.comp-ed-cel .entrada { width: 100%; min-width: 0; }
+.comp-x { position: absolute; top: -10px; right: -8px; width: 28px; height: 28px; min-width: 0; min-height: 0; background: var(--folha); border: 1px solid var(--linha-forte); border-radius: 50%; display: grid; place-items: center; }
+.comp-ed-linha > .comp-x { top: -8px; }
+.comp-ed-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.comp-x::after { content: ""; position: absolute; inset: -8px; }
