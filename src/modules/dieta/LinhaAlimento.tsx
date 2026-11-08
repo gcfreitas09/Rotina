@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { X } from "../../components/icones.tsx";
 import { num } from "../../data/formato.ts";
-import { buscarAlimentos, calcular, type LinhaTaco } from "./nutricao.ts";
+import { buscarAlimentos, calcular, type Encontrado, type LinhaTaco } from "./nutricao.ts";
+import { useBuscaOnline } from "./buscaOnline.ts";
 
 /** Linha do formulário de refeição, em texto (como está nos campos). */
 export interface AlimentoTexto {
@@ -10,8 +11,8 @@ export interface AlimentoTexto {
   quantidade: string;
   kcal: string;
   proteina: string;
-  /** Alimento da TACO escolhido na lista (vence a busca pelo nome). */
-  ref?: number;
+  /** Escolhido na lista (vence a busca pelo nome): id da tabela local ou o produto de marca inteiro. */
+  escolha?: number | Encontrado;
   /** A pessoa digitou o valor: o app não sobrescreve aquele campo. */
   manualKcal: boolean;
   manualProt: boolean;
@@ -35,7 +36,7 @@ export function useTabelaTaco(): LinhaTaco[] | null {
 /** Recalcula kcal e proteína da linha (se a pessoa não digitou os valores à mão). */
 export function recalcular(a: AlimentoTexto, tabela: LinhaTaco[] | null): AlimentoTexto {
   if (!tabela || (a.manualKcal && a.manualProt)) return a;
-  const r = a.nome.trim() ? calcular(tabela, a.nome, a.quantidade, a.ref) : null;
+  const r = a.nome.trim() ? calcular(tabela, a.nome, a.quantidade, a.escolha) : null;
   return {
     ...a,
     kcal: a.manualKcal ? a.kcal : r?.ok ? String(r.calculo.kcal) : "",
@@ -53,18 +54,22 @@ export default function LinhaAlimento({ a, tabela, erro, aoMudar, aoRemover }: {
   const idLista = useId();
   const [aberta, setAberta] = useState(false);
   const [ativo, setAtivo] = useState(0);
-  const sugestoes = tabela && aberta && a.nome.trim().length >= 2 ? buscarAlimentos(tabela, a.nome, 6) : [];
+  const locais = tabela && aberta && a.nome.trim().length >= 2 ? buscarAlimentos(tabela, a.nome, 5) : [];
+  const online = useBuscaOnline(a.nome, aberta);
+  const sugestoes = [...locais, ...online.itens];
   const mudar = (p: Partial<AlimentoTexto>) => aoMudar(recalcular({ ...a, ...p }, tabela));
-  const escolher = (id: number) => { mudar({ ref: id }); setAberta(false); };
+  const escolher = (s: Encontrado) => { mudar({ escolha: typeof s.id === "number" ? s.id : s }); setAberta(false); };
+  const mostrarLista = aberta && a.nome.trim().length >= 2 && (sugestoes.length > 0 || online.estado === "buscando");
 
-  const r = tabela && a.nome.trim() ? calcular(tabela, a.nome, a.quantidade, a.ref) : null;
+  const r = tabela && a.nome.trim() ? calcular(tabela, a.nome, a.quantidade, a.escolha) : null;
   let info: React.ReactNode = null;
   if (!tabela) info = a.nome ? "Carregando a tabela de alimentos…" : null;
   else if (a.manualKcal || a.manualProt) {
     const qual = a.manualKcal && a.manualProt ? "Calorias e proteína digitadas" : a.manualKcal ? "Calorias digitadas" : "Proteína digitada";
     info = <>{qual} por você. <button type="button" className="link-botao" onClick={() => aoMudar(recalcular({ ...a, manualKcal: false, manualProt: false }, tabela))}>Calcular tudo pela tabela</button></>;
   } else if (r?.ok) {
-    info = <>{r.calculo.como} de <b>{r.calculo.alimento.nome}</b> (TACO)</>;
+    const al = r.calculo.alimento;
+    info = <>{r.calculo.como} de <b>{al.nome}</b>{al.marca && <> · {al.marca}</>} ({al.fonte})</>;
   } else if (r && r.motivo === "sem-alimento") info = "Não achei esse alimento na tabela. Se quiser, preencha kcal e proteína.";
   else if (r && r.motivo === "sem-quantidade") info = a.quantidade.trim() ? "Não entendi a quantidade. Escreva como 100 g, 2 colheres de sopa ou 1 unidade." : `Escreva a quantidade para calcular (${r.alimento?.nome}).`;
   else if (r && r.motivo === "medida-desconhecida") info = `Não sei quanto pesa essa medida de ${r.alimento?.nome}. Use gramas, como 150 g.`;
@@ -75,14 +80,14 @@ export default function LinhaAlimento({ a, tabela, erro, aoMudar, aoRemover }: {
         <input
           className="entrada"
           value={a.nome}
-          onChange={(e) => { mudar({ nome: e.target.value, ref: undefined }); setAberta(true); setAtivo(0); }}
+          onChange={(e) => { mudar({ nome: e.target.value, escolha: undefined }); setAberta(true); setAtivo(0); }}
           onFocus={() => setAberta(true)}
           onBlur={() => setAberta(false)}
           onKeyDown={(e) => {
             if (!sugestoes.length) return;
             if (e.key === "ArrowDown") { e.preventDefault(); setAtivo((i) => (i + 1) % sugestoes.length); }
             else if (e.key === "ArrowUp") { e.preventDefault(); setAtivo((i) => (i - 1 + sugestoes.length) % sugestoes.length); }
-            else if (e.key === "Enter") { e.preventDefault(); escolher(sugestoes[ativo].id); }
+            else if (e.key === "Enter") { e.preventDefault(); escolher(sugestoes[Math.min(ativo, sugestoes.length - 1)]); }
             else if (e.key === "Escape") setAberta(false);
           }}
           placeholder="Alimento"
@@ -90,9 +95,9 @@ export default function LinhaAlimento({ a, tabela, erro, aoMudar, aoRemover }: {
           aria-invalid={!!erro}
           role="combobox"
           aria-autocomplete="list"
-          aria-expanded={sugestoes.length > 0}
+          aria-expanded={mostrarLista}
           aria-controls={idLista}
-          aria-activedescendant={sugestoes.length ? `${idLista}-${ativo}` : undefined}
+          aria-activedescendant={mostrarLista && sugestoes.length ? `${idLista}-${ativo}` : undefined}
           autoComplete="off"
         />
       </span>
@@ -108,21 +113,27 @@ export default function LinhaAlimento({ a, tabela, erro, aoMudar, aoRemover }: {
       <button type="button" className="icone-btn" onClick={aoRemover} aria-label={`Remover ${a.nome || "alimento"}`}>
         <X size={16} strokeWidth={1.6} />
       </button>
-      {sugestoes.length > 0 && (
-        <ul className="sugestoes" id={idLista} role="listbox" aria-label="Alimentos da tabela">
+      {mostrarLista && (
+        <ul className="sugestoes" id={idLista} role="listbox" aria-label="Alimentos">
+          {locais.length > 0 && <li role="presentation" className="sugestoes-titulo">Tabela de alimentos</li>}
           {sugestoes.map((s, i) => (
-            <li
-              key={s.id}
-              id={`${idLista}-${i}`}
-              role="option"
-              aria-selected={i === ativo}
-              onMouseDown={(e) => e.preventDefault()} // não tira o foco antes do clique
-              onClick={() => escolher(s.id)}
-            >
-              <span>{s.nome}</span>
-              <small className="num">{s.kcal100} kcal · {num(s.prot100)} g prot. / 100 g</small>
-            </li>
+            <Fragment key={s.id}>
+              {i === locais.length && <li role="presentation" className="sugestoes-titulo">Produtos de marca · Open Food Facts</li>}
+              <li
+                id={`${idLista}-${i}`}
+                role="option"
+                aria-selected={i === ativo}
+                onMouseDown={(e) => e.preventDefault()} // não tira o foco antes do clique
+                onClick={() => escolher(s)}
+              >
+                <span>{s.nome}{s.marca && <span className="sugestao-marca"> · {s.marca}</span>}</span>
+                <small className="num">{s.kcal100} kcal · {num(s.prot100)} g prot. / 100 g{typeof s.id === "number" && s.fonte !== "TACO" ? ` · ${s.fonte}` : ""}</small>
+              </li>
+            </Fragment>
           ))}
+          {online.estado === "buscando" && <li role="presentation" className="sugestoes-status">Buscando produtos de marca…</li>}
+          {online.estado === "erro" && <li role="presentation" className="sugestoes-status">Busca de produtos de marca indisponível agora (sem internet ou fora do site publicado).</li>}
+          {online.estado === "ok" && online.itens.length === 0 && <li role="presentation" className="sugestoes-status">Nenhum produto de marca com esse nome.</li>}
         </ul>
       )}
       {info && <p className="alimento-info">{info}</p>}

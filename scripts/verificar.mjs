@@ -538,6 +538,68 @@ async function nutricao() {
   console.log(falhas.length ? `NUTRICAO FALHOU (${falhas.length})` : "NUTRICAO OK");
 }
 
+// Produtos de marca (Open Food Facts via /api/alimentos): precisa de internet. Escolher um produto usa os valores do rótulo,
+// que ficam salvos na refeição (reabrir funciona sem internet).
+async function marcas() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await (await browser.createBrowserContext()).newPage();
+  await page.setViewport({ width: 390, height: 844 });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 250) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+  const campo = async (rotulo) => page.$(`.dialogo .alimento-form input[aria-label="${rotulo}"]`);
+  const escrever = async (rotulo, t) => { const el = await campo(rotulo); await el.evaluate((e) => { e.scrollIntoView({ block: "center" }); e.select(); }); await el.type(t); await espera(200); };
+  const valor = async (rotulo) => (await campo(rotulo)).evaluate((e) => e.value);
+  const info = () => page.$eval(".dialogo .alimento-info", (e) => e.textContent).catch(() => "");
+
+  console.log("\nProdutos de marca (390 px)");
+  await page.goto(BASE + "#/saude/dieta", { waitUntil: "networkidle0" });
+  await espera(900);
+  await clicar("button::-p-text(Refeição)");
+  await espera(500);
+  await clicar(".dialogo button::-p-text(Alimento)");
+  await escrever("Alimento", "pasta de amendoim");
+  const locais = await page.$$eval('.sugestoes [role="option"]', (os) => os.map((o) => o.textContent));
+  checar(locais[0]?.startsWith("Pasta de amendoim, tradicional"), `Tabela local sugere a pasta tradicional primeiro (${locais[0]})`);
+  await page.waitForSelector("::-p-text(Produtos de marca · Open Food Facts)", { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelectorAll('.sugestoes [role="option"]').length > 3, { timeout: 15000 });
+  const opcoes = await page.$$eval('.sugestoes [role="option"]', (os) => os.map((o) => o.textContent));
+  const titulos = await page.$$eval(".sugestoes-titulo", (ts) => ts.map((t) => t.textContent));
+  checar(titulos.length === 2 && opcoes.length > 3, `Lista mostra tabela + produtos de marca (${opcoes.length} opções)`);
+  await page.screenshot({ path: path.join(SHOTS, "marcas-lista.png") });
+  // primeiro produto de marca = primeira opção depois do segundo título
+  const idx = await page.evaluate(() => { const lis = [...document.querySelectorAll(".sugestoes li")]; const t = lis.findIndex((l) => l.textContent.startsWith("Produtos de marca")); return [...document.querySelectorAll('.sugestoes [role="option"]')].indexOf(lis[t + 1]); });
+  const escolhido = opcoes[idx];
+  const kcal100 = Number(escolhido.match(/(\d+) kcal/)[1]);
+  await page.$$eval('.sugestoes [role="option"]', (os, i) => os[i].scrollIntoView({ block: "center" }), idx);
+  await (await page.$$('.sugestoes [role="option"]'))[idx].click();
+  await espera(300);
+  await escrever("Quantidade", "1 colher de sopa");
+  const esperado = String(Math.round(kcal100 * 0.16));
+  checar((await valor("Calorias")) === esperado && (await info()).includes("Open Food Facts"), `Produto escolhido usa o rótulo: 16 g = ${esperado} kcal (${await valor("Calorias")}; ${await info()})`);
+  await clicar("button::-p-text(Criar refeição)");
+  await espera(600);
+  const ref = (await ls("refeicoes")).find((r) => r.alimentos.some((a) => a.nome === "pasta de amendoim"));
+  const al = ref?.alimentos.find((a) => a.nome === "pasta de amendoim");
+  checar(al?.base?.fonte === "Open Food Facts" && al.base.kcal100 === kcal100 && String(al.kcal) === esperado, `Salva o produto com os valores do rótulo (${JSON.stringify(al?.base)})`);
+  // Reabrir sem internet: recalcula com o produto salvo
+  await page.setOfflineMode(true);
+  await clicar(`button[aria-label="Editar ${ref.nome}"]`);
+  if (await page.$("button::-p-text(Todos os)")) await clicar("button::-p-text(Todos os)");
+  await escrever("Quantidade", "2 colheres de sopa");
+  checar((await valor("Calorias")) === String(Math.round(kcal100 * 0.32)) && (await info()).includes("Open Food Facts"), `Sem internet, reabrir recalcula com o produto salvo (${await valor("Calorias")})`);
+  await page.setOfflineMode(false);
+  const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  checar(sobra === 0, "Sem rolagem lateral");
+  checar(erros.filter((e) => !/Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(e)).length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await browser.close();
+  console.log(falhas.length ? `MARCAS FALHOU (${falhas.length})` : "MARCAS OK");
+}
+
 // Hover e foco não podem criar scroll lateral em nenhuma lista fixa (bug real: chevron deslizando 3 px na Escola).
 async function hover() {
   const puppeteer = qa("puppeteer");
@@ -610,6 +672,7 @@ try {
   else if (modo === "hover") await hover();
   else if (modo === "parado") await parado();
   else if (modo === "nutricao") await nutricao();
+  else if (modo === "marcas") await marcas();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

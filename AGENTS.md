@@ -55,9 +55,15 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   **Imagem no cartão** (`imagem`, `imagemVerso`): `imagem.ts` reduz para 900 px e grava JPEG 0,76 em data URL dentro do registro (vai junto na sincronia). Nada de PNG/WebP cru: Safari não codifica WebP e o localStorage tem ~5 MB. `storage.gravar` devolve false sem espaço; `store.substituir` então não altera o estado e dispara `rotina:sem-espaco` (aviso em `ui.tsx`).
 - `src/modules/dieta/nutricao.ts` — kcal/proteína automáticas: lê a quantidade ("2 ovos", "1/2 xícara", "150 g"), acha o alimento
   (`PREFERIDO` = forma comum de cada nome genérico, por nome exato da TACO) e converte medida caseira em gramas (`MEDIDAS`, aproximadas).
-  `taco.json` é gerado por `node scripts/taco.mjs` (TACO 4ª ed. via brolesi.github.io/taco + `EXTRAS` com fonte: leite, whey, pasta de
-  amendoim etc., que a TACO não tem ou tem sem valor). Carrega sob demanda (chunk de ~11 KB gz). `LinhaAlimento.tsx` = linha do formulário.
-  Campo digitado à mão (`manualKcal`/`manualProt`) nunca é sobrescrito; salvo com `autoKcal`/`autoProt` e `ref` (id TACO).
+  `taco.json` é gerado por `node scripts/taco.mjs`: TACO 4ª ed. (brolesi.github.io/taco) + `USDA` (preparações que faltam) +
+  `ROTULOS` = mediana dos rótulos brasileiros da Open Food Facts (mín. 5 produtos). Cada item de ROTULOS tem faixa de kcal/100 g:
+  muitos cadastros da OFF trazem o valor de UMA PORÇÃO no campo "por 100 g" (pasta de amendoim com 98 kcal) — a faixa os descarta.
+  Carrega sob demanda (chunk ~11 KB gz). `LinhaAlimento.tsx` = linha do formulário; `buscaOnline.ts` = produtos de marca.
+  Campo digitado à mão (`manualKcal`/`manualProt`) nunca é sobrescrito; salvo com `autoKcal`/`autoProt`, `ref` (id local) ou
+  `base` (produto de marca com os valores do rótulo, para recalcular sem internet).
+- `api/alimentos.js` (função do Vercel) + `api/_off.js` — `/api/alimentos?q=` busca produtos do Brasil na Open Food Facts
+  (search.openfoodfacts.org não manda CORS, por isso não dá para chamar do navegador). O mesmo `_off.js` roda no `npm run dev`
+  e no `preview` via plugin em `vite.config.ts`. No MAMP não há essa rota: a lista avisa e fica só a tabela local.
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 

@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { PREFERIDO, buscarAlimentos, calcular, lerQuantidade, type LinhaTaco } from "../src/modules/dieta/nutricao.ts";
+import { PREFERIDO, buscarAlimentos, calcular, lerQuantidade, quaseIgual, type Encontrado, type LinhaTaco } from "../src/modules/dieta/nutricao.ts";
+// @ts-ignore módulo JS (função do Vercel)
+import { converterOFF } from "../api/_off.js";
 
 const tabela: LinhaTaco[] = JSON.parse(readFileSync(new URL("../src/modules/dieta/taco.json", import.meta.url), "utf8"));
 const ok = (nome: string, qtd: string) => {
@@ -61,7 +63,11 @@ test("acha o alimento pelo nome comum", () => {
   assert.equal(primeiro("banana"), "Banana, prata, crua");
   assert.equal(primeiro("aveia"), "Aveia, flocos, crua");
   assert.equal(primeiro("whey"), "Whey protein, concentrado");
-  assert.equal(primeiro("pasta de amendoim"), "Pasta de amendoim, integral");
+  assert.equal(primeiro("pasta de amendoim"), "Pasta de amendoim, tradicional");
+  assert.equal(primeiro("pasta de amendoim integral"), "Pasta de amendoim, integral");
+  assert.equal(primeiro("pasta de amendoin"), "Pasta de amendoim, tradicional"); // erro de digitação
+  assert.equal(primeiro("mussarella"), "Queijo, mozarela");
+  assert.equal(primeiro("requeijão light"), "Queijo, requeijão, light");
   assert.equal(primeiro("queijo mussarela"), "Queijo, mozarela");
   assert.equal(primeiro("tapioca"), "Goma de tapioca, hidratada");
   assert.equal(primeiro("batata doce"), "Batata, doce, cozida");
@@ -86,7 +92,7 @@ test("calcula kcal e proteína pela quantidade", () => {
   assert.equal(frango.kcal, Math.round(159 * 1.2));
   assert.equal(frango.proteina, 38.4);
   assert.equal(ok("leite", "1 copo").gramas, 200);
-  assert.equal(ok("whey", "1 scoop").proteina, 24);
+  assert.equal(ok("whey", "1 scoop").gramas, 30);
   assert.equal(ok("pão francês", "1 unidade").kcal, 150);
   assert.equal(ok("azeite", "1 colher de sopa").gramas, 13);
   assert.equal(ok("feijão", "1 concha").gramas, 100);
@@ -106,4 +112,32 @@ test("o alimento escolhido na lista (ref) vence a busca pelo nome", () => {
   const id = tabela.find((l) => l[1] === "Ovo, de galinha, inteiro, frito")![0];
   const r = calcular(tabela, "ovo", "1", id);
   assert.ok(r.ok && r.calculo.alimento.nome === "Ovo, de galinha, inteiro, frito");
+});
+
+test("erro de uma letra ainda casa", () => {
+  assert.ok(quaseIgual("amendoim", "amendoin"));
+  assert.ok(quaseIgual("mozarela", "mozzarela"));
+  assert.ok(!quaseIgual("arroz", "frango"));
+});
+
+test("produto de marca: usa os valores do rótulo e a porção dele", () => {
+  const p: Encontrado = { id: "off:1", nome: "Pasta de Amendoim", kcal100: 600, prot100: 23.3, fonte: "Open Food Facts", marca: "Santo Óleo", porcao: 15 };
+  const r = calcular(tabela, "qualquer", "1 porção", p);
+  assert.ok(r.ok && r.calculo.gramas === 15 && r.calculo.kcal === 90 && r.calculo.proteina === 3.5);
+  const c = calcular(tabela, "x", "2 colheres de sopa", p); // medida caseira pelo nome (pasta de amendoim = 16 g)
+  assert.ok(c.ok && c.calculo.gramas === 32);
+  const b: Encontrado = { id: "off:2", nome: "Barra Protein Crisp", kcal100: 380, prot100: 30, fonte: "Open Food Facts", porcao: 45 };
+  const u = calcular(tabela, "x", "1 barra", b);
+  assert.ok(u.ok && u.calculo.gramas === 45);
+});
+
+test("converte produto da Open Food Facts e recusa valores impossíveis", () => {
+  assert.deepEqual(
+    converterOFF({ code: 789, product_name: " Pasta  De Amendoim ", brands: ["Santo Óleo"], nutriments: { "energy-kcal_100g": 600.4, proteins_100g: 23.33 }, serving_quantity: 15 }),
+    { codigo: "789", nome: "Pasta De Amendoim", marca: "Santo Óleo", kcal100: 600, prot100: 23.3, porcao: 15 },
+  );
+  assert.equal(converterOFF({ product_name: "Whey", nutriments: { "energy-kj_100g": 1674, proteins_100g: 80 } }).kcal100, 400); // só kJ
+  assert.equal(converterOFF({ product_name: "X", nutriments: { "energy-kcal_100g": 1200, proteins_100g: 5 } }), null);
+  assert.equal(converterOFF({ product_name: "X", nutriments: { "energy-kcal_100g": 100 } }), null);
+  assert.equal(converterOFF({ product_name: "", nutriments: { "energy-kcal_100g": 100, proteins_100g: 5 } }), null);
 });

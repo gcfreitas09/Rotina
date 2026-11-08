@@ -186,7 +186,7 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
   const [nome, setNome] = useState(r?.nome ?? TIPOS_REFEICAO.lanche);
   const [horario, setHorario] = useState(r?.horario ?? "16:00");
   const [alimentos, setAlimentos] = useState<AlimentoTexto[]>(
-    (r?.alimentos ?? []).map((a) => ({ id: a.id, nome: a.nome, quantidade: a.quantidade, kcal: a.kcal === null ? "" : num(a.kcal), proteina: a.proteina === null ? "" : num(a.proteina), ref: a.ref, manualKcal: !a.autoKcal && a.kcal !== null, manualProt: !a.autoProt && a.proteina !== null })),
+    (r?.alimentos ?? []).map((a) => ({ id: a.id, nome: a.nome, quantidade: a.quantidade, kcal: a.kcal === null ? "" : num(a.kcal), proteina: a.proteina === null ? "" : num(a.proteina), escolha: a.base ?? a.ref, manualKcal: !a.autoKcal && a.kcal !== null, manualProt: !a.autoProt && a.proteina !== null })),
   );
   const [dias, setDias] = useState<Dia[]>(r ? grupo.map((x) => x.dia).sort() : [diaInicial]);
   const [dia, setDia] = useState<Dia>(r?.dia ?? diaInicial);
@@ -217,7 +217,8 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
       else if (Number.isNaN(proteina) || (proteina !== null && proteina < 0)) er["a" + a.id] = "Proteína: use um número, como 12,5.";
             lista.push({
         id: a.id, nome: a.nome.trim(), quantidade: a.quantidade.trim(), kcal, proteina,
-        ...(a.ref !== undefined ? { ref: a.ref } : {}),
+        ...(typeof a.escolha === "number" ? { ref: a.escolha } : {}),
+        ...(a.escolha && typeof a.escolha === "object" ? { base: { ...a.escolha, id: String(a.escolha.id) } } : {}),
         ...(!a.manualKcal && kcal !== null ? { autoKcal: true } : {}),
         ...(!a.manualProt && proteina !== null ? { autoProt: true } : {}),
       });
@@ -278,7 +279,7 @@ function RefeicaoForm({ r, diaInicial, aoFechar }: { r: Refeicao | null; diaInic
         </Campo>
 
         <fieldset className="campo" style={{ border: 0, padding: 0, margin: 0 }}>
-          <span>Alimentos <span style={{ fontWeight: 400 }}>— kcal e proteína saem da tabela TACO</span></span>
+          <span>Alimentos <span style={{ fontWeight: 400 }}>— kcal e proteína são calculadas sozinhas</span></span>
           {alimentos.map((a) => (
             <LinhaAlimento key={a.id} a={a} tabela={tabela} erro={erros["a" + a.id]} aoMudar={trocarAlimento} aoRemover={() => setAlimentos(alimentos.filter((x) => x.id !== a.id))} />
           ))}

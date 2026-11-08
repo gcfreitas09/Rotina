@@ -5,14 +5,22 @@
  */
 
 /** [id, nome TACO, kcal, proteína g, carboidrato g, gordura g] por 100 g. */
-export type LinhaTaco = [number, string, number, number, number, number];
+export type LinhaTaco = [number, string, number, number, number, number, string?];
 
+/** Alimento escolhido para o cálculo: da tabela local (id numérico) ou um produto da Open Food Facts (id "off:…"). */
 export interface Encontrado {
-  id: number;
+  id: number | string;
   nome: string;
   kcal100: number;
   prot100: number;
+  /** "TACO", "USDA", "rótulos (14)" ou "Open Food Facts". */
+  fonte: string;
+  marca?: string;
+  /** Porção do rótulo em g (produtos de marca). */
+  porcao?: number;
 }
+
+const daLinha = (l: LinhaTaco): Encontrado => ({ id: l[0], nome: l[1], kcal100: l[2], prot100: l[3], fonte: (l[6] ?? "TACO").replace(/^rótulos \((\d+)\)$/, "mediana de $1 rótulos") });
 
 // ------------------------------------------------------------------ texto
 
@@ -53,7 +61,7 @@ function palavras(t: string): string[] {
     .replace(/[0-9/.,½¼¾]+/g, " ")
     .split(" ")
     .filter((p) => p && !IGNORAR.has(p))
-    .map((p) => SINONIMOS[p] ?? radical(p));
+    .map((p) => SINONIMOS[p] ?? (p.length >= 6 ? SINONIMOS[Object.keys(SINONIMOS).find((k) => k.length >= 6 && quaseIgual(k, p)) ?? ""] : undefined) ?? radical(p));
 }
 
 /**
@@ -86,20 +94,35 @@ export const PREFERIDO: Record<string, string> = {
   batata: "Batata, inglesa, cozida", "batata doce": "Batata, doce, cozida", "batata frita": "Batata, inglesa, frita",
   mandioca: "Mandioca, cozida",
   queijo: "Queijo, mozarela", "queijo minas": "Queijo, minas, frescal", requeijao: "Queijo, requeijão, cremoso",
-  iogurte: "Iogurte, natural", "iogurte grego": "Iogurte, grego, natural, integral", cottage: "Queijo, cottage",
+  iogurte: "Iogurte, natural", "iogurte grego": "Iogurte, grego, tradicional", cottage: "Queijo, cottage",
   cafe: "Café, infusão 10%", acucar: "Açúcar, refinado", mel: "Mel, de abelha",
   azeite: "Azeite, de oliva, extra virgem", oleo: "Óleo, de soja", manteiga: "Manteiga, com sal",
   tapioca: "Goma de tapioca, hidratada", "goma tapioca": "Goma de tapioca, hidratada",
   macarrao: "Macarrão, trigo, cozido", cuscuz: "Cuscuz, de milho, cozido com sal",
   atum: "Atum, conserva em óleo", sardinha: "Sardinha, conserva em óleo", salmao: "Salmão, sem pele, fresco, grelhado",
   tilapia: "Tilápia, filé, grelhada", peixe: "Tilápia, filé, grelhada", camarao: "Camarão, Rio Grande, grande, cozido",
-  whey: "Whey protein, concentrado", "pasta amendoim": "Pasta de amendoim, integral", amendoim: "Amendoim, torrado, salgado",
-  presunto: "Presunto, sem capa de gordura", "peito peru": "Peito de peru, defumado, fatiado",
+  whey: "Whey protein, concentrado", "pasta amendoim": "Pasta de amendoim, tradicional", "pasta amendoim integral": "Pasta de amendoim, integral", amendoim: "Amendoim, torrado, salgado",
+  presunto: "Presunto, sem capa de gordura",
   "agua coco": "Coco, água de", "creme leite": "Creme de Leite", granola: "Granola, tradicional",
   tomate: "Tomate, com semente, cru", cenoura: "Cenoura, crua", brocoli: "Brócolis, cozido", chocolate: "Chocolate, ao leite",
 };
 
 const COMUNS = new Set(Object.values(PREFERIDO));
+
+/** Diferença de no máximo uma letra (trocada, faltando ou sobrando). */
+export function quaseIgual(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, dif = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++dif > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return dif + (a.length - i) + (b.length - j) <= 1;
+}
 
 /** Acha a linha da TACO mais provável para o nome escrito. */
 export function buscarAlimentos(tabela: LinhaTaco[], texto: string, max = 6): Encontrado[] {
@@ -114,7 +137,8 @@ export function buscarAlimentos(tabela: LinhaTaco[], texto: string, max = 6): En
     q.forEach((w, i) => {
       if (ps.includes(w)) s += i === 0 ? 3 : 2;
       else if (ps.some((p) => p.startsWith(w) && w.length >= 3)) s += i === 0 ? 2 : 1;
-      else s -= 1;
+      else if (w.length >= 5 && ps.some((p) => quaseIgual(p, w))) s += i === 0 ? 2 : 1; // "amendoin", "mussarella"
+      else s -= 3; // palavra digitada que o alimento não tem pesa mais que qualquer preferência
     });
     if (s <= 0) continue;
     if (ps[0] === q[0]) s += 1; // "Ovo, ..." quando a pessoa escreveu "ovo"
@@ -129,20 +153,20 @@ export function buscarAlimentos(tabela: LinhaTaco[], texto: string, max = 6): En
   return pontuados
     .sort((a, b) => b.s - a.s)
     .slice(0, max)
-    .map(({ l }) => ({ id: l[0], nome: l[1], kcal100: l[2], prot100: l[3] }));
+    .map(({ l }) => daLinha(l));
 }
 
-export function porId(tabela: LinhaTaco[], id: number): Encontrado | undefined {
+export function porId(tabela: LinhaTaco[], id: number | string): Encontrado | undefined {
   const l = tabela.find((x) => x[0] === id);
-  return l && { id: l[0], nome: l[1], kcal100: l[2], prot100: l[3] };
+  return l && daLinha(l);
 }
 
 // ------------------------------------------------------------------ quantidade
 
-export type Medida = "g" | "ml" | "unidade" | "colher-sopa" | "colher-sobremesa" | "colher-cha" | "xicara" | "copo" | "concha" | "escumadeira" | "fatia" | "scoop" | "pote" | "lata" | "bife";
+export type Medida = "g" | "ml" | "unidade" | "porcao" | "colher-sopa" | "colher-sobremesa" | "colher-cha" | "xicara" | "copo" | "concha" | "escumadeira" | "fatia" | "scoop" | "pote" | "lata" | "bife";
 
 export const NOME_MEDIDA: Record<Medida, [string, string]> = {
-  g: ["g", "g"], ml: ["ml", "ml"], unidade: ["unidade", "unidades"],
+  g: ["g", "g"], ml: ["ml", "ml"], unidade: ["unidade", "unidades"], porcao: ["porção", "porções"],
   "colher-sopa": ["colher de sopa", "colheres de sopa"], "colher-sobremesa": ["colher de sobremesa", "colheres de sobremesa"],
   "colher-cha": ["colher de chá", "colheres de chá"], xicara: ["xícara", "xícaras"], copo: ["copo", "copos"],
   concha: ["concha", "conchas"], escumadeira: ["escumadeira", "escumadeiras"], fatia: ["fatia", "fatias"],
@@ -191,6 +215,7 @@ export function lerQuantidade(texto: string): { n: number; medida: Medida | null
   else if (/^pote/.test(r)) medida = "pote";
   else if (/^lata/.test(r)) medida = "lata";
   else if (/^(bife|file|posta)/.test(r)) medida = "bife";
+  else if (/^(porcao|porcoes)/.test(r)) medida = "porcao";
   else if (/^(unidade|un\b|und|peca|pedaco)/.test(r) || r) medida = "unidade"; // "2 ovos", "1 banana", "3 pães"
   // só número: decide depois, conforme o alimento
   return { n, medida };
@@ -274,9 +299,13 @@ const MEDIDAS: [RegExp, Partial<Record<Medida, number>>][] = [
   [/^creme de leite/, { "colher-sopa": 15, lata: 200 }],
 ];
 
-export function gramasDe(nomeTaco: string, n: number, medida: Medida | null): { g: number; medida: Medida } | null {
+export function gramasDe(nomeTaco: string, n: number, medida: Medida | null, porcao?: number): { g: number; medida: Medida } | null {
   const k = normalizar(nomeTaco).replace(/,/g, "");
-  const proprias = MEDIDAS.find(([re]) => re.test(k))?.[1] ?? {};
+  const proprias: Partial<Record<Medida, number>> = { ...(MEDIDAS.find(([re]) => re.test(k))?.[1] ?? {}) };
+  if (porcao) {
+    proprias.porcao = porcao; // "1 porção" = porção do rótulo
+    proprias.unidade ??= porcao; // "1 barra", "1 pote" de um produto: a porção do rótulo
+  }
   if (medida === null) {
     // Só número: até 12 com unidade conhecida = unidades ("2" ovos); senão, gramas ("150" de arroz).
     if (n <= 12 && proprias.unidade) return { g: n * proprias.unidade, medida: "unidade" };
@@ -303,12 +332,13 @@ export type ResultadoCalculo = { ok: true; calculo: Calculo } | { ok: false; mot
 
 const fmt = (v: number) => (Math.round(v * 10) / 10).toLocaleString("pt-BR");
 
-export function calcular(tabela: LinhaTaco[], nome: string, quantidade: string, ref?: number): ResultadoCalculo {
-  const alimento = (ref !== undefined && porId(tabela, ref)) || buscarAlimentos(tabela, nome, 1)[0];
+/** escolha = alimento escolhido na lista (id da tabela local ou o produto inteiro, da busca online); vence a busca pelo nome. */
+export function calcular(tabela: LinhaTaco[], nome: string, quantidade: string, escolha?: number | Encontrado): ResultadoCalculo {
+  const alimento = (typeof escolha === "object" ? escolha : escolha !== undefined && porId(tabela, escolha)) || buscarAlimentos(tabela, nome, 1)[0];
   if (!alimento) return { ok: false, motivo: "sem-alimento" };
   const q = lerQuantidade(quantidade);
   if (!q) return { ok: false, motivo: "sem-quantidade", alimento };
-  const r = gramasDe(alimento.nome, q.n, q.medida);
+  const r = gramasDe(alimento.nome, q.n, q.medida, alimento.porcao);
   if (!r) return { ok: false, motivo: "medida-desconhecida", alimento };
   const f = r.g / 100;
   const [um, varios] = NOME_MEDIDA[r.medida];

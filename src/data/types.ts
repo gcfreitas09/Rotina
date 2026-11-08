@@ -96,6 +96,8 @@ export interface Alimento {
   proteina: number | null;
   /** Alimento da TACO usado no cálculo (id em modules/dieta/taco.json). */
   ref?: number;
+  /** Produto de marca (Open Food Facts) usado no cálculo: guarda os valores, que não estão na tabela local. */
+  base?: { id: string; nome: string; kcal100: number; prot100: number; fonte: string; marca?: string; porcao?: number };
   /** Calculados pelo app (ausente = digitado à mão ou vazio). */
   autoKcal?: boolean;
   autoProt?: boolean;
