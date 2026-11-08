@@ -6,7 +6,7 @@ import { excluirTudo, incorporar, salvarConfig, useColecao, useConfig } from "..
 import { exportar, validarBackup } from "../../data/storage.ts";
 import { limparExemplos, temExemplos } from "../../data/exemplos.ts";
 import {
-  conectarServidor, credenciais, credenciaisVemDoBuild, entrar, sair, sincronizar, sincronizarTudo, useSync,
+  entrar, sair, sincronizar, sincronizarTudo, useSync,
 } from "../../data/sync.ts";
 import { lerNumero, nota } from "../../data/formato.ts";
 import { hoje } from "../../data/datas.ts";
@@ -105,9 +105,6 @@ const STATUS: Record<string, string> = {
 
 function Sincronizacao() {
   const s = useSync();
-  const cred = credenciais();
-  const [url, setUrl] = useState(cred?.url ?? (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "");
-  const [chave, setChave] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -139,26 +136,7 @@ function Sincronizacao() {
         {s.erro && <span className="erro-campo" style={{ display: "block" }}>{s.erro}</span>}
       </p>
 
-      {!cred && (
-        <form className="form" noValidate onSubmit={(e) => {
-          e.preventDefault();
-          if (!/^https:\/\/.+/.test(url.trim())) return setErro("A URL do projeto começa com https://");
-          if (chave.trim().length < 20) return setErro("Cole a chave anon (public) do projeto.");
-          setErro(null);
-          void conectarServidor(url, chave);
-        }}>
-          <Campo rotulo="URL do projeto Supabase" dica="Supabase → Project Settings → API">
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" inputMode="url" autoComplete="off" />
-          </Campo>
-          <Campo rotulo="Chave anon (public)">
-            <input value={chave} onChange={(e) => setChave(e.target.value)} autoComplete="off" />
-          </Campo>
-          {erro && <p className="erro-campo" role="alert">{erro}</p>}
-          <div className="acoes" style={{ justifyContent: "flex-start" }}><button className="botao primario">Conectar ao Supabase</button></div>
-        </form>
-      )}
-
-      {cred && s.status === "sem-login" && (
+      {s.status === "sem-login" && (
         <form className="form" noValidate onSubmit={(e) => { e.preventDefault(); void acao(false); }}>
           <div className="linha-campos">
             <Campo rotulo="E-mail"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></Campo>
@@ -173,7 +151,7 @@ function Sincronizacao() {
         </form>
       )}
 
-      {cred && s.email && (
+      {s.email && (
         <div className="acoes" style={{ justifyContent: "flex-start" }}>
           <button className="botao primario" onClick={() => void sincronizar()} disabled={s.status === "sincronizando"}>
             <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" /> Sincronizar agora
@@ -183,9 +161,6 @@ function Sincronizacao() {
           </button>
           <button className="botao texto" onClick={() => void sair()}>Sair da conta</button>
         </div>
-      )}
-      {cred && !credenciaisVemDoBuild() && (
-        <button className="botao texto pequeno" style={{ marginTop: 10 }} onClick={() => void conectarServidor("", "")}>Trocar projeto Supabase</button>
       )}
     </section>
   );

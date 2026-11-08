@@ -7,8 +7,9 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - MAMP (se a pasta for para `htdocs/rotina`): http://localhost:8888/rotina/ (`.htaccess` serve `dist/`)
 - Produção: ainda não publicado (precisa de HTTPS para o celular instalar como app).
 - GitHub: `git@github.com:gcfreitas09/rotina.git` (branch `main`, autor dos commits igual ao dos outros projetos).
-  Fora do repositório por design: `.env.local` (URL e chave do Supabase), `dist/`, `node_modules/`, `rotina-site.zip`.
-  Em outro computador: `npm install`, criar `.env.local` a partir de `.env.example`, `npm run build`.
+  Fora do repositório por design: `.env.local` (override opcional), `dist/`, `node_modules/`, `rotina-site.zip`.
+  Em outro computador: `npm install` e `npm run build` (o Supabase já vem embutido).
+- Vercel: https://rotina-gcf.vercel.app (build `npm run build`, saída `dist/`; rotas por hash, sem configuração extra).
 
 ## Restrições do pedido (palavras do Guilherme)
 - Todo texto em pt-BR; datas dd/mm/aaaa; semana começa na segunda; notas com vírgula e uma casa (7,5).
@@ -115,12 +116,16 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 · `node ~/.claude/tools/peso.mjs . --entregavel dist` — e olhar os screenshots (1440/900/390, claro e escuro).
 
 ## Pendências (dependem do Guilherme)
-- **Supabase "rotinas"** (ref `jkqvkbxbuudjrmottxdt`, URL `https://jkqvkbxbuudjrmottxdt.supabase.co`): projeto criado e
-  URL já em `.env.local`. Faltam (1) a chave pública (anon/publishable — nunca service_role) em
-  `VITE_SUPABASE_ANON_KEY` no `.env.local`, (2) rodar `supabase/schema.sql` no SQL Editor (ou pelo MCP, depois de
-  autenticar), (3) `npm run publicar` e criar a conta no app, entrando com ela nos dois aparelhos.
-  O conector está em `.mcp.json` (escopo do projeto; autenticar com `/mcp` num `claude` interativo) e as skills
-  oficiais em `.claude/skills/` (`supabase`, `supabase-postgres-best-practices`; trava em `skills-lock.json`).
-  A chave pública entra no build e vai para o navegador; é seguro porque a tabela tem RLS e só responde a quem fez login.
+- **Supabase "rotinas"** (ref `jkqvkbxbuudjrmottxdt`): a URL e a chave **publishable** estão embutidas em
+  `src/config/supabase.ts` (commitadas, de propósito: são públicas por design e o app não pode pedir isso ao usuário —
+  pedido do Guilherme em 08/11/2026, depois de ver o Vercel pedindo URL e chave). Quem protege os dados é a RLS de
+  `rotina_registros`. **Nunca** colocar a chave `secret`/`service_role` no código. `.env.local` é só override opcional.
+  Fluxo do usuário: Configurações → Sincronização → e-mail e senha (Criar conta / Entrar), igual nos dois aparelhos.
+  Falta fazer no painel do Supabase (o MCP ainda não está autenticado, então não deu para fazer daqui):
+  (1) Authentication → URL Configuration: **Site URL = `https://rotina-gcf.vercel.app`** e a mesma URL em Redirect URLs
+  (senão o link do e-mail de confirmação aponta para localhost); (2) opcional: desligar "Confirm email";
+  (3) conferir que `supabase/schema.sql` foi rodado (a tabela existe: anônimo recebe 42501).
+  O conector está em `.mcp.json` (autenticar com `/mcp` num `claude` interativo) e as skills oficiais em
+  `.claude/skills/` (`supabase`, `supabase-postgres-best-practices`; trava em `skills-lock.json`).
 - Publicar `dist/` numa hospedagem com HTTPS (o celular precisa de uma URL, não do localhost).
 - Os dados do app antigo não migram (outro formato). Recadastrar ou mandar o JSON para adaptar.

@@ -7,6 +7,7 @@ import { useSyncExternalStore } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { COLECOES, type Base, type NomeColecao } from "./types.ts";
 import { gravarMeta, lerMeta } from "./storage.ts";
+import { SUPABASE_CHAVE_PUBLICA, SUPABASE_URL } from "../config/supabase.ts";
 import { aoAlterarLocal, incorporar, todos } from "./store.ts";
 
 export type StatusSync = "desligado" | "sem-login" | "sincronizando" | "ok" | "erro" | "offline";
@@ -35,20 +36,16 @@ const TABELA = "rotina_registros";
 let cliente: SupabaseClient | null = null;
 let clienteChave = "";
 
-export function credenciais(): { url: string; chave: string } | null {
-  const meta = lerMeta();
-  const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || meta.supabaseUrl || "";
-  const chave = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || meta.supabaseChave || "";
-  return url && chave ? { url, chave } : null;
+/** O projeto já vem embutido (src/config/supabase.ts); variáveis de ambiente, se existirem, têm prioridade. */
+function credenciais(): { url: string; chave: string } {
+  return {
+    url: (import.meta.env.VITE_SUPABASE_URL as string | undefined) || SUPABASE_URL,
+    chave: (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || SUPABASE_CHAVE_PUBLICA,
+  };
 }
 
-export function credenciaisVemDoBuild(): boolean {
-  return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-}
-
-async function obterCliente(): Promise<SupabaseClient | null> {
+async function obterCliente(): Promise<SupabaseClient> {
   const c = credenciais();
-  if (!c) return null;
   const chave = c.url + c.chave;
   if (cliente && clienteChave === chave) return cliente;
   const { createClient } = await import("@supabase/supabase-js");
@@ -57,12 +54,6 @@ async function obterCliente(): Promise<SupabaseClient | null> {
   });
   clienteChave = chave;
   return cliente;
-}
-
-export function conectarServidor(url: string, chave: string) {
-  gravarMeta({ supabaseUrl: url.trim().replace(/\/+$/, ""), supabaseChave: chave.trim(), ultimoPull: undefined, ultimoPush: 0 });
-  cliente = null;
-  return iniciarSync();
 }
 
 function traduzirErro(e: unknown): string {
@@ -79,10 +70,9 @@ function traduzirErro(e: unknown): string {
 
 export async function entrar(email: string, senha: string, criar: boolean): Promise<string | null> {
   const sb = await obterCliente();
-  if (!sb) return "Configure a URL e a chave do Supabase primeiro.";
   try {
     const r = criar
-      ? await sb.auth.signUp({ email, password: senha })
+      ? await sb.auth.signUp({ email, password: senha, options: { emailRedirectTo: location.origin + location.pathname } })
       : await sb.auth.signInWithPassword({ email, password: senha });
     if (r.error) return traduzirErro(r.error);
     if (criar && !r.data.session) return "Conta criada. Abra o e-mail de confirmação e depois toque em Entrar.";
@@ -126,7 +116,6 @@ export function sincronizar(): Promise<void> {
 
 async function umaRodada() {
   const sb = await obterCliente();
-  if (!sb) return definir({ status: "desligado" });
   const { data: sessao } = await sb.auth.getSession();
   if (!sessao.session) return definir({ status: "sem-login", email: null });
   if (typeof navigator !== "undefined" && navigator.onLine === false) return definir({ status: "offline" });
@@ -207,10 +196,8 @@ function temSessaoSalva(): boolean {
  * `forcar` = acabou de entrar, então carrega e sincroniza.
  */
 export async function iniciarSync(forcar = false) {
-  if (!credenciais()) return definir({ status: "desligado" });
   if (!forcar && !temSessaoSalva()) return definir({ status: "sem-login", email: null });
-  const sb = await obterCliente();
-  if (!sb) return definir({ status: "desligado" });
+  await obterCliente();
   if (!iniciado) {
     iniciado = true;
     aoAlterarLocal(() => {
