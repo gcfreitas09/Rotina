@@ -162,7 +162,11 @@ export interface Cartao extends Base {
   proxima: string;
   acertos: number;
   erros: number;
+  /** Dificuldade escolhida por quem estuda. Cartão antigo, sem o campo, vale "medio". */
+  dificuldade?: Dificuldade;
 }
+
+export type Dificuldade = "facil" | "medio" | "dificil";
 
 export type Tema = "claro" | "escuro" | "sistema";
 

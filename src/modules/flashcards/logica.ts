@@ -1,4 +1,4 @@
-import type { Cartao } from "../../data/types.ts";
+import type { Cartao, Dificuldade } from "../../data/types.ts";
 import { somarDias } from "../../data/datas.ts";
 
 /** Dias até a próxima revisão em cada caixa (Leitner). Caixa 1 = revisar de novo hoje. */
@@ -15,12 +15,47 @@ export function paraRevisar(c: Cartao, hoje: string): boolean {
   return c.proxima <= hoje;
 }
 
-/** Fila de estudo: os vencidos primeiro (os de caixa menor antes), embaralhados dentro da caixa. */
-export function fila(cartoes: Cartao[], hoje: string, todos = false): Cartao[] {
-  const base = todos ? cartoes : cartoes.filter((c) => paraRevisar(c, hoje));
-  return [...base]
-    .map((c) => ({ c, r: Math.random() }))
-    .sort((a, b) => a.c.caixa - b.c.caixa || a.r - b.r)
+export const DIFICULDADES: { id: Dificuldade; nome: string }[] = [
+  { id: "facil", nome: "Fácil" },
+  { id: "medio", nome: "Médio" },
+  { id: "dificil", nome: "Difícil" },
+];
+const PESO_DIF: Record<Dificuldade, number> = { dificil: 0, medio: 1, facil: 2 };
+
+/** Cartão antigo, sem dificuldade, conta como médio. */
+export function dificuldadeDe(c: Cartao): Dificuldade {
+  return c.dificuldade ?? "medio";
+}
+
+export type OrdemEstudo = "caixa" | "aleatoria";
+export interface OpcoesEstudo {
+  ordem: OrdemEstudo;
+  /** null = todas as dificuldades. */
+  dificuldade: Dificuldade | null;
+}
+export const OPCOES_PADRAO: OpcoesEstudo = { ordem: "caixa", dificuldade: null };
+
+/** Embaralha de verdade (Fisher-Yates), sem alterar a lista original. */
+export function embaralhar<T>(lista: T[], sorteio: () => number = Math.random): T[] {
+  const r = [...lista];
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(sorteio() * (i + 1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+}
+
+/**
+ * Fila de estudo. Ordem "caixa": vencidos primeiro, caixa menor antes, difíceis antes dos fáceis,
+ * embaralhados no empate. Ordem "aleatoria": tudo misturado, sem prioridade.
+ */
+export function fila(cartoes: Cartao[], hoje: string, todos = false, opcoes: OpcoesEstudo = OPCOES_PADRAO, sorteio: () => number = Math.random): Cartao[] {
+  let base = todos ? cartoes : cartoes.filter((c) => paraRevisar(c, hoje));
+  if (opcoes.dificuldade) base = base.filter((c) => dificuldadeDe(c) === opcoes.dificuldade);
+  if (opcoes.ordem === "aleatoria") return embaralhar(base, sorteio);
+  return embaralhar(base, sorteio)
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => a.c.caixa - b.c.caixa || PESO_DIF[dificuldadeDe(a.c)] - PESO_DIF[dificuldadeDe(b.c)] || a.i - b.i)
     .map((x) => x.c);
 }
 

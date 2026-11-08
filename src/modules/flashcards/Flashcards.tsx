@@ -1,13 +1,58 @@
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "../../components/icones.tsx";
-import type { Baralho, Cartao } from "../../data/types.ts";
+import type { Baralho, Cartao, Dificuldade } from "../../data/types.ts";
 import { excluir, salvar, useColecao } from "../../data/store.ts";
 import { hoje } from "../../data/datas.ts";
 import { novoId } from "../../data/formato.ts";
 import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import { Conta, gsap, reduzido, useGSAP } from "../../components/movimento.tsx";
 import { navegar } from "../../rota.ts";
-import { ULTIMA_CAIXA, dominio, fila, paraRevisar, responder } from "./logica.ts";
+import { DIFICULDADES, OPCOES_PADRAO, ULTIMA_CAIXA, dificuldadeDe, dominio, fila, paraRevisar, responder, type OpcoesEstudo } from "./logica.ts";
+
+/** Como estudar (ordem e dificuldade). Fica na memória enquanto o app está aberto. */
+let opcoesEstudo: OpcoesEstudo = OPCOES_PADRAO;
+
+function SeletorDificuldade({ valor, aoMudar, rotulo }: { valor: Dificuldade; aoMudar: (d: Dificuldade) => void; rotulo: string }) {
+  return (
+    <div className="opcoes" role="group" aria-label={rotulo}>
+      {DIFICULDADES.map((d) => (
+        <button type="button" key={d.id} className={`opcao dif-${d.id}`} aria-pressed={valor === d.id} onClick={() => aoMudar(d.id)}>{d.nome}</button>
+      ))}
+    </div>
+  );
+}
+
+function SeloDificuldade({ c }: { c: Cartao }) {
+  const d = dificuldadeDe(c);
+  return <span className={`selo-dif dif-${d}`}>{DIFICULDADES.find((x) => x.id === d)?.nome}</span>;
+}
+
+/** Ordem e filtro de dificuldade da próxima sessão de estudo. */
+function OpcoesDeEstudo() {
+  const [o, setO] = useState(opcoesEstudo);
+  const mudar = (n: OpcoesEstudo) => { opcoesEstudo = n; setO(n); };
+  return (
+    <div className="opcoes-estudo">
+      <div className="opcoes-linha">
+        <span className="opcoes-rotulo">Ordem</span>
+        <div className="opcoes" role="group" aria-label="Ordem do estudo">
+          <button type="button" className="opcao" aria-pressed={o.ordem === "caixa"} onClick={() => mudar({ ...o, ordem: "caixa" })}>Inteligente</button>
+          <button type="button" className="opcao" aria-pressed={o.ordem === "aleatoria"} onClick={() => mudar({ ...o, ordem: "aleatoria" })}>Aleatória</button>
+        </div>
+      </div>
+      <div className="opcoes-linha">
+        <span className="opcoes-rotulo">Dificuldade</span>
+        <div className="opcoes" role="group" aria-label="Filtrar por dificuldade">
+          <button type="button" className="opcao" aria-pressed={o.dificuldade === null} onClick={() => mudar({ ...o, dificuldade: null })}>Todas</button>
+          {DIFICULDADES.map((d) => (
+            <button type="button" key={d.id} className={`opcao dif-${d.id}`} aria-pressed={o.dificuldade === d.id} onClick={() => mudar({ ...o, dificuldade: d.id })}>{d.nome}</button>
+          ))}
+        </div>
+      </div>
+      <p className="suave opcoes-dica">{o.ordem === "aleatoria" ? "Mistura tudo, sem olhar a caixa." : "Vencidos primeiro, caixa menor e difíceis antes."}</p>
+    </div>
+  );
+}
 
 /** Flashcards: pastas por matéria → cartões → estudar. Rotas: #/escola/flashcards[/<pasta>[/estudar]] */
 export default function Flashcards({ pasta, acao }: { pasta?: string; acao?: string }) {
@@ -135,6 +180,7 @@ function Pasta({ b }: { b: Baralho }) {
   const [frente, setFrente] = useState("");
   const [verso, setVerso] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [dif, setDif] = useState<Dificuldade>("medio");
   const [editando, setEditando] = useState<Cartao | null>(null);
   const [editPasta, setEditPasta] = useState(false);
   const refFrente = useRef<HTMLTextAreaElement>(null);
@@ -144,7 +190,7 @@ function Pasta({ b }: { b: Baralho }) {
   const adicionar = (e: React.FormEvent) => {
     e.preventDefault();
     if (!frente.trim() || !verso.trim()) return setErro("Escreva a pergunta e a resposta.");
-    salvar("cartoes", { id: novoId("c"), baralhoId: b.id, frente: frente.trim(), verso: verso.trim(), caixa: 1, proxima: h, acertos: 0, erros: 0 });
+    salvar("cartoes", { id: novoId("c"), baralhoId: b.id, frente: frente.trim(), verso: verso.trim(), caixa: 1, proxima: h, acertos: 0, erros: 0, dificuldade: dif });
     setFrente(""); setVerso(""); setErro(null);
     refFrente.current?.focus();
     mostrarAviso("Cartão adicionado.");
@@ -185,6 +231,7 @@ function Pasta({ b }: { b: Baralho }) {
                 Estudar {rev ? `${rev} de hoje` : "agora"}
               </button>
             </header>
+            {cartoes.length > 0 && <OpcoesDeEstudo />}
             {cartoes.length === 0 ? (
               <p className="suave">Nenhum cartão ainda. Escreva a primeira pergunta ao lado.</p>
             ) : (
@@ -196,6 +243,7 @@ function Pasta({ b }: { b: Baralho }) {
                       <p className="ficha-verso">{c.verso}</p>
                     </div>
                     <div className="ficha-rodape">
+                      <SeloDificuldade c={c} />
                       <span className="caixas" aria-label={`Caixa ${c.caixa} de ${ULTIMA_CAIXA}`}>
                         {Array.from({ length: ULTIMA_CAIXA }, (_, i) => <i key={i} className={i < c.caixa ? "cheia" : ""} />)}
                       </span>
@@ -218,6 +266,7 @@ function Pasta({ b }: { b: Baralho }) {
               <Campo rotulo="Resposta (verso)">
                 <textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} placeholder="Ex.: Revolução na França (1789–1799) que derrubou a monarquia absolutista…" />
               </Campo>
+              <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
               {erro && <p className="erro-campo" role="alert">{erro}</p>}
               <button className="botao primario"><Plus size={16} strokeWidth={2} aria-hidden="true" /> Adicionar cartão</button>
             </form>
@@ -234,17 +283,19 @@ function Pasta({ b }: { b: Baralho }) {
 function CartaoForm({ c, aoFechar }: { c: Cartao; aoFechar: () => void }) {
   const [frente, setFrente] = useState(c.frente);
   const [verso, setVerso] = useState(c.verso);
+  const [dif, setDif] = useState<Dificuldade>(dificuldadeDe(c));
   const [erro, setErro] = useState<string | null>(null);
   return (
     <Dialogo titulo="Editar cartão" aoFechar={aoFechar}>
       <form className="form" noValidate onSubmit={(e) => {
         e.preventDefault();
         if (!frente.trim() || !verso.trim()) return setErro("Escreva a pergunta e a resposta.");
-        salvar("cartoes", { ...c, frente: frente.trim(), verso: verso.trim() });
+        salvar("cartoes", { ...c, frente: frente.trim(), verso: verso.trim(), dificuldade: dif });
         aoFechar();
       }}>
         <Campo rotulo="Pergunta (frente)"><textarea rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} /></Campo>
         <Campo rotulo="Resposta (verso)"><textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} /></Campo>
+        <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
         {erro && <p className="erro-campo" role="alert">{erro}</p>}
         <div className="acoes" style={{ justifyContent: "space-between" }}>
           <button type="button" className="botao texto" onClick={async () => {
@@ -265,7 +316,7 @@ function Estudar({ b }: { b: Baralho }) {
   const h = hoje();
   const doBaralho = todos.filter((c) => c.baralhoId === b.id);
   const [ids, setIds] = useState<string[] | null>(() => {
-    const f = fila(doBaralho, h);
+    const f = fila(doBaralho, h, false, opcoesEstudo);
     return f.length ? f.map((c) => c.id) : null;
   });
   const [pos, setPos] = useState(0);
@@ -304,7 +355,15 @@ function Estudar({ b }: { b: Baralho }) {
       <>
         {voltar}
         <div className="topo"><h1>Tudo revisado</h1></div>
-        <Vazio texto="Nenhum cartão desta pasta vence hoje. Quer passar por todos mesmo assim?" acao="Estudar todos" aoAgir={() => { setIds(fila(doBaralho, h, true).map((c) => c.id)); setPos(0); }} />
+        {fila(doBaralho, h, true, opcoesEstudo).length === 0 ? (
+          <Vazio texto="Nenhum cartão desta pasta tem essa dificuldade. Mude o filtro na pasta ou marque a dificuldade nos cartões." />
+        ) : (
+          <Vazio
+            texto={opcoesEstudo.dificuldade ? "Nenhum cartão dessa dificuldade vence hoje. Quer passar por todos eles mesmo assim?" : "Nenhum cartão desta pasta vence hoje. Quer passar por todos mesmo assim?"}
+            acao="Estudar todos"
+            aoAgir={() => { setIds(fila(doBaralho, h, true, opcoesEstudo).map((c) => c.id)); setPos(0); }}
+          />
+        )}
       </>
     );
   }
@@ -356,6 +415,11 @@ function Estudar({ b }: { b: Baralho }) {
           <span className="face-texto">{atual.verso}</span>
         </span>
       </button>
+
+      <div className="estudo-dif">
+        <span className="opcoes-rotulo">Este cartão é</span>
+        <SeletorDificuldade valor={dificuldadeDe(atual)} aoMudar={(d) => salvar("cartoes", { ...atual, dificuldade: d })} rotulo="Dificuldade deste cartão" />
+      </div>
 
       <div className={`estudo-respostas ${virado ? "visivel" : ""}`}>
         <button className="botao resposta-errei" disabled={!virado} onClick={() => responderCartao(false)}>Errei <kbd>1</kbd></button>

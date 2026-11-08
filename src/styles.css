@@ -907,3 +907,24 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
   .lista > li > .tarefa > .item:hover { background: color-mix(in srgb, var(--papel-2) 60%, transparent); }
   .lista > li > .tarefa > .item[data-urg]:hover { background: color-mix(in srgb, var(--urg) 14%, transparent); }
 }
+
+/* Flashcards: dificuldade e ordem de estudo */
+.opcoes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.opcao { min-height: 44px; padding: 0 14px; border: 1px solid var(--linha-forte); border-radius: 999px; background: transparent; color: var(--texto); font: 500 14px/1 var(--fonte-texto); cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.opcao[aria-pressed="true"] { background: var(--musgo); border-color: var(--musgo); color: #fff; }
+.opcao.dif-facil[aria-pressed="true"] { background: var(--urg-baixa, #1f9d55); border-color: var(--urg-baixa, #1f9d55); }
+.opcao.dif-medio[aria-pressed="true"] { background: #b88700; border-color: #b88700; }
+.opcao.dif-dificil[aria-pressed="true"] { background: var(--atraso, #b3392b); border-color: var(--atraso, #b3392b); }
+.opcoes-estudo { display: grid; gap: 10px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--linha); }
+.opcoes-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.opcoes-rotulo { min-width: 84px; font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--suave, var(--texto-suave)); }
+.opcoes-dica { margin: 0; font-size: 13px; }
+.selo-dif { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.selo-dif.dif-facil { color: #1a7f46; }
+.selo-dif.dif-medio { color: #8a6500; }
+.selo-dif.dif-dificil { color: var(--atraso, #b3392b); }
+:root[data-tema="escuro"] .selo-dif.dif-facil { color: #3ddc84; }
+:root[data-tema="escuro"] .selo-dif.dif-medio { color: #ffcd2e; }
+:root[data-tema="escuro"] .selo-dif.dif-dificil { color: #ff7a6b; }
+.estudo-dif { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; margin: 14px 0 4px; }
+@media (hover: none) { .opcao { transition: none; } }

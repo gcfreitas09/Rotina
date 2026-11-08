@@ -7,27 +7,27 @@ Scope: Web app Rotina (React + TS, localStorage + sincronia Supabase) com Hoje, 
 - [x] G1: Fórmulas de notas, ponto extra, recuperação limitada e mescla da sincronia passam nos testes
   CHECK: npm test
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=294a52e2f0be81815d1641d9ed8a7abf424751c922809692c9e8170df8bb143b; exit=0; EXPECT=matched; output-sha256=74d57e79ad093782a1e06567b1fa101704652fe125f78764f1a5e6513af029aa; output-bytes=1586; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=294a52e2f0be81815d1641d9ed8a7abf424751c922809692c9e8170df8bb143b; exit=0; EXPECT=matched; output-sha256=0c66a8405bdc0c68a869d0b6128c95e88a6556b5e0f4248c164babb2aea587ad; output-bytes=1945; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G2: Tipagem e build de produção passam
   CHECK: npm run build
   EXPECT: built in
-  EVIDENCE: automatic-evidence=v1; definition-sha256=46d72eccd628b28a4b0e974e69890ad856bb5d28a16876531804fc540a571513; exit=0; EXPECT=matched; output-sha256=c0ce6a2ae8a2de372801b4b4ba403c39024a27f9ebb8df6424a0d0e4115a6018; output-bytes=824; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=46d72eccd628b28a4b0e974e69890ad856bb5d28a16876531804fc540a571513; exit=0; EXPECT=matched; output-sha256=024d4c1c135f9ae050f937a04a133143b5fed4f1fb7b459820ff14d3cf107068; output-bytes=976; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G3: Telas em 1440/900/390 sem rolagem lateral, sem erro de console, e fluxos (recuperação, ponto extra, validação, dieta repetida e editável, horários repetidos, tarefas com desfazer, tema escuro) funcionam no navegador
   CHECK: node scripts/verificar.mjs navegador
   EXPECT: NAVEGADOR OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=2411768525884d58efc62d6c9e5c42ab3292d9239f886411796438986e4df39b; exit=0; EXPECT=matched; output-sha256=e2ab781ebc24c4a5828da2c00ba1a1d135f90c9e8b49d3d6eff8815d43b023ae; output-bytes=4738; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=2411768525884d58efc62d6c9e5c42ab3292d9239f886411796438986e4df39b; exit=0; EXPECT=matched; output-sha256=c37fc3dbd94745198581e6dc607fd31183509099db2fcfad77ed9d4140fe20cd; output-bytes=4939; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G4: Lighthouse mobile: performance ≥ 90, acessibilidade ≥ 95, boas práticas ≥ 95
   CHECK: node scripts/verificar.mjs lighthouse
   EXPECT: LIGHTHOUSE OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=1211f45d524a28786ac5c7c83e7d8fed76032681491a3c03501dd3d79964e94d; exit=0; EXPECT=matched; output-sha256=5195e7e6d6341d57a109b9d799a3f5c238b6325b3fc29f96a8b610ede45b6b66; output-bytes=100; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=1211f45d524a28786ac5c7c83e7d8fed76032681491a3c03501dd3d79964e94d; exit=0; EXPECT=matched; output-sha256=4dcebe3f87a7cade1dc3eb37bda47221e8adaf8e09dbe4c82b9a63daf00cb8be; output-bytes=100; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G5: Projeto e entregável dentro do orçamento de peso, sem arquivo inútil
   CHECK: node ~/.claude/tools/peso.mjs . --entregavel dist
   EXPECT: PESO OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=68bf6d4d67a9755463ed8170990a5db6bfc50f6e02526198ec34c5c868d856d1; exit=0; EXPECT=matched; output-sha256=f6a6e8a929058cd253ed7e735c5b289931a2f750d5ba922d83e30ffe8d887f93; output-bytes=266; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=68bf6d4d67a9755463ed8170990a5db6bfc50f6e02526198ec34c5c868d856d1; exit=0; EXPECT=matched; output-sha256=97f728f618d1dc357f40c53b556dc129259da76cc8489e1769eeae8689bdbdf1; output-bytes=266; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G6: Screenshots olhados e criticados (claro e escuro, três larguras, diálogo, cronômetro)
   EVIDENCE: 08/11/2026 — olhados 390/900/1440 (Hoje, Escola, matéria, Horários grade, Dieta escura, Treino, Treinando com cronômetro, diálogo). Corrigidos: rótulo 7,0 da régua sobre os nomes, última data cortada no gráfico de linha, semestre incompleto vermelho no comparativo, aviso cobrindo o diálogo.
@@ -49,17 +49,17 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
 
 ## Fluidez no celular (pedido de 08/11/2026: "está travando no mobile")
 
-- [ ] G15: Com a tela parada, Hoje, Dieta, Tarefas, Escola e Horários não repintam (máx. 5 pinturas em 2,5 s, no celular)
+- [x] G15: Com a tela parada, Hoje, Dieta, Tarefas, Escola e Horários não repintam (máx. 5 pinturas em 2,5 s, no celular)
   CHECK: node scripts/verificar.mjs parado
   EXPECT: PARADO OK
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=a1d8ca7f1132a5e0651b50aa3c2acb99199ad61b73741d173eeab9c5454218e3; exit=0; EXPECT=matched; output-sha256=d11d085e9f6ea91b7b5945cc28fa5c83a2d5690750ee18e8472edda9d364cb04; output-bytes=281; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 ## Urgência das tarefas por cor (pedido de 08/11/2026)
 
 - [x] G14: A urgência (prazo + prioridade) classifica certo: atrasada sempre urgente; hoje+alta urgente; além de 7 dias tranquila
   CHECK: node --test tests/urgencia.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d5528d06cf707b42b58e54e620a7bf74ffd14be7c7e5a0bb7ecf696cfb4cc02e; exit=0; EXPECT=matched; output-sha256=e0876c455ed6a856e99cd749400040bbdafdcf6a88cf7a3cd79326a0902a89ec; output-bytes=486; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d5528d06cf707b42b58e54e620a7bf74ffd14be7c7e5a0bb7ecf696cfb4cc02e; exit=0; EXPECT=matched; output-sha256=e61f13103f85e92e7c22f29d7fbb37ee665d5e99e78f757761fc987cc3f89702; output-bytes=488; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 ## Sem scroll lateral na lista da Escola (pedido de 08/11/2026: "100% parado e perfeito")
 
@@ -73,12 +73,12 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
 - [x] G10: Repetição dos flashcards (caixas de Leitner) calcula a próxima revisão certa: acerto sobe de caixa e espaça, erro volta para a caixa 1 e revisa hoje
   CHECK: node --test tests/flashcards.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: automatic-evidence=v1; definition-sha256=ffa4fc2dfa68161eb06f840d64cf214f353c7021a1bc5bdfd1170e685126f771; exit=0; EXPECT=matched; output-sha256=fcf2a6cd52537465f3f0c7b4b26298694e1d769c8885907e06a20a5ed536b80d; output-bytes=331; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=ffa4fc2dfa68161eb06f840d64cf214f353c7021a1bc5bdfd1170e685126f771; exit=0; EXPECT=matched; output-sha256=aec7fe2193415016959577403a904cc02cdee9e38edc39df0d684e1722c93c03; output-bytes=691; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
-- [x] G11: No navegador: criar pasta de História, criar cartão "O que foi a Revolução Francesa?", estudar, virar o cartão, marcar "Acertei" e o cartão sai da fila de hoje
+- [x] G11: No navegador: criar pasta de História, criar cartão "O que foi a Revolução Francesa?", estudar, virar, "Acertei" tira da fila; dificuldade no cartão, ordem aleatória e filtro Difícil funcionam
   CHECK: node scripts/verificar.mjs flashcards
   EXPECT: FLASHCARDS OK
-  EVIDENCE: automatic-evidence=v1; definition-sha256=f4e17fc49fa58e143c4bbfe670c949a88713ddcd482f343b024c55f3ac5ac58b; exit=0; EXPECT=matched; output-sha256=157b10a19a7c9f812d4a3e8d9aac36a32d222ba0a573462d68ec9c51302e7bfe; output-bytes=767; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=f4e17fc49fa58e143c4bbfe670c949a88713ddcd482f343b024c55f3ac5ac58b; exit=0; EXPECT=matched; output-sha256=a4562b304ac16b039aac8e6b059faf579e230f372b39b874444b3deec8aeadcc; output-bytes=1363; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
 - [x] G12: Hero do Hoje olhado em 390/1100/1920: lousa com os números dentro, painel sem buracos entre blocos
   EVIDENCE: 08/11/2026 — olhados Hoje 1920/1100 escuro e 390 claro, Flashcards (frente, verso, pasta, lista de pastas) em claro/escuro e 1440, e Escola rolada em 1920/1280/390 (resumo fixo a 24 px do topo; comparativo sob as matérias). Corrigido: linhas pautadas do cartão desalinhadas, formulário de cartão atrás da lista no celular, estouro de 15 px no tablet (900 px), vazio embaixo da lista de matérias na Escola (lista agora fixa na rolagem; resumo e comparativo ficam à direita).

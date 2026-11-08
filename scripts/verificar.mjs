@@ -391,6 +391,23 @@ async function flashcards() {
     const idPasta = (await ls("baralhos"))[0].id;
     await page.evaluate((id) => (location.hash = "/escola/flashcards/" + id), idPasta); await espera(1200);
     await foto("pasta-1440");
+    // Dificuldade e ordem aleatória
+    checar((await ls("cartoes")).every((c) => (c.dificuldade ?? "medio") === "medio"), "Cartões novos nascem como Médio");
+    await clicar('[aria-label="Dificuldade do cartão"] button::-p-text(Difícil)');
+    await page.type('textarea[placeholder^="Ex.: O que foi"]', "Quem era o rei deposto?");
+    await page.type('textarea[placeholder^="Ex.: Revolução na França"]', "Luís XVI.");
+    await clicar("button::-p-text(Adicionar cartão)");
+    const dificil = (await ls("cartoes")).find((c) => c.frente === "Quem era o rei deposto?");
+    checar(dificil?.dificuldade === "dificil", "Cartão criado como Difícil guarda a dificuldade");
+    checar((await page.$$(".selo-dif.dif-dificil")).length === 1, "Lista mostra o selo Difícil");
+    await clicar('[aria-label="Ordem do estudo"] button::-p-text(Aleatória)');
+    await clicar('[aria-label="Filtrar por dificuldade"] button::-p-text(Difícil)');
+    checar(await page.$eval('[aria-label="Ordem do estudo"] button:nth-child(2)', (e) => e.getAttribute("aria-pressed") === "true"), "Ordem Aleatória fica marcada");
+    await clicar("button::-p-text(Estudar)"); await espera(900);
+    checar((await page.$eval(".cartao-3d .frente .face-texto", (e) => e.textContent)) === "Quem era o rei deposto?", "Filtro Difícil estuda só o cartão difícil");
+    checar((await page.evaluate(() => document.body.textContent)).includes("1 / 1"), "Sessão filtrada tem 1 cartão");
+    await clicar('[aria-label="Dificuldade deste cartão"] button::-p-text(Fácil)');
+    checar((await ls("cartoes")).find((c) => c.frente === "Quem era o rei deposto?")?.dificuldade === "facil", "Muda a dificuldade durante o estudo");
     await page.setViewport({ width: 390, height: 844 }); await espera(300);
     const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     checar(sobra === 0, "Sem rolagem lateral");

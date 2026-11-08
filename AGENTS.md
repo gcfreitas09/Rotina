@@ -48,6 +48,7 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - `src/data/sync.ts` + `supabase/schema.sql` — sincronia. `src/data/grupos.ts` — "Repetir".
 - `src/data/exemplos.ts` — dados de exemplo; todo id começa com `ex-` ("Limpar exemplos" usa isso).
 - `src/modules/flashcards/` — pastas por matéria → cartões → estudar (rota `#/escola/flashcards[/<pasta>[/estudar]]`, aba dentro da Escola). `logica.ts` = caixas de Leitner (intervalos 0/0/1/3/7/14 dias).
+  Cartão tem `dificuldade` (facil/medio/dificil; ausente = medio) só para organizar e filtrar, não muda o intervalo. Estudo: ordem "Inteligente" (caixa, depois difícil antes de fácil) ou "Aleatória" (mistura tudo); filtro por dificuldade; opções ficam em memória (`opcoesEstudo`), pedido de 08/11/2026.
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 
