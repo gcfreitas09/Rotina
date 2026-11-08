@@ -251,6 +251,7 @@ async function navegador() {
   checar((await ls("tarefas")).find((t) => t.titulo === "Tarefa do teste")?.concluida === true, "Checkbox conclui a tarefa");
   await clicar('button[aria-pressed="false"]::-p-text(Concluídas)');
   await clicar("button::-p-text(Tarefa do teste)");
+  await clicar(".sub-wrap.aberta button::-p-text(Editar tarefa)"); // tem subtarefa: tocar abre a lista; a edição fica no botão de dentro
   await clicar(".dialogo button::-p-text(Excluir)");
   await clicar(".dialogo button.perigo");
   checar(!(await ls("tarefas")).some((t) => t.titulo === "Tarefa do teste"), "Excluir pede confirmação e exclui");
@@ -426,6 +427,28 @@ async function hover() {
   console.log(falhas.length ? `HOVER FALHOU (${falhas.length})` : "HOVER OK");
 }
 
+// Tela parada não pode repintar: animação que nunca para (ou que anima box-shadow/SVG) trava celular e gasta bateria.
+// Bug real: copo d'água com onda em loop repintava Hoje e Dieta ~120 vezes por segundo. Mede com o rastreamento do Chrome.
+async function parado() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  await page.goto(BASE + "#/hoje", { waitUntil: "networkidle0" });
+  await new Promise((r) => setTimeout(r, 1500));
+  for (const rota of ["hoje", "saude/dieta", "tarefas", "escola", "mais/horarios"]) {
+    await page.evaluate((r) => (location.hash = "/" + r), rota);
+    await new Promise((r) => setTimeout(r, 1800)); // a animação de entrada acaba
+    await page.tracing.start({ categories: ["devtools.timeline"] });
+    await new Promise((r) => setTimeout(r, 2500));
+    const eventos = JSON.parse(Buffer.from(await page.tracing.stop()).toString()).traceEvents;
+    const pinturas = eventos.filter((e) => e.name === "Paint").length;
+    checar(pinturas <= 5, `${rota}: parada por 2,5 s repinta ${pinturas}x (máx. 5)`);
+  }
+  await browser.close();
+  console.log(falhas.length ? `PARADO FALHOU (${falhas.length})` : "PARADO OK");
+}
+
 async function lighthouse() {
   const lh = qa("lighthouse").default ?? qa("lighthouse");
   const chromeLauncher = qa("chrome-launcher");
@@ -448,6 +471,7 @@ try {
   else if (modo === "movimento") await movimento();
   else if (modo === "flashcards") await flashcards();
   else if (modo === "hover") await hover();
+  else if (modo === "parado") await parado();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

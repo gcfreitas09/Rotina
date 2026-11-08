@@ -47,6 +47,13 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
 - [x] G9: Redesign olhado em 390/900/1440, claro e escuro: lousa no Hoje e na lateral, números contando, copo d'água, cronômetro circular, transição entre telas
   EVIDENCE: 08/11/2026 — olhados Hoje 390/1440 claro e 1440 escuro, Escola 390 + matéria, Dieta 390, Treinando com anel (claro/escuro), Horários 1440 escuro; depois do pedido "use a tela toda": 1920 escuro (Hoje, Escola, matéria, Treino), 1100 claro (Dieta), 390 claro (Hoje). Corrigidos: média geral diferente entre Hoje e Escola (soma parcial), quadriculado forte demais, buraco no painel do desktop, agulha amarela (virou giz: um destaque só), foco/rolagem atrás da barra flutuante.
 
+## Fluidez no celular (pedido de 08/11/2026: "está travando no mobile")
+
+- [ ] G15: Com a tela parada, Hoje, Dieta, Tarefas, Escola e Horários não repintam (máx. 5 pinturas em 2,5 s, no celular)
+  CHECK: node scripts/verificar.mjs parado
+  EXPECT: PARADO OK
+  EVIDENCE: pending
+
 ## Urgência das tarefas por cor (pedido de 08/11/2026)
 
 - [x] G14: A urgência (prazo + prioridade) classifica certo: atrasada sempre urgente; hoje+alta urgente; além de 7 dias tranquila

@@ -94,6 +94,17 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - **Cadastrar matéria não abre a matéria**: fica na lista da Escola com aviso "X cadastrada"; as notas se lançam depois,
   entrando na matéria. (Já criar pasta de flashcards abre a pasta, para escrever os cartões na hora.)
 
+## Desempenho no celular (regras; pedido do Guilherme: "deixe que nem no desktop")
+- **Tela parada não repinta.** Em animação que nunca para, só `transform` e `opacity` (rodam na GPU). Nunca animar
+  `box-shadow`, `width`, `top`, SVG ou `background` em loop. O copo d'água usa onda em CSS (`.onda`, translateX) e GSAP
+  só para subir o nível, uma vez. O anel da marca "agora" anima `transform`/`opacity` num pseudo-elemento.
+- **Sem `mix-blend-mode`, sem `filter`/`backdrop-filter` em tela cheia, sem camada `position: fixed` gigante.** O grão do
+  papel e a poeira de giz são ladrilhos PNG de 96 px (`src/assets/grao-*.png`, gerados por `scripts/grao.mjs`) como
+  `background-image`; o fundo escuro do diálogo é cor lisa, sem desfoque.
+- `prefers-reduced-motion` usa `animation-iteration-count: 1` (com 1 ms infinito a animação piscaria 1000x/s).
+- Gate `parado` (`verificar.mjs parado`): mede pinturas com o Chrome. Antes da correção: Hoje e Dieta = 360 pinturas em 3 s
+  (~120/s); depois: 0. Medir sempre pintura/composição, não só quadros de JavaScript: o rAF do headless mostra 60 fps mesmo travando.
+
 ## Armadilhas já resolvidas
 - Subtarefa no formulário de tarefa "estourava": o checkbox mora dentro de `.campo`, e `.campo input { width: 100% }`
   esticava o quadradinho até o fim do formulário (358–506 px), empurrando o texto para fora e criando scroll lateral →
