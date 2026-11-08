@@ -396,9 +396,9 @@ async function flashcards() {
     await clicar('[aria-label="Dificuldade do cartão"] button::-p-text(Difícil)');
     await page.type('textarea[placeholder^="Ex.: O que foi"]', "Quem era o rei deposto?");
     await page.type('textarea[placeholder^="Ex.: Revolução na França"]', "- Luís XVI");
-    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter"); await espera(150); // o cursor é recolocado no próximo quadro
     await page.keyboard.type("Rei da França");
-    checar((await page.$eval('textarea[placeholder^="Ex.: Revolução na França"]', (e) => e.value)) === "- Luís XVI\n- Rei da França", "Enter numa lista continua com '- '");
+    checar((await page.$eval('textarea[placeholder^="Ex.: Revolução na França"]', (e) => e.value)) === "- Luís XVI\n- Rei da França", `Enter numa lista continua com '- ' (${JSON.stringify(await page.$eval('textarea[placeholder^="Ex.: Revolução na França"]', (e) => e.value))})`);
     // imagem grande (3000x2000) tem de ser reduzida e guardada como JPEG leve
     const png = await page.evaluate(() => { const t = document.createElement("canvas"); t.width = 3000; t.height = 2000; const x = t.getContext("2d"); x.fillStyle = "#c33"; x.fillRect(0, 0, 3000, 2000); x.fillStyle = "#39c"; x.beginPath(); x.arc(1500, 1000, 700, 0, 7); x.fill(); return t.toDataURL("image/png").split(",")[1]; });
     const arqImg = path.join(os.tmpdir(), "rotina-celula.png");
@@ -418,6 +418,8 @@ async function flashcards() {
     await clicar('[aria-label="Filtrar por dificuldade"] button::-p-text(Difícil)');
     checar(await page.$eval('button[role="switch"]', (e) => e.getAttribute("aria-checked") === "true"), "Chave Ordem aleatória fica ligada");
     checar((await page.$eval('[aria-label="Filtrar por dificuldade"] [aria-pressed="true"] .seg-n', (e) => e.textContent)) === "1", "Faixa mostra 1 cartão difícil");
+    const rotuloEstudar = await page.$$eval("button.primario", (bs) => bs.map((b) => b.textContent).find((t) => t.startsWith("Estudar")));
+    checar(/Estudar 1 difíceis de hoje/.test(rotuloEstudar ?? ""), `Botão Estudar segue o filtro (${rotuloEstudar})`);
     await clicar("button::-p-text(Estudar)"); await espera(900);
     checar((await page.$eval(".cartao-3d .frente .face-texto", (e) => e.textContent)) === "Quem era o rei deposto?", "Filtro Difícil estuda só o cartão difícil");
     checar((await page.evaluate(() => document.body.textContent)).includes("1 / 1"), "Sessão filtrada tem 1 cartão");

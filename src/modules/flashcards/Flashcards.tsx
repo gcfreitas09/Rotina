@@ -117,6 +117,7 @@ function BlocoComparacao({ ligada, aoLigar, valor, aoMudar }: { ligada: boolean;
 
 /** Como estudar (ordem e dificuldade). Fica na memória enquanto o app está aberto. */
 let opcoesEstudo: OpcoesEstudo = OPCOES_PADRAO;
+const PLURAL_DIF: Record<Dificuldade, string> = { facil: "fáceis", medio: "médios", dificil: "difíceis" };
 
 function SeletorDificuldade({ valor, aoMudar, rotulo }: { valor: Dificuldade; aoMudar: (d: Dificuldade) => void; rotulo: string }) {
   return (
@@ -134,9 +135,7 @@ function SeloDificuldade({ c }: { c: Cartao }) {
 }
 
 /** Dificuldade (faixa com a contagem de cada uma) e ordem aleatória da próxima sessão de estudo. */
-function OpcoesDeEstudo({ cartoes }: { cartoes: Cartao[] }) {
-  const [o, setO] = useState(opcoesEstudo);
-  const mudar = (n: OpcoesEstudo) => { opcoesEstudo = n; setO(n); };
+function OpcoesDeEstudo({ cartoes, o, mudar }: { cartoes: Cartao[]; o: OpcoesEstudo; mudar: (n: OpcoesEstudo) => void }) {
   const itens = [
     { id: "todas" as const, nome: "Todas", n: cartoes.length },
     ...DIFICULDADES.map((d) => ({ id: d.id, nome: d.nome, n: cartoes.filter((c) => dificuldadeDe(c) === d.id).length })),
@@ -251,7 +250,7 @@ function Pastas() {
                       <span className="suave">{cs.length} cart{cs.length === 1 ? "ão" : "ões"}{rev > 0 && <> · <b className="pasta-rev">{rev} para hoje</b></>}</span>
                       <span className="mini-regua" aria-label={`Domínio ${Math.round(dom * 100)}%`}><i style={{ width: `${dom * 100}%` }} /></span>
                     </a>
-                    <button className="botao primario pequeno" disabled={!cs.length} onClick={() => navegar(`escola/flashcards/${b.id}/estudar`)}>
+                    <button className="botao primario pequeno" disabled={!cs.length} onClick={() => { opcoesEstudo = OPCOES_PADRAO; navegar(`escola/flashcards/${b.id}/estudar`); }}>
                       Estudar{rev ? ` (${rev})` : ""}
                     </button>
                   </div>
@@ -328,7 +327,12 @@ function Pasta({ b }: { b: Baralho }) {
   const [editPasta, setEditPasta] = useState(false);
   const refFrente = useRef<HTMLTextAreaElement>(null);
   const h = hoje();
-  const rev = cartoes.filter((c) => paraRevisar(c, h)).length;
+  // O botão Estudar segue o filtro: em "Médio" só estuda (e conta) os médios.
+  const [opc, setOpc] = useState(opcoesEstudo);
+  const mudarOpc = (n: OpcoesEstudo) => { opcoesEstudo = n; setOpc(n); };
+  const noFiltro = fila(cartoes, h, true, opc).length;
+  const rev = fila(cartoes, h, false, opc).length;
+  const plural = opc.dificuldade ? PLURAL_DIF[opc.dificuldade] : "";
 
   const adicionar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -373,11 +377,11 @@ function Pasta({ b }: { b: Baralho }) {
           <section className="secao">
             <header>
               <h2>Cartões <small>{cartoes.length}</small></h2>
-              <button className="botao primario" disabled={!cartoes.length} onClick={() => navegar(`escola/flashcards/${b.id}/estudar`)}>
-                Estudar {rev ? `${rev} de hoje` : "agora"}
+              <button className="botao primario" disabled={!noFiltro} onClick={() => navegar(`escola/flashcards/${b.id}/estudar`)}>
+                {rev ? `Estudar ${rev} ${plural ? plural + " " : ""}de hoje` : plural ? `Estudar ${plural}` : "Estudar agora"}
               </button>
             </header>
-            {cartoes.length > 0 && <OpcoesDeEstudo cartoes={cartoes} />}
+            {cartoes.length > 0 && <OpcoesDeEstudo cartoes={cartoes} o={opc} mudar={mudarOpc} />}
             {cartoes.length === 0 ? (
               <p className="suave">Nenhum cartão ainda. Escreva a primeira pergunta ao lado.</p>
             ) : (
