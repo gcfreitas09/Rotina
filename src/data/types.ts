@@ -128,7 +128,10 @@ export interface Exercicio {
   id: string;
   nome: string;
   series: number;
+  /** Repetições (ou o início da faixa, em "8–10"). */
   reps: number;
+  /** Fim da faixa de repetições, quando é faixa. */
+  repsMax?: number;
   carga: number;
 }
 

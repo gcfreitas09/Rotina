@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatarReps } from "./reps.ts";
 import { ArrowLeft, Check, Minus, Plus, SkipForward } from "../../components/icones.tsx";
 import type { Sessao } from "../../data/types.ts";
 import { salvar, salvarVarios, useColecao, useConfig } from "../../data/store.ts";
@@ -94,7 +95,10 @@ export default function Treinando() {
 
       {sessao.exercicios.map((e, ei) => (
         <section className="secao" key={e.exercicioId}>
-          <header><h2>{e.nome}</h2><span className="suave num">{e.series.filter((s) => s.feita).length}/{e.series.length}</span></header>
+          <header>
+            <h2>{e.nome}{(() => { const m = ficha.exercicios.find((x) => x.id === e.exercicioId); return m ? <small className="suave num meta-reps"> meta {m.series}×{formatarReps(m)}</small> : null; })()}</h2>
+            <span className="suave num">{e.series.filter((s) => s.feita).length}/{e.series.length}</span>
+          </header>
           <div className="series">
             <div className="serie serie-cab suave" aria-hidden="true"><span>Série</span><span>kg</span><span>Reps</span><span /></div>
             {e.series.map((s, si) => (

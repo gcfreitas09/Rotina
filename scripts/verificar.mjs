@@ -682,6 +682,57 @@ async function diario() {
   console.log(falhas.length ? `DIARIO FALHOU (${falhas.length})` : "DIARIO OK");
 }
 
+// Ficha de treino aceita faixa de repetições ("8-10") e mostra "8–10" na ficha e no treino.
+async function reps() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await (await browser.createBrowserContext()).newPage();
+  await page.setViewport({ width: 390, height: 844 });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 300) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+
+  console.log("\nFaixa de repetições (390 px)");
+  await page.goto(BASE + "#/saude/treino", { waitUntil: "networkidle0" });
+  await espera(1000);
+  await clicar("button::-p-text(Ficha)");
+  await espera(500);
+  await page.type(".dialogo input[placeholder='Ex.: Push']", "Push teste");
+  const dias = await page.$$(".dialogo .dias button");
+  const hojeIdx = await page.evaluate(() => (new Date().getDay() + 6) % 7);
+  for (let i = 0; i < 7; i++) {
+    const on = await dias[i].evaluate((e) => e.getAttribute("aria-pressed") === "true");
+    if (on !== (i === hojeIdx)) await dias[i].click();
+  }
+  await page.type('.dialogo input[aria-label="Exercício"]', "Supino inclinado halter");
+  const r = await page.$('.dialogo input[aria-label^="Repetições"]');
+  await r.evaluate((e) => e.select());
+  await r.type("8-10");
+  const largura = await r.evaluate((e) => e.scrollWidth <= e.clientWidth);
+  checar(largura, "\"8-10\" cabe inteiro no campo");
+  await clicar("button::-p-text(Criar ficha)");
+  await espera(600);
+  checar(!(await page.$(".dialogo .erro-campo")), "Faixa 8-10 é aceita, sem erro");
+  const f = (await ls("fichas")).find((x) => x.nome === "Push teste");
+  checar(f?.exercicios[0].reps === 8 && f.exercicios[0].repsMax === 10, `Salva 8 a 10 (${JSON.stringify(f?.exercicios[0])})`);
+  checar((await page.evaluate(() => document.body.textContent)).includes("3×8–10"), "Ficha mostra 3×8–10");
+  await page.evaluate(() => (location.hash = "/saude/treino/agora"));
+  await espera(1200);
+  checar((await page.evaluate(() => document.body.textContent)).includes("meta 3×8–10"), "No treino aparece a meta 3×8–10");
+  // editar: o campo volta como 8-10
+  await page.evaluate(() => (location.hash = "/saude/treino"));
+  await espera(1000);
+  await clicar('button[aria-label="Editar ficha Push teste"]');
+  const v = await page.$eval('.dialogo input[aria-label^="Repetições"]', (e) => e.value);
+  checar(v === "8-10", `Ao editar, o campo mostra 8-10 (${v})`);
+  checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await browser.close();
+  console.log(falhas.length ? `REPS FALHOU (${falhas.length})` : "REPS OK");
+}
+
 // Hover e foco não podem criar scroll lateral em nenhuma lista fixa (bug real: chevron deslizando 3 px na Escola).
 async function hover() {
   const puppeteer = qa("puppeteer");
@@ -756,6 +807,7 @@ try {
   else if (modo === "nutricao") await nutricao();
   else if (modo === "marcas") await marcas();
   else if (modo === "diario") await diario();
+  else if (modo === "reps") await reps();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

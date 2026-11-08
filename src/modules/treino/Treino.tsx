@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatarReps, lerReps } from "./reps.ts";
 import { Pencil, Play, Plus, Trash2, X } from "../../components/icones.tsx";
 import type { Dia, Exercicio, Ficha } from "../../data/types.ts";
 import { excluir, salvar, salvarVarios, useColecao } from "../../data/store.ts";
@@ -86,7 +87,7 @@ export default function Treino() {
                         {f.exercicios.map((e) => (
                           <tr key={e.id}>
                             <td>{e.nome}</td>
-                            <td className="num">{e.series}×{e.reps}</td>
+                            <td className="num">{e.series}×{formatarReps(e)}</td>
                             <td className="num">{num(e.carga)} kg</td>
                           </tr>
                         ))}
@@ -216,7 +217,7 @@ function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: F
   const [nome, setNome] = useState(ficha?.nome ?? "");
   const [dias, setDias] = useState<Dia[]>(ficha?.dias ?? []);
   const [exs, setExs] = useState<ExTexto[]>(
-    ficha?.exercicios.map((e) => ({ id: e.id, nome: e.nome, series: String(e.series), reps: String(e.reps), carga: num(e.carga) })) ??
+    ficha?.exercicios.map((e) => ({ id: e.id, nome: e.nome, series: String(e.series), reps: formatarReps(e).replace("–", "-"), carga: num(e.carga) })) ??
       [{ id: novoId("e"), nome: "", series: "3", reps: "10", carga: "" }],
   );
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -230,12 +231,12 @@ function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: F
     const lista: Exercicio[] = [];
     for (const x of exs) {
       if (!x.nome.trim() && !x.carga) continue;
-      const series = Number(x.series), reps = Number(x.reps), carga = lerNumero(x.carga) ?? 0;
+      const series = Number(x.series), reps = lerReps(x.reps), carga = lerNumero(x.carga) ?? 0;
       if (!x.nome.trim()) er["e" + x.id] = "Dê um nome ao exercício.";
       else if (!Number.isInteger(series) || series < 1 || series > 20) er["e" + x.id] = "Séries: um número inteiro de 1 a 20.";
-      else if (!Number.isInteger(reps) || reps < 1 || reps > 100) er["e" + x.id] = "Repetições: um número inteiro de 1 a 100.";
+      else if (!reps) er["e" + x.id] = "Repetições: um número (10) ou uma faixa (8-10), de 1 a 100.";
       else if (Number.isNaN(carga) || carga < 0) er["e" + x.id] = "Carga: use um número em kg, como 22,5.";
-      lista.push({ id: x.id, nome: x.nome.trim(), series, reps, carga });
+      if (reps) lista.push({ id: x.id, nome: x.nome.trim(), series, ...reps, carga });
     }
     if (!lista.length && !er.nome) er.exs = "Adicione pelo menos um exercício.";
     setErros(er);
@@ -274,7 +275,7 @@ function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: F
             <div key={x.id} className="exercicio-form">
               <input className="entrada" value={x.nome} onChange={(e) => mudar(x.id, { nome: e.target.value })} placeholder="Exercício" aria-label="Exercício" aria-invalid={!!erros["e" + x.id]} />
               <input className="entrada num" inputMode="numeric" value={x.series} onChange={(e) => mudar(x.id, { series: e.target.value })} aria-label="Séries" />
-              <input className="entrada num" inputMode="numeric" value={x.reps} onChange={(e) => mudar(x.id, { reps: e.target.value })} aria-label="Repetições" />
+              <input className="entrada num" value={x.reps} onChange={(e) => mudar(x.id, { reps: e.target.value })} placeholder="8-10" aria-label="Repetições (número ou faixa, como 8-10)" />
               <input className="entrada num" inputMode="decimal" value={x.carga} onChange={(e) => mudar(x.id, { carga: e.target.value })} placeholder="0" aria-label="Carga em kg" />
               <button type="button" className="icone-btn" onClick={() => setExs(exs.filter((y) => y.id !== x.id))} aria-label={`Remover ${x.nome || "exercício"}`}><X size={16} strokeWidth={1.6} /></button>
               {erros["e" + x.id] && <p className="erro-campo" role="alert" style={{ gridColumn: "1 / -1" }}>{erros["e" + x.id]}</p>}

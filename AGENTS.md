@@ -126,6 +126,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (~120/s); depois: 0. Medir sempre pintura/composição, não só quadros de JavaScript: o rAF do headless mostra 60 fps mesmo travando.
 
 ## Armadilhas já resolvidas
+- Repetições "8 a 10" eram recusadas (campo só aceitava inteiro e abria teclado numérico, sem traço) → `treino/reps.ts`
+  (`lerReps`/`formatarReps`), `Exercicio.repsMax`; o campo é texto. Regra: campo que aceita faixa não usa `inputMode="numeric"`.
 - Subtarefa no formulário de tarefa "estourava": o checkbox mora dentro de `.campo`, e `.campo input { width: 100% }`
   esticava o quadradinho até o fim do formulário (358–506 px), empurrando o texto para fora e criando scroll lateral →
   a regra agora exclui `[type=checkbox|radio]`, `.dialogo` tem `overflow-x: hidden` e o texto da subtarefa quebra linha.
