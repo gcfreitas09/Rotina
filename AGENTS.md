@@ -65,6 +65,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   `DiaDieta.feitas` (como antes, registros antigos continuam valendo); comida em parte vai para `comidos` ("refeicaoId/alimentoId"),
   e o check da refeição fica indeterminado. "Comi fora do plano" = `DiaDieta.extras` (Alimento, mesmo cálculo automático).
   Resumo do dia: % de alimentos do plano comidos + kcal/proteína (plano + fora). Pedido do Guilherme em 08/11/2026.
+  Os checks valem para o dia escolhido nesta semana (seg a dom): hoje e dias que já passaram marcam na data daquele dia;
+  dia que ainda não chegou não tem check. Hoje sem refeição no plano → botão "Usar o plano de <dia> hoje" (soma o dia ao grupo).
 - `api/alimentos.js` (função do Vercel) + `api/_off.js` — `/api/alimentos?q=` busca produtos do Brasil na Open Food Facts
   (search.openfoodfacts.org não manda CORS, por isso não dá para chamar do navegador). O mesmo `_off.js` roda no `npm run dev`
   e no `preview` via plugin em `vite.config.ts`. No MAMP não há essa rota: a lista avisa e fica só a tabela local.

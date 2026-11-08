@@ -56,7 +56,7 @@ const kcalProt = (a: { kcal: number | null; proteina: number | null }) =>
   [a.kcal !== null && `${num(a.kcal, 0)} kcal`, a.proteina !== null && `${num(a.proteina, a.proteina < 10 ? 1 : 0)} g prot.`].filter(Boolean).join(" · ");
 
 /** Fim do dia: quanto do plano foi seguido, o que foi comido (do plano + fora) e a proteína. */
-function ResumoHoje({ s }: { s: ResumoDia }) {
+function ResumoHoje({ s, hoje: ehHoje }: { s: ResumoDia; hoje: boolean }) {
   const pct = s.seguido === null ? null : Math.round(s.seguido * 100);
   return (
     <div className="numeros numeros-3 resumo-dieta" aria-label="Resumo de hoje">
@@ -67,7 +67,7 @@ function ResumoHoje({ s }: { s: ResumoDia }) {
         {pct !== null && <span className="mini-regua" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>}
       </div>
       <div>
-        <span className="n-rot">Comido hoje</span>
+        <span className="n-rot">{ehHoje ? "Comido hoje" : "Comido"}</span>
         <span className="n-val"><Conta className="num" valor={s.total.kcal} formatar={(v) => num(Math.round(v), 0)} /><span className="unidade"> kcal</span></span>
         <small>plano {num(s.doPlano.kcal, 0)} · fora {num(s.fora.kcal, 0)}</small>
       </div>
@@ -90,15 +90,28 @@ export default function Dieta() {
   const [editando, setEditando] = useState<Refeicao | "nova" | null>(null);
 
   const doDia = refeicoesDoDia(refeicoes, dia);
-  const reg = registroDoDia(registros, h);
+  const reg = registroDoDia(registros, h); // água: sempre hoje
   const ehHoje = dia === diaHoje;
+  // O dia escolhido é desta semana (seg a dom). Hoje e os dias que já passaram dá para marcar; os que vêm, ainda não.
+  const dataSel = somarDias(h, dia - diaHoje);
+  const marcavel = dia <= diaHoje;
+  const regSel = registroDoDia(registros, dataSel);
   const plano = totais(doDia);
-  const resumo = resumoDia(reg, refeicoesDoDia(refeicoes, diaHoje));
+  const resumo = resumoDia(regSel, doDia);
   const [foraAberto, setForaAberto] = useState(false);
-  const extras = reg.extras ?? [];
+  const extras = regSel.extras ?? [];
+  // Hoje sem refeição no plano: oferece usar o plano de outro dia também hoje.
+  const diaComPlano = ehHoje && doDia.length === 0 ? DIAS.map((d) => ((diaHoje + 6 - d) % 7) as Dia).find((d) => refeicoesDoDia(refeicoes, d).length > 0) : undefined;
+  const usarPlanoHoje = (origem: Dia) => {
+    for (const r of refeicoesDoDia(refeicoes, origem)) {
+      const grupo = doGrupo("refeicoes", r.grupo) as Refeicao[];
+      editarGrupo("refeicoes", r.grupo, { nome: r.nome, tipo: r.tipo, horario: r.horario, alimentos: r.alimentos } as never, [...new Set([...grupo.map((x) => x.dia), diaHoje])]);
+    }
+    mostrarAviso(`O plano de ${DIAS_LONGOS[origem]} agora vale também para ${DIAS_LONGOS[diaHoje]}.`);
+  };
   const tirarExtra = (id: string) =>
     excluirComDesfazer({ pergunta: "Tirar este alimento do dia?", detalhe: extras.find((x) => x.id === id)?.nome ?? "", feito: "Alimento tirado do dia." }, () => {
-      const antes = registroDoDia(registros, h);
+      const antes = registroDoDia(registros, dataSel);
       salvar("diasDieta", { ...antes, extras: (antes.extras ?? []).filter((x) => x.id !== id), _x: false });
       return () => salvar("diasDieta", { ...antes, _x: false });
     });
@@ -168,41 +181,45 @@ export default function Dieta() {
           ))}
         </div>
         <p className="suave" style={{ margin: "12px 0 10px", fontSize: 13.5 }}>
-          {ehHoje ? "Hoje — marque cada alimento que comer." : `Plano de ${DIAS_LONGOS[dia]}.`}
+          {ehHoje ? "Hoje — marque cada alimento que comer." : marcavel ? `${DIAS_LONGOS[dia]}, ${brCurta(dataSel)} — dá para marcar o que comeu nesse dia.` : `Plano de ${DIAS_LONGOS[dia]}. Os checks aparecem quando o dia chegar.`}
           {plano.kcal !== null && <> Plano: <span className="num">{num(plano.kcal, 0)}</span> kcal</>}
           {plano.proteina !== null && <> · <span className="num">{num(plano.proteina, 0)}</span> g de proteína</>}
         </p>
-        {ehHoje && <ResumoHoje s={resumo} />}
+        {marcavel && doDia.length > 0 && <ResumoHoje s={resumo} hoje={ehHoje} />}
         {doDia.length === 0 ? (
-          <Vazio texto={`Nenhuma refeição em ${DIAS_LONGOS[dia]}.`} acao="Adicionar refeição" aoAgir={() => setEditando("nova")} />
+          diaComPlano !== undefined ? (
+            <Vazio texto={`Hoje (${DIAS_LONGOS[diaHoje]}) não tem refeição no plano, por isso não há o que marcar.`} acao={`Usar o plano de ${DIAS_LONGOS[diaComPlano]} hoje`} aoAgir={() => usarPlanoHoje(diaComPlano)} />
+          ) : (
+            <Vazio texto={`Nenhuma refeição em ${DIAS_LONGOS[dia]}.`} acao="Adicionar refeição" aoAgir={() => setEditando("nova")} />
+          )
         ) : (
           <ul className="lista">
             {doDia.map((r) => {
-              const estado = ehHoje ? estadoRefeicao(reg, r) : "nada";
+              const estado = marcavel ? estadoRefeicao(regSel, r) : "nada";
               const t = totais([r]);
               return (
                 <li key={r.id}>
                   <div className={`item ${estado === "toda" ? "feito" : ""}`} style={{ alignItems: "flex-start" }}>
-                    {ehHoje ? (
+                    {marcavel ? (
                       <input
                         type="checkbox"
                         className="check"
                         checked={estado === "toda"}
                         ref={(el) => { if (el) el.indeterminate = estado === "parte"; }}
-                        onChange={(e) => { pulso(e.currentTarget); alternarRefeicao(h, r.id, registros); }}
+                        onChange={(e) => { pulso(e.currentTarget); alternarRefeicao(dataSel, r.id, registros); }}
                         aria-label={`Marcar ${r.nome} inteira como comida`}
                       />
                     ) : <span className="num suave" style={{ width: 44, paddingTop: 12, fontSize: 13 }}>{r.horario}</span>}
                     <div className="item-corpo" style={{ paddingTop: 10 }}>
-                      <p className="item-titulo">{r.nome} {ehHoje && <span className="num suave" style={{ fontWeight: 400, fontSize: 13 }}>{r.horario}</span>}</p>
-                      {ehHoje && r.alimentos.length > 0 ? (
+                      <p className="item-titulo">{r.nome} {marcavel && <span className="num suave" style={{ fontWeight: 400, fontSize: 13 }}>{r.horario}</span>}</p>
+                      {marcavel && r.alimentos.length > 0 ? (
                         <ul className="alimentos alimentos-check">
                           {r.alimentos.map((a) => {
-                            const ok = comeu(reg, r, a.id);
+                            const ok = comeu(regSel, r, a.id);
                             return (
                               <li key={a.id} className={ok ? "comido" : ""}>
                                 <label>
-                                  <input type="checkbox" className="check check-pequeno" checked={ok} onChange={(e) => { pulso(e.currentTarget); alternarAlimento(h, r, a.id, registros); }} />
+                                  <input type="checkbox" className="check check-pequeno" checked={ok} onChange={(e) => { pulso(e.currentTarget); alternarAlimento(dataSel, r, a.id, registros); }} />
                                   <span className="alimento-txt"><span>{a.nome}</span> <span className="suave">{a.quantidade}</span></span>
                                   {a.kcal !== null && <span className="num suave alimento-kcal">{num(a.kcal, 0)}</span>}
                                 </label>
@@ -228,7 +245,7 @@ export default function Dieta() {
         )}
       </section>
 
-      {ehHoje && (
+      {marcavel && (
         <section className="secao fora-plano">
           <header>
             <h2>Fora do plano {extras.length > 0 && <small className="num">{num(resumo.fora.kcal, 0)} kcal</small>}</h2>
@@ -257,7 +274,7 @@ export default function Dieta() {
       </div>
       </div>
 
-      {foraAberto && <ForaForm data={h} aoFechar={() => setForaAberto(false)} />}
+      {foraAberto && <ForaForm data={dataSel} aoFechar={() => setForaAberto(false)} />}
       {editando && <RefeicaoForm r={editando === "nova" ? null : editando} diaInicial={dia} aoFechar={() => setEditando(null)} />}
     </>
   );

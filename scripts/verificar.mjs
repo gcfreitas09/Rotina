@@ -670,11 +670,46 @@ async function diario() {
   await espera(400);
   checar((await reg()).extras?.length === 1, "Desfazer devolve o alimento");
 
+  // Dia que já passou nesta semana: dá para marcar, e fica na data daquele dia
+  const diaHoje = await page.evaluate(() => (new Date().getDay() + 6) % 7);
+  if (diaHoje > 0) {
+    const ontemIso = await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+    const nomes = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"];
+    await clicar(`.dias-seletor button[aria-label="${nomes[diaHoje - 1]}"]`);
+    checar((await page.$$(".alimentos-check input")).length === 3, "Ontem também tem checks");
+    await marcarAlimento(0);
+    const ontem = (await ls("diasDieta")).find((d) => d.id === ontemIso);
+    checar(ontem?.comidos?.length === 1, `Marcar ontem grava na data de ontem (${ontemIso})`);
+    await clicar(`.dias-seletor button[aria-label="${nomes[diaHoje]}"]`);
+  } else console.log("  (hoje é segunda: sem dia anterior nesta semana para testar)");
+  if (diaHoje < 6) {
+    const nomes = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"];
+    await clicar(`.dias-seletor button[aria-label="${nomes[diaHoje + 1]}"]`);
+    checar((await page.$$(".alimentos-check input")).length === 0 && (await page.evaluate(() => document.body.textContent)).includes("quando o dia chegar"), "Dia que ainda não chegou não tem checks e explica");
+    await clicar(`.dias-seletor button[aria-label="${nomes[diaHoje]}"]`);
+  }
+
   // Hoje: o bilhete mostra a refeição em parte
   await page.evaluate(() => (location.hash = "/hoje"));
   await espera(1200);
   const bilhete = await page.$eval('input[aria-label="Marcar Café teste como feita"]', (e) => e.indeterminate).catch(() => null);
   checar(bilhete === true, "No Hoje, a refeição em parte aparece como em parte");
+
+  // Hoje sem refeição no plano: botão usa o plano de outro dia também hoje
+  await page.evaluate((dh) => {
+    const n = Date.now();
+    const outro = (dh + 6) % 7;
+    localStorage.setItem("rotina:refeicoes", JSON.stringify([{ id: "x1", _m: n, grupo: "gx", nome: "Almoço teste", tipo: "almoco", dia: outro, horario: "12:00", alimentos: [{ id: "b1", nome: "Arroz", quantidade: "150 g", kcal: 192, proteina: 3.8 }] }]));
+  }, diaHoje);
+  await page.evaluate(() => (location.hash = "/saude/dieta"));
+  await page.reload({ waitUntil: "networkidle0" });
+  await espera(1200);
+  const txt = await page.evaluate(() => document.body.textContent);
+  checar(txt.includes("não tem refeição no plano"), "Hoje sem plano: explica por que não há o que marcar");
+  await clicar("button::-p-text(Usar o plano de)");
+  await espera(600);
+  const refsHoje = (await ls("refeicoes")).filter((x) => x.dia === diaHoje);
+  checar(refsHoje.length === 1 && refsHoje[0].grupo === "gx" && (await page.$$(".alimentos-check input")).length === 1, "Usar o plano de outro dia cria a refeição de hoje (mesmo grupo) e os checks aparecem");
   const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   checar(sobra === 0, "Sem rolagem lateral");
   checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
