@@ -1009,3 +1009,72 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .fora-plano header .botao { white-space: nowrap; }
 .fora-plano header h2 small { font-size: 14px; font-weight: 500; color: var(--grafite-suave); margin-left: 6px; }
 .meta-reps { font-family: var(--f-numero); font-size: 13px; font-weight: 500; margin-left: 8px; letter-spacing: 0; }
+
+/* ------------------------------------------------------------ treino: modo foco (uma série por vez) */
+.treinando .segmentos { margin: 4px 0 18px; }
+.topo-treino .sobretitulo .num { letter-spacing: 0; }
+.foco { display: grid; gap: 16px; }
+.foco-cab { display: grid; gap: 4px; }
+.foco-exercicio { font: 760 clamp(26px, 7vw, 40px)/1.05 var(--f-titulo); letter-spacing: -0.035em; margin: 0; }
+.foco-serie { margin: 0; font-size: 15px; color: var(--grafite-suave); }
+.foco-serie b { color: var(--musgo-vivo, var(--musgo)); font-weight: 650; }
+.foco-ultima { margin: 0; font-size: 13.5px; }
+
+/* a lousa: tocar conta uma repetição, cada uma vira um risco de giz */
+.contador { margin: 0; padding: 0; display: grid; }
+.contador-toque {
+  display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 236px; padding: 22px 16px 18px;
+  border: 0; background: none; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.contador-toque:active .contador-numero { opacity: 0.85; }
+.contador-rotulo { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--giz-suave); }
+.contador-numero { font: 700 clamp(84px, 26vw, 128px)/0.95 var(--f-numero); letter-spacing: -0.06em; display: inline-block; }
+.tracinhos { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; min-height: 30px; max-width: 320px; }
+.tracinho { width: 34px; height: 30px; }
+.tracinho path { fill: none; stroke: var(--giz); stroke-width: 2.6; stroke-linecap: round; opacity: 0.9; }
+.contador-botoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0 14px 16px; position: relative; }
+.botao.giz { background: transparent; color: var(--giz); border-color: rgb(238 236 228 / 0.32); min-width: 52px; justify-content: center; }
+.botao.giz[aria-pressed="true"] { background: var(--giz); color: var(--lousa); border-color: var(--giz); }
+.botao.giz:disabled { opacity: 0.35; }
+@media (hover: hover) { .botao.giz:not(:disabled):hover { border-color: var(--giz); } }
+.contador-descanso { position: relative; display: grid; place-items: center; padding: 22px 0 6px; }
+.anel-giz { width: min(220px, 60vw); height: auto; transform: rotate(-90deg); }
+.anel-giz .anel-fundo, .anel-giz .anel-giro { stroke-width: 5; }
+.contador-centro { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2px; padding-top: 16px; }
+.contador-tempo { font: 700 clamp(48px, 15vw, 64px)/1 var(--f-numero); letter-spacing: -0.05em; }
+.contador-proxima { text-align: center; margin: 4px 0 12px; font-size: 14px; color: var(--giz-suave); }
+
+.peso { display: grid; gap: 8px; }
+.peso-rotulo { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grafite-suave); }
+.peso-controle { display: grid; grid-template-columns: 1fr 1fr minmax(96px, 1.6fr) 1fr 1fr; gap: 6px; align-items: stretch; }
+.peso-controle .botao { padding: 0; justify-content: center; font-family: var(--f-numero); font-size: 14px; min-height: 52px; }
+.peso-valor { position: relative; display: block; min-width: 0; }
+.peso-valor .entrada { width: 100%; height: 100%; min-height: 52px; text-align: center; font: 700 24px var(--f-numero); padding: 0 26px 0 6px; }
+.peso-valor span { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--grafite-suave); pointer-events: none; }
+
+.concluir-serie { width: 100%; min-height: 58px; font-size: 17px; justify-content: center; }
+.foco-dica { margin: -8px 0 0; text-align: center; font-size: 13px; }
+.foco-nav { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.foco-nav .botao { padding-inline: 8px; }
+.foco-mapa { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; border-top: 1px solid var(--linha); }
+.foco-mapa button { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 44px; padding: 6px 4px; border: 0; border-bottom: 1px solid var(--linha); background: none; color: var(--grafite-suave); text-align: left; font: inherit; font-size: 14px; cursor: pointer; }
+.foco-mapa button.atual { color: var(--grafite); font-weight: 650; }
+.foco-mapa-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foco-mapa-pontos { display: inline-flex; gap: 4px; flex: none; }
+.foco-mapa-pontos i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--linha-forte); }
+.foco-mapa-pontos i.feita { background: var(--musgo-vivo, var(--musgo)); border-color: var(--musgo-vivo, var(--musgo)); }
+.foco-mapa-pontos i.agora { border-color: var(--grafite); }
+
+.resumo-treino { display: grid; gap: 16px; }
+.resumo-lousa { margin: 0; padding: 22px 18px; }
+.resumo-numeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; position: relative; }
+.resumo-numeros div { display: grid; gap: 2px; }
+.resumo-numeros .num { font: 700 clamp(24px, 7vw, 34px)/1.05 var(--f-numero); letter-spacing: -0.04em; }
+.resumo-numeros small { font-size: 12.5px; color: var(--giz-suave); }
+
+@media (min-width: 1100px) {
+  .foco { grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr); column-gap: 32px; align-items: start; }
+  .foco > :not(.foco-mapa) { grid-column: 1; }
+  .foco-mapa { grid-column: 2; grid-row: 1 / span 6; border-top: 0; }
+}
+.treinando .segmentos .seg { min-height: 44px; } .treinando .segmentos .seg-t { font-size: 13.5px; }

@@ -70,6 +70,10 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - `api/alimentos.js` (função do Vercel) + `api/_off.js` — `/api/alimentos?q=` busca produtos do Brasil na Open Food Facts
   (search.openfoodfacts.org não manda CORS, por isso não dá para chamar do navegador). O mesmo `_off.js` roda no `npm run dev`
   e no `preview` via plugin em `vite.config.ts`. No MAMP não há essa rota: a lista avisa e fica só a tabela local.
+- `src/modules/treino/Treinando.tsx` — "Iniciar treino" (rota `#/saude/treino/agora[/<fichaId>]`): modo foco, uma série por vez.
+  Contador de repetições na lousa (cada toque = um risco de giz, grupos de 5), atalhos com a meta, peso ±1/±2,5, "Concluir série"
+  abre o descanso no mesmo painel (anel, ±15 s, pular; no fim vibra e apita), série extra, anterior/próximo, resumo e "Salvar treino".
+  Aba "Lista" = o modo antigo (corrigir séries). Tela fica acesa (Wake Lock). Lógica em `treino/sessao.ts` (testada).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 

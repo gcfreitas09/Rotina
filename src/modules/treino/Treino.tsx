@@ -59,11 +59,20 @@ export default function Treino() {
               <p className="suave">{daVez.exercicios.length} exercícios · {daVez.exercicios.reduce((t, e) => t + e.series, 0)} séries{sessaoHoje?.concluida && " · feito hoje"}</p>
             </div>
             <button className="botao primario" onClick={() => navegar("saude/treino/agora")}>
-              <Play size={16} strokeWidth={1.8} aria-hidden="true" /> {sessaoHoje && !sessaoHoje.concluida ? "Continuar treino" : sessaoHoje?.concluida ? "Ver treino" : "Começar treino"}
+              <Play size={16} strokeWidth={1.8} aria-hidden="true" /> {sessaoHoje && !sessaoHoje.concluida ? "Continuar treino" : sessaoHoje?.concluida ? "Ver treino" : "Iniciar treino"}
             </button>
           </div>
         ) : (
-          <p className="suave">Dia de descanso. Para treinar hoje, dê este dia a uma ficha na divisão abaixo.</p>
+          <>
+            <p className="suave">Dia de descanso na sua divisão.{fichas.length > 0 && " Se quiser treinar mesmo assim, escolha a ficha:"}</p>
+            {fichas.length > 0 && (
+              <div className="acoes" style={{ justifyContent: "flex-start", marginTop: 10 }}>
+                {fichas.map((f) => (
+                  <button key={f.id} className="botao" onClick={() => navegar(`saude/treino/agora/${f.id}`)}><Play size={16} strokeWidth={1.8} aria-hidden="true" /> Iniciar {f.nome}</button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -94,6 +103,7 @@ export default function Treino() {
                       </tbody>
                     </table>
                   </div>
+                  <button className="icone-btn" onClick={() => navegar(`saude/treino/agora/${f.id}`)} aria-label={`Iniciar treino ${f.nome}`}><Play size={17} strokeWidth={1.6} /></button>
                   <button className="icone-btn" onClick={() => setEditando(f)} aria-label={`Editar ficha ${f.nome}`}><Pencil size={17} strokeWidth={1.6} /></button>
                 </div>
               </li>

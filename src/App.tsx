@@ -59,7 +59,7 @@ export default function App() {
   const tela =
     secao === "tarefas" ? <Tarefas /> :
     secao === "escola" ? <Escola /> :
-    secao === "saude" ? <Saude aba={rota[1]} sub={rota[2]} /> :
+    secao === "saude" ? <Saude aba={rota[1]} sub={rota[2]} extra={rota[3]} /> :
     secao === "mais" ? <Mais aba={rota[1]} /> :
     <Hoje />;
 

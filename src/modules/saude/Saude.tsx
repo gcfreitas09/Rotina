@@ -4,9 +4,9 @@ import Treinando from "../treino/Treinando.tsx";
 import Abas from "../../components/Abas.tsx";
 
 /** Saúde agrupa Dieta e Treino em abas. */
-export default function Saude({ aba, sub }: { aba?: string; sub?: string }) {
+export default function Saude({ aba, sub, extra }: { aba?: string; sub?: string; extra?: string }) {
   const atual = aba === "treino" ? "treino" : "dieta";
-  if (atual === "treino" && sub === "agora") return <Treinando />;
+  if (atual === "treino" && sub === "agora") return <Treinando fichaId={extra} />;
   return (
     <>
       <div className="topo"><h1>Saúde</h1></div>

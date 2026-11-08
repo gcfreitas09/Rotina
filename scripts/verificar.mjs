@@ -261,13 +261,13 @@ async function navegador() {
 
   // Treino agora: marcar série abre o cronômetro (só se hoje tem ficha)
   await ir(page, "saude/treino/agora");
-  const temSerie = await page.$('button[aria-label^="Marcar série 1"]');
+  const temSerie = await page.$(".contador-toque");
   if (temSerie) {
     await temSerie.click();
-    await new Promise((r) => setTimeout(r, 300));
-    checar(!!(await page.$(".cronometro")), "Marcar série inicia o cronômetro de descanso");
+    await clicar("button::-p-text(Concluir série)");
+    checar(!!(await page.$(".contador.descansando")), "Concluir série inicia o descanso (modo foco)");
     await page.screenshot({ path: path.join(SHOTS, "390-treinando-cronometro.png") });
-  } else ok("Hoje é descanso na divisão de exemplo — cronômetro não testado");
+  } else ok("Hoje é descanso na divisão de exemplo — modo foco testado no gate foco");
 
   // Tema escuro e diálogo aberto
   await ir(page, "mais/configuracoes");
@@ -717,6 +717,99 @@ async function diario() {
   console.log(falhas.length ? `DIARIO FALHOU (${falhas.length})` : "DIARIO OK");
 }
 
+// Modo foco do treino: contador de repetições (tracinhos de giz), peso com atalhos, descanso no mesmo painel, resumo e salvar.
+async function foco() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await (await browser.createBrowserContext()).newPage();
+  await page.setViewport({ width: 390, height: 844 });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 300) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+  const texto = () => page.evaluate(() => document.body.textContent);
+  const contador = () => page.$eval(".contador-numero", (e) => e.textContent).catch(() => null);
+  const peso = () => page.$eval('input[aria-label="Peso em kg"]', (e) => e.value);
+
+  console.log("\nModo foco do treino (390 px)");
+  await page.goto(BASE + "#/saude/treino", { waitUntil: "networkidle0" });
+  const diaHoje = await page.evaluate(() => (new Date().getDay() + 6) % 7);
+  await page.evaluate((dh) => {
+    const n = Date.now();
+    localStorage.setItem("rotina:fichas", JSON.stringify([
+      { id: "fA", _m: n, nome: "Push", dias: [dh], exercicios: [
+        { id: "x1", nome: "Supino inclinado halter", series: 2, reps: 8, repsMax: 10, carga: 20 },
+        { id: "x2", nome: "Tríceps corda", series: 1, reps: 12, carga: 15 },
+      ] },
+      { id: "fB", _m: n, nome: "Pull", dias: [(dh + 1) % 7], exercicios: [{ id: "y1", nome: "Remada", series: 1, reps: 10, carga: 30 }] },
+    ]));
+    localStorage.setItem("rotina:sessoes", "[]");
+  }, diaHoje);
+  await page.reload({ waitUntil: "networkidle0" });
+  await espera(1000);
+  checar((await texto()).includes("Iniciar treino"), "Botão Iniciar treino na ficha do dia");
+  await clicar("button::-p-text(Iniciar treino)");
+  await espera(900);
+  checar((await texto()).includes("Supino inclinado halter") && (await texto()).includes("Série 1 de 2"), "Abre na primeira série do primeiro exercício");
+  checar((await ls("sessoes")).some((s) => s.fichaId === "fA" && typeof s.inicio === "number"), "Sessão salva com a hora de início");
+  checar(await page.$eval(".concluir-serie", (b) => b.disabled), "Concluir fica desligado com 0 repetições");
+  for (let i = 0; i < 7; i++) { await page.click(".contador-toque"); await espera(60); }
+  checar((await contador()) === "7" && (await page.$$(".tracinho path")).length === 7, `7 toques = 7 repetições e 7 riscos de giz (${await contador()}, ${(await page.$$(".tracinho path")).length})`);
+  await clicar('button[aria-label="Tirar uma repetição"]');
+  await clicar('button[aria-label="Fiz 10 repetições"]');
+  checar((await contador()) === "10", "Atalho da meta (10) e o −1 funcionam");
+  await page.screenshot({ path: path.join(SHOTS, "foco-contador.png") });
+  await clicar('button[aria-label="Somar 2,5 kg"]');
+  checar((await peso()) === "22,5", `+2,5 kg (${await peso()})`);
+  await clicar("button::-p-text(Concluir série)");
+  await espera(400);
+  checar(!!(await page.$(".contador.descansando")) && (await texto()).includes("Série 2 de 2"), "Concluir série abre o descanso e já mostra a próxima série");
+  checar((await peso()) === "22,5", "A próxima série começa com o peso que você acabou de usar");
+  await page.screenshot({ path: path.join(SHOTS, "foco-descanso.png") });
+  let s = (await ls("sessoes")).find((x) => x.fichaId === "fA");
+  checar(s.exercicios[0].series[0].feita && s.exercicios[0].series[0].reps === 10 && s.exercicios[0].series[0].carga === 22.5, "Série 1 salva com 10 reps e 22,5 kg");
+  await clicar("button::-p-text(Pular)");
+  checar(!(await page.$(".contador.descansando")) && (await contador()) === "0", "Pular descanso volta ao contador zerado");
+  await clicar('button[aria-label="Fiz 8 repetições"]');
+  await clicar("button::-p-text(Concluir série)");
+  await clicar("button::-p-text(Pular)");
+  checar((await texto()).includes("Tríceps corda"), "Acabou o exercício: passa para o próximo");
+  await clicar("button::-p-text(Série extra)");
+  checar((await texto()).includes("Série 2 de 2"), "Série extra vira a série atual");
+  await clicar("button::-p-text(Anterior)");
+  checar((await texto()).includes("Supino inclinado halter"), "Anterior volta ao exercício anterior");
+  await clicar("button::-p-text(Próximo)");
+  await clicar('button[aria-label="Fiz 12 repetições"]');
+  await clicar("button::-p-text(Concluir série)");
+  await clicar("button::-p-text(Pular)");
+  await clicar('button[aria-label="Fiz 12 repetições"]');
+  await clicar("button::-p-text(Concluir série)");
+  await espera(400);
+  checar((await texto()).includes("Todas as séries feitas") && (await texto()).includes("kg de volume"), "Todas feitas: aparece o resumo");
+  await page.screenshot({ path: path.join(SHOTS, "foco-resumo.png") });
+  const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  checar(sobra === 0, "Sem rolagem lateral");
+  await clicar("button::-p-text(Salvar treino)");
+  await espera(600);
+  s = (await ls("sessoes")).find((x) => x.fichaId === "fA");
+  const f = (await ls("fichas")).find((x) => x.id === "fA");
+  checar(s.concluida && typeof s.fim === "number" && f.exercicios[0].carga === 22.5, `Salvar: sessão concluída com fim, e a ficha sugere 22,5 kg (${f.exercicios[0].carga})`);
+  // outra ficha, em dia que não é dela
+  await clicar('button[aria-label="Iniciar treino Pull"]');
+  await espera(800);
+  checar((await texto()).includes("Remada"), "Dá para iniciar qualquer ficha pela lista de fichas");
+  await page.setViewport({ width: 1440, height: 900 });
+  await espera(500);
+  await page.screenshot({ path: path.join(SHOTS, "foco-1440.png") });
+  const sobra2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  checar(sobra2 === 0, "Sem rolagem lateral em 1440");
+  checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await browser.close();
+  console.log(falhas.length ? `FOCO FALHOU (${falhas.length})` : "FOCO OK");
+}
+
 // Ficha de treino aceita faixa de repetições ("8-10") e mostra "8–10" na ficha e no treino.
 async function reps() {
   const puppeteer = qa("puppeteer");
@@ -756,7 +849,7 @@ async function reps() {
   checar((await page.evaluate(() => document.body.textContent)).includes("3×8–10"), "Ficha mostra 3×8–10");
   await page.evaluate(() => (location.hash = "/saude/treino/agora"));
   await espera(1200);
-  checar((await page.evaluate(() => document.body.textContent)).includes("meta 3×8–10"), "No treino aparece a meta 3×8–10");
+  checar((await page.evaluate(() => document.body.textContent)).includes("meta 8–10 reps"), "No treino (modo foco) aparece a meta 8–10");
   // editar: o campo volta como 8-10
   await page.evaluate(() => (location.hash = "/saude/treino"));
   await espera(1000);
@@ -843,6 +936,7 @@ try {
   else if (modo === "marcas") await marcas();
   else if (modo === "diario") await diario();
   else if (modo === "reps") await reps();
+  else if (modo === "foco") await foco();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

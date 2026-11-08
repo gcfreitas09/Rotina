@@ -153,6 +153,9 @@ export interface Sessao extends Base {
   fichaNome: string;
   exercicios: { exercicioId: string; nome: string; series: SerieFeita[] }[];
   concluida: boolean;
+  /** Início e fim do treino (ms), para a duração. Sessões antigas não têm. */
+  inicio?: number;
+  fim?: number;
 }
 
 export interface Peso extends Base {

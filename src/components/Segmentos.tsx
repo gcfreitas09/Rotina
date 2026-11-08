@@ -4,8 +4,8 @@ import { gsap, reduzido, useGSAP } from "./movimento.tsx";
 export interface Segmento<T extends string> {
   id: T;
   nome: string;
-  /** Número grande em cima do nome. */
-  n: number;
+  /** Número grande em cima do nome (opcional). */
+  n?: number;
 }
 
 /**
@@ -18,10 +18,17 @@ export default function Segmentos<T extends string>({ itens, atual, aoMudar, rot
   useGSAP(
     () => {
       const el = ref.current;
-      const alvo = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
-      const marca = el?.querySelector<HTMLElement>(".seg-marca");
-      if (!alvo || !marca) return;
-      gsap.to(marca, { x: alvo.offsetLeft, width: alvo.offsetWidth, duration: reduzido() ? 0 : 0.5, ease: "power3.inOut" });
+      const posicionar = (animar: boolean) => {
+        const alvo = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
+        const marca = el?.querySelector<HTMLElement>(".seg-marca");
+        if (!alvo || !marca) return;
+        gsap.to(marca, { x: alvo.offsetLeft, width: alvo.offsetWidth, duration: animar && !reduzido() ? 0.5 : 0, ease: "power3.inOut" });
+      };
+      posicionar(true);
+      // a largura das células muda com a tela (girar o celular, redimensionar): a pílula acompanha sem animar
+      const ro = el ? new ResizeObserver(() => posicionar(false)) : null;
+      if (el) ro?.observe(el);
+      return () => ro?.disconnect();
     },
     { dependencies: [atual, itens.length], scope: ref },
   );
@@ -30,7 +37,7 @@ export default function Segmentos<T extends string>({ itens, atual, aoMudar, rot
       <span className="seg-marca" aria-hidden="true" />
       {itens.map((i) => (
         <button key={i.id} className="seg" aria-pressed={atual === i.id} onClick={() => aoMudar(i.id)}>
-          <span className="num seg-n">{i.n}</span>
+          {i.n !== undefined && <span className="num seg-n">{i.n}</span>}
           <span className="seg-t">{i.nome}</span>
         </button>
       ))}
