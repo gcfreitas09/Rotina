@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dificuldadeDe, dominio, embaralhar, fila, paraRevisar, responder } from "../src/modules/flashcards/logica.ts";
+import { continuarLista, dificuldadeDe, dominio, embaralhar, fila, linhasDoTexto, paraRevisar, responder } from "../src/modules/flashcards/logica.ts";
 import type { Cartao } from "../src/data/types.ts";
 
 const c = (p: Partial<Cartao> = {}): Cartao => ({ id: "c", _m: 0, baralhoId: "b", frente: "O que foi a Revolução Francesa?", verso: "…", caixa: 1, proxima: "2026-11-08", acertos: 0, erros: 0, ...p });
@@ -69,4 +69,23 @@ test("embaralhar é determinístico com o mesmo sorteio e não muda a entrada", 
   k = 0;
   assert.deepEqual(embaralhar(e, sorteio), x);
   assert.deepEqual(e, [1, 2, 3, 4, 5, 6]);
+});
+
+test("linhas com '- ' viram item de lista com bolinha", () => {
+  assert.deepEqual(linhasDoTexto("Camadas:\n- epiderme\n- derme\nfim"), [
+    { item: false, texto: "Camadas:" },
+    { item: true, texto: "epiderme" },
+    { item: true, texto: "derme" },
+    { item: false, texto: "fim" },
+  ]);
+  assert.equal(linhasDoTexto("-sem espaço")[0].item, false);
+  assert.equal(linhasDoTexto("* outro")[0].item, true);
+});
+
+test("Enter numa lista continua com '- ' e numa lista vazia encerra", () => {
+  const a = continuarLista("- um", 4);
+  assert.deepEqual(a, { valor: "- um\n- ", cursor: 7 });
+  assert.equal(continuarLista("texto", 5), null);
+  assert.deepEqual(continuarLista("- um\n- ", 7), { valor: "- um\n", cursor: 5 });
+  assert.deepEqual(continuarLista("- ", 2), { valor: "", cursor: 0 });
 });

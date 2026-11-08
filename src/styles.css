@@ -938,3 +938,10 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .cartao-3d .face-img { display: block; flex: 1 1 0; min-height: 0; width: 100%; margin: 10px 0; object-fit: contain; border-radius: 10px; }
 .cartao-3d .com-img .face-texto { flex: none; font-size: clamp(17px, 4.2vw, 24px); }
 .cartao-3d .com-img { background-image: none; }
+
+/* Texto do cartão: "- " vira item com bolinha */
+.texto-md { display: block; width: 100%; text-align: left; text-wrap: pretty; }
+.texto-md .linha-txt, .texto-md .item-lista { display: block; }
+.texto-md .item-lista { position: relative; padding-left: 1.15em; margin-top: 0.2em; }
+.texto-md .item-lista::before { content: ""; position: absolute; left: 0.18em; top: 0.58em; width: 0.4em; height: 0.4em; border-radius: 50%; background: currentColor; }
+.ficha-frente, .ficha-verso { white-space: pre-line; }

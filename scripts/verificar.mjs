@@ -395,7 +395,10 @@ async function flashcards() {
     checar((await ls("cartoes")).every((c) => (c.dificuldade ?? "medio") === "medio"), "Cartões novos nascem como Médio");
     await clicar('[aria-label="Dificuldade do cartão"] button::-p-text(Difícil)');
     await page.type('textarea[placeholder^="Ex.: O que foi"]', "Quem era o rei deposto?");
-    await page.type('textarea[placeholder^="Ex.: Revolução na França"]', "Luís XVI.");
+    await page.type('textarea[placeholder^="Ex.: Revolução na França"]', "- Luís XVI");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Rei da França");
+    checar((await page.$eval('textarea[placeholder^="Ex.: Revolução na França"]', (e) => e.value)) === "- Luís XVI\n- Rei da França", "Enter numa lista continua com '- '");
     // imagem grande (3000x2000) tem de ser reduzida e guardada como JPEG leve
     const png = await page.evaluate(() => { const t = document.createElement("canvas"); t.width = 3000; t.height = 2000; const x = t.getContext("2d"); x.fillStyle = "#c33"; x.fillRect(0, 0, 3000, 2000); x.fillStyle = "#39c"; x.beginPath(); x.arc(1500, 1000, 700, 0, 7); x.fill(); return t.toDataURL("image/png").split(",")[1]; });
     const arqImg = path.join(os.tmpdir(), "rotina-celula.png");
@@ -419,6 +422,10 @@ async function flashcards() {
     checar((await page.$eval(".cartao-3d .frente .face-texto", (e) => e.textContent)) === "Quem era o rei deposto?", "Filtro Difícil estuda só o cartão difícil");
     checar((await page.evaluate(() => document.body.textContent)).includes("1 / 1"), "Sessão filtrada tem 1 cartão");
     checar(await page.$eval(".frente .face-img", (e) => e.complete && e.naturalWidth > 0), "Estudo mostra a imagem na frente da pergunta");
+    await clicar(".cartao-3d"); await espera(700);
+    checar((await page.$$(".verso .item-lista")).length === 2, "'- ' vira item com bolinha no verso");
+    checar(await page.$eval(".verso .item-lista", (e) => getComputedStyle(e, "::before").borderRadius === "50%" && getComputedStyle(e, "::before").width !== "auto"), "Bolinha desenhada");
+    await clicar(".cartao-3d"); await espera(700);
     await clicar('[aria-label="Dificuldade deste cartão"] button::-p-text(Fácil)');
     checar((await ls("cartoes")).find((c) => c.frente === "Quem era o rei deposto?")?.dificuldade === "facil", "Muda a dificuldade durante o estudo");
     await page.setViewport({ width: 390, height: 844 }); await espera(300);

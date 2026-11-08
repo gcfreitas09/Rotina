@@ -9,7 +9,30 @@ import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../c
 import { Conta, gsap, reduzido, useGSAP } from "../../components/movimento.tsx";
 import { navegar } from "../../rota.ts";
 import { comprimirImagem } from "./imagem.ts";
-import { DIFICULDADES, OPCOES_PADRAO, ULTIMA_CAIXA, dificuldadeDe, dominio, fila, paraRevisar, responder, type OpcoesEstudo } from "./logica.ts";
+import { DIFICULDADES, OPCOES_PADRAO, ULTIMA_CAIXA, continuarLista, dificuldadeDe, dominio, fila, linhasDoTexto, paraRevisar, responder, type OpcoesEstudo } from "./logica.ts";
+
+/** Texto do cartão: linha que começa com "- " ganha bolinha de item. */
+function TextoCartao({ texto }: { texto: string }) {
+  return (
+    <span className="texto-md">
+      {linhasDoTexto(texto).map((l, i) => (
+        <span key={i} className={l.item ? "item-lista" : "linha-txt"}>{l.texto || "\u00a0"}</span>
+      ))}
+    </span>
+  );
+}
+
+/** Enter numa linha de lista continua a lista (como em apps de notas). */
+function teclaLista(e: React.KeyboardEvent<HTMLTextAreaElement>, definir: (v: string) => void) {
+  if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+  const el = e.currentTarget;
+  if (el.selectionStart !== el.selectionEnd) return;
+  const r = continuarLista(el.value, el.selectionStart);
+  if (!r) return;
+  e.preventDefault();
+  definir(r.valor);
+  requestAnimationFrame(() => el.setSelectionRange(r.cursor, r.cursor));
+}
 
 /** Como estudar (ordem e dificuldade). Fica na memória enquanto o app está aberto. */
 let opcoesEstudo: OpcoesEstudo = OPCOES_PADRAO;
@@ -277,8 +300,8 @@ function Pasta({ b }: { b: Baralho }) {
                   <li key={c.id} className="ficha-cartao">
                     {c.imagem && <img className="ficha-img" src={c.imagem} alt={c.frente || "Imagem da pergunta"} loading="lazy" decoding="async" />}
                     <div className="ficha-texto">
-                      {c.frente && <p className="ficha-frente">{c.frente}</p>}
-                      {(c.verso || c.imagemVerso) && <p className="ficha-verso">{c.verso || "Resposta em imagem"}</p>}
+                      {c.frente && <p className="ficha-frente">{c.frente.replace(/^\s*[-*]\s+/gm, "• ")}</p>}
+                      {(c.verso || c.imagemVerso) && <p className="ficha-verso">{c.verso ? c.verso.replace(/^\s*[-*]\s+/gm, "• ") : "Resposta em imagem"}</p>}
                     </div>
                     <div className="ficha-rodape">
                       <SeloDificuldade c={c} />
@@ -299,11 +322,11 @@ function Pasta({ b }: { b: Baralho }) {
             <form className="folha form novo-cartao" onSubmit={adicionar} noValidate>
               <h2>Novo cartão</h2>
               <Campo rotulo="Pergunta (frente)">
-                <textarea ref={refFrente} rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} placeholder="Ex.: O que foi a Revolução Francesa?" />
+                <textarea ref={refFrente} rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} onKeyDown={(e) => teclaLista(e, setFrente)} placeholder="Ex.: O que foi a Revolução Francesa?" />
               </Campo>
               <CampoImagem valor={img} aoMudar={setImg} rotulo="Imagem da pergunta" />
-              <Campo rotulo="Resposta (verso)">
-                <textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} placeholder="Ex.: Revolução na França (1789–1799) que derrubou a monarquia absolutista…" />
+              <Campo rotulo="Resposta (verso)" dica="Comece a linha com - e espaço para fazer uma lista.">
+                <textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} onKeyDown={(e) => teclaLista(e, setVerso)} placeholder="Ex.: Revolução na França (1789–1799) que derrubou a monarquia absolutista…" />
               </Campo>
               <CampoImagem valor={imgVerso} aoMudar={setImgVerso} rotulo="Imagem da resposta" />
               <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
@@ -336,9 +359,9 @@ function CartaoForm({ c, aoFechar }: { c: Cartao; aoFechar: () => void }) {
         salvar("cartoes", { ...resto, frente: frente.trim(), verso: verso.trim(), dificuldade: dif, ...(img ? { imagem: img } : {}), ...(imgVerso ? { imagemVerso: imgVerso } : {}) });
         aoFechar();
       }}>
-        <Campo rotulo="Pergunta (frente)"><textarea rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} /></Campo>
+        <Campo rotulo="Pergunta (frente)"><textarea rows={3} value={frente} onChange={(e) => setFrente(e.target.value)} onKeyDown={(e) => teclaLista(e, setFrente)} /></Campo>
         <CampoImagem valor={img} aoMudar={setImg} rotulo="Imagem da pergunta" />
-        <Campo rotulo="Resposta (verso)"><textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} /></Campo>
+        <Campo rotulo="Resposta (verso)" dica="Comece a linha com - e espaço para fazer uma lista."><textarea rows={4} value={verso} onChange={(e) => setVerso(e.target.value)} onKeyDown={(e) => teclaLista(e, setVerso)} /></Campo>
         <CampoImagem valor={imgVerso} aoMudar={setImgVerso} rotulo="Imagem da resposta" />
         <Campo rotulo="Dificuldade"><SeletorDificuldade valor={dif} aoMudar={setDif} rotulo="Dificuldade do cartão" /></Campo>
         {erro && <p className="erro-campo" role="alert">{erro}</p>}
@@ -453,13 +476,13 @@ function Estudar({ b }: { b: Baralho }) {
         <span className={`face frente ${atual.imagem ? "com-img" : ""}`}>
           <span className="face-rotulo">Pergunta</span>
           {atual.imagem && <img className="face-img" src={atual.imagem} alt={atual.frente || "Imagem da pergunta"} draggable={false} />}
-          {atual.frente && <span className="face-texto">{atual.frente}</span>}
+          {atual.frente && <span className="face-texto"><TextoCartao texto={atual.frente} /></span>}
           <span className="face-dica">Toque para virar</span>
         </span>
         <span className={`face verso ${atual.imagemVerso ? "com-img" : ""}`}>
           <span className="face-rotulo">Resposta</span>
           {atual.imagemVerso && <img className="face-img" src={atual.imagemVerso} alt={atual.verso || "Imagem da resposta"} draggable={false} />}
-          {atual.verso && <span className="face-texto">{atual.verso}</span>}
+          {atual.verso && <span className="face-texto"><TextoCartao texto={atual.verso} /></span>}
         </span>
       </button>
 

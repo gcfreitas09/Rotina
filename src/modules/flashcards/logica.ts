@@ -64,3 +64,30 @@ export function dominio(cartoes: Cartao[]): number {
   if (!cartoes.length) return 0;
   return cartoes.reduce((t, c) => t + (c.caixa - 1), 0) / (cartoes.length * (ULTIMA_CAIXA - 1));
 }
+
+const MARCA_ITEM = /^(\s*)[-*•]\s+(.*)$/;
+
+/** Divide o texto do cartão em linhas; linha que começa com "- " (ou "* ") vira item de lista com bolinha. */
+export function linhasDoTexto(texto: string): { item: boolean; texto: string }[] {
+  return texto.split("\n").map((l) => {
+    const m = l.match(MARCA_ITEM);
+    return m ? { item: true, texto: m[2] } : { item: false, texto: l };
+  });
+}
+
+/**
+ * Enter numa linha de lista continua a lista ("- " na linha de baixo); Enter numa linha de lista vazia encerra a lista.
+ * Devolve o novo texto e a posição do cursor, ou null quando o Enter deve agir normalmente.
+ */
+export function continuarLista(valor: string, cursor: number): { valor: string; cursor: number } | null {
+  const ini = valor.lastIndexOf("\n", cursor - 1) + 1;
+  const linha = valor.slice(ini, cursor);
+  const m = linha.match(/^(\s*[-*•]\s+)(.*)$/);
+  if (!m) return null;
+  if (m[2] === "") {
+    // lista vazia: apaga a marca e sai da lista
+    return { valor: valor.slice(0, ini) + valor.slice(cursor), cursor: ini };
+  }
+  const ins = "\n" + m[1];
+  return { valor: valor.slice(0, cursor) + ins + valor.slice(cursor), cursor: cursor + ins.length };
+}

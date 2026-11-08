@@ -50,6 +50,7 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - `src/modules/flashcards/` — pastas por matéria → cartões → estudar (rota `#/escola/flashcards[/<pasta>[/estudar]]`, aba dentro da Escola). `logica.ts` = caixas de Leitner (intervalos 0/0/1/3/7/14 dias).
   Cartão tem `dificuldade` (facil/medio/dificil; ausente = medio) só para organizar e filtrar, não muda o intervalo. Estudo: ordem "Inteligente" (caixa, depois difícil antes de fácil) ou "Aleatória" (mistura tudo); filtro por dificuldade; opções ficam em memória (`opcoesEstudo`), pedido de 08/11/2026.
   Filtro = faixa `Segmentos` com a contagem de cada dificuldade + chave "Ordem aleatória" (as pílulas anteriores foram recusadas pelo Guilherme).
+  **Listas no texto do cartão**: linha que começa com `- ` (ou `* `) vira item com bolinha (`TextoCartao`, CSS `.item-lista::before`); o texto guardado continua com `- `. Enter numa linha de lista continua a lista, Enter numa vazia encerra (`continuarLista` em `logica.ts`).
   **Imagem no cartão** (`imagem`, `imagemVerso`): `imagem.ts` reduz para 900 px e grava JPEG 0,76 em data URL dentro do registro (vai junto na sincronia). Nada de PNG/WebP cru: Safari não codifica WebP e o localStorage tem ~5 MB. `storage.gravar` devolve false sem espaço; `store.substituir` então não altera o estado e dispara `rotina:sem-espaco` (aviso em `ui.tsx`).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
