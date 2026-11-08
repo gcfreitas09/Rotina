@@ -1,0 +1,208 @@
+import type { NotasSemestre } from "../config/gradingRules.ts";
+
+/**
+ * Todo registro sincronizável carrega:
+ *  _m = momento da última alteração (ms) — decide quem vence na sincronia
+ *  _x = excluído (lápide), para a exclusão chegar ao outro aparelho
+ */
+export interface Base {
+  id: string;
+  _m: number;
+  _x?: boolean;
+}
+
+/** Dia da semana com a segunda-feira como 0 … domingo como 6. */
+export type Dia = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export type Prioridade = "baixa" | "media" | "alta";
+
+export interface Subtarefa {
+  id: string;
+  texto: string;
+  feita: boolean;
+}
+
+export type Recorrencia =
+  | { tipo: "nenhuma" }
+  | { tipo: "diaria" }
+  | { tipo: "semanal" }
+  | { tipo: "dias"; dias: Dia[] };
+
+export interface Tarefa extends Base {
+  titulo: string;
+  descricao: string;
+  /** Data de entrega (aaaa-mm-dd). Em recorrentes, o primeiro dia. */
+  data: string;
+  prioridade: Prioridade;
+  categoria: string;
+  subtarefas: Subtarefa[];
+  recorrencia: Recorrencia;
+  /** Tarefa simples: concluída ou não. */
+  concluida: boolean;
+  concluidaEm: string | null;
+  /** Recorrente: datas (aaaa-mm-dd) em que a ocorrência foi concluída. */
+  feitasEm: string[];
+}
+
+export interface Categoria extends Base {
+  nome: string;
+}
+
+export interface Avaliacao {
+  nota: number | null;
+  data: string | null;
+}
+
+export type ChaveNota = keyof NotasSemestre;
+
+export interface Semestre {
+  p1: Avaliacao;
+  p2: Avaliacao;
+  t1: Avaliacao;
+  t2: Avaliacao;
+  extra: Avaliacao;
+  rec: Avaliacao;
+}
+
+export interface Materia extends Base {
+  nome: string;
+  semestres: [Semestre, Semestre];
+  exame: Avaliacao;
+}
+
+export type TipoBloco = "aula" | "trabalho" | "academia" | "futevolei" | "estudo" | "livre";
+
+/**
+ * Um bloco por dia. Blocos criados com "Repetir" compartilham `grupo`,
+ * para editar só um dia ou todos de uma vez.
+ */
+export interface Bloco extends Base {
+  grupo: string;
+  nome: string;
+  tipo: TipoBloco;
+  dia: Dia;
+  inicio: string; // HH:MM
+  fim: string;
+  local: string;
+}
+
+export type TipoRefeicao = "cafe" | "almoco" | "lanche" | "janta" | "pre" | "pos" | "outra";
+
+export interface Alimento {
+  id: string;
+  nome: string;
+  quantidade: string;
+  kcal: number | null;
+  proteina: number | null;
+}
+
+/** Refeição de um dia do plano. Mesma lógica de `grupo` dos blocos. */
+export interface Refeicao extends Base {
+  grupo: string;
+  nome: string;
+  tipo: TipoRefeicao;
+  dia: Dia;
+  horario: string;
+  alimentos: Alimento[];
+}
+
+/** Registro diário da dieta. id = aaaa-mm-dd. */
+export interface DiaDieta extends Base {
+  feitas: string[];
+  aguaMl: number;
+}
+
+export interface Exercicio {
+  id: string;
+  nome: string;
+  series: number;
+  reps: number;
+  carga: number;
+}
+
+export interface Ficha extends Base {
+  nome: string;
+  dias: Dia[];
+  exercicios: Exercicio[];
+}
+
+export interface SerieFeita {
+  reps: number;
+  carga: number;
+  feita: boolean;
+}
+
+export interface Sessao extends Base {
+  data: string;
+  fichaId: string;
+  fichaNome: string;
+  exercicios: { exercicioId: string; nome: string; series: SerieFeita[] }[];
+  concluida: boolean;
+}
+
+export interface Peso extends Base {
+  data: string;
+  kg: number;
+}
+
+/** Pasta de flashcards de uma matéria (ex.: Biologia → "Citologia"). */
+export interface Baralho extends Base {
+  materia: string;
+  nome: string;
+}
+
+/** Cartão: pergunta na frente, resposta no verso. Repetição espaçada por caixas (Leitner). */
+export interface Cartao extends Base {
+  baralhoId: string;
+  frente: string;
+  verso: string;
+  /** 1 a 5. Acertou sobe; errou volta para 1. */
+  caixa: number;
+  /** Data (aaaa-mm-dd) da próxima revisão. */
+  proxima: string;
+  acertos: number;
+  erros: number;
+}
+
+export type Tema = "claro" | "escuro" | "sistema";
+
+export interface Config extends Base {
+  nome: string;
+  mediaAprovacao: number;
+  minimoExame: number;
+  metaAguaMl: number;
+  tema: Tema;
+  descansoSeg: number;
+}
+
+export interface Colecoes {
+  config: Config;
+  tarefas: Tarefa;
+  categorias: Categoria;
+  materias: Materia;
+  blocos: Bloco;
+  refeicoes: Refeicao;
+  diasDieta: DiaDieta;
+  fichas: Ficha;
+  sessoes: Sessao;
+  pesos: Peso;
+  baralhos: Baralho;
+  cartoes: Cartao;
+}
+
+export type NomeColecao = keyof Colecoes;
+
+export const COLECOES: NomeColecao[] = [
+  "config",
+  "tarefas",
+  "categorias",
+  "materias",
+  "blocos",
+  "refeicoes",
+  "diasDieta",
+  "fichas",
+  "sessoes",
+  "pesos",
+  "baralhos",
+  "cartoes",
+];

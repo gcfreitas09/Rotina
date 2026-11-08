@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Rotina — tarefas, escola, dieta e treino</title>
+    <meta name="description" content="Organização pessoal de quem estuda e trabalha: tarefas, horários da semana, notas e médias, dieta e treino num só lugar." />
+    <!-- App pessoal: não deve aparecer no Google. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f4f1ea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Rotina" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="icon" href="./favicon.ico" sizes="48x48" />
+    <link rel="icon" href="./icone.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./site.webmanifest" />
+    <script>
+      // Aplica o tema antes de desenhar, para não piscar claro → escuro.
+      try {
+        var t = localStorage.getItem("rotina:tema");
+        if (t) document.documentElement.dataset.tema = t;
+        else if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.tema = "escuro";
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="raiz"></div>
+    <noscript>O Rotina precisa de JavaScript ligado para funcionar.</noscript>
+    <script type="module" src="../src/main.tsx"></script>
+  </body>
+</html>
