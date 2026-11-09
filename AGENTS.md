@@ -87,11 +87,14 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   se a sessão ligou (`focoIphone`). Passo a passo do atalho fica na própria tela.
   Limites do iOS (pesquisados, 08/11/2026): (1) o Foco não impede sair para outros apps e nenhum site liga o Acesso Guiado
   (trava num app, com limite de tempo; só a pessoa liga: 3× botão lateral/Siri/Central de Controle) → a sessão mostra um cartão
-  com o passo a passo e o tempo restante; (2) no web app da Tela de Início o link `https` do x-success cai no Safari, então o app
-  devolve por `webapp://<host>` (`urlDeVolta`, só vale quando `navigator.standalone`; relatado como funcional desde iOS/iPadOS 17,
-  **não verificado num iPhone daqui**: se abrir o Safari, o usuário põe "Abrir URL webapp://host" no fim do atalho).
-  Foco que o app ligou: o atalho usa "Ativar até <hora>", então sai sozinho no fim; com o app aberto, ao acabar o tempo ele também
-  chama o atalho com 0 (uma vez, `Leitura.focoEncerrado`); "+5 min" religa o Foco até o novo fim (`minutosPara`).
+  com o passo a passo e o tempo restante; (2) **nada volta sozinho para um web app instalado**: o `x-success` com `https` abre o
+  Safari (armazenamento separado: lá o app não vê a leitura) e `webapp://` deixou de funcionar no iOS 26 (relatos de abril/2026;
+  o Guilherme confirmou que seguia abrindo o Safari). Por isso: no app da Tela de Início o link do atalho **não leva** `x-success`
+  (`urlDeVolta` devolve undefined); e existe o modo `Config.focoSemSair`: o app copia os minutos (`pedirFoco`) e a pessoa aciona o
+  atalho por gesto (Toque Duplo/Botão de Ação/Central de Controle), que roda por cima do app sem abrir o Atalhos. O atalho lê
+  Entrada de Atalho ou, se vazia, a Área de Transferência. **Cópia para a área de transferência não testada num iPhone.**
+  Foco que o app ligou: o atalho usa "Ativar até <hora>", então sai sozinho no fim; no modo Atalhos, com o app aberto, ao acabar o
+  tempo ele também chama o atalho com 0 (uma vez, `Leitura.focoEncerrado`); "+5 min" religa/recopia até o novo fim (`minutosPara`).
   Campo "Livro": ao digitar, lista de opções clicáveis da Open Library (`leitura/catalogo.ts`, direto do navegador: libera CORS;
   a API do Google Livros está sem cota sem chave). Preenche livro, autor e páginas (edição mediana: o app avisa para conferir).
   Resultados vêm sujos, então `ranquear` filtra (todas as palavras digitadas), tira resumos/repetidas e prefere obra conhecida em

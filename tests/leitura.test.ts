@@ -48,15 +48,18 @@ test("link do atalho do iPhone volta para o app", () => {
 
 import { minutosPara, urlDeVolta } from "../src/modules/leitura/logica.ts";
 
-test("o atalho devolve para o web app da Tela de Início (webapp://) e, no Safari, para a página", () => {
-  assert.equal(urlDeVolta(true, "https://rotina-gcf.vercel.app", "rotina-gcf.vercel.app", "/", "#/mais/leitura/agora"), "webapp://rotina-gcf.vercel.app");
-  assert.equal(urlDeVolta(false, "https://rotina-gcf.vercel.app", "rotina-gcf.vercel.app", "/", "#/mais/leitura"), "https://rotina-gcf.vercel.app/#/mais/leitura");
+test("no app da Tela de Início o atalho não recebe link de volta (qualquer https abriria o Safari); no Safari volta para a página", () => {
+  assert.equal(urlDeVolta(true, "https://rotina-gcf.vercel.app", "/", "#/mais/leitura/agora"), undefined);
+  assert.equal(urlDeVolta(false, "https://rotina-gcf.vercel.app", "/", "#/mais/leitura"), "https://rotina-gcf.vercel.app/#/mais/leitura");
+  const semVolta = linkAtalho("Iniciar leitura", 30, undefined);
+  assert.equal(semVolta, "shortcuts://x-callback-url/run-shortcut?name=Iniciar%20leitura&input=text&text=30");
+  assert.ok(!semVolta.includes("x-success"));
 });
 
 test("minutos que o atalho recebe para ligar o Foco até o fim certo", () => {
   assert.equal(minutosPara(30 * 60000, 0), 30);
   assert.equal(minutosPara(30 * 60000, 60_001), 29); // 28 min e 59 s → 29
   assert.equal(minutosPara(0, 5 * 60000), 1); // nunca menos de 1
-  const u = linkAtalho("Iniciar leitura", 35, "webapp://rotina-gcf.vercel.app");
-  assert.ok(u.includes(`x-success=${encodeURIComponent("webapp://rotina-gcf.vercel.app")}`));
+  const u = linkAtalho("Iniciar leitura", 35, "https://rotina-gcf.vercel.app/#/mais/leitura");
+  assert.ok(u.includes(`x-success=${encodeURIComponent("https://rotina-gcf.vercel.app/#/mais/leitura")}`));
 });

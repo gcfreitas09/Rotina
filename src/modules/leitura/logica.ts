@@ -48,17 +48,22 @@ export function previsao(livro: Livro, metaPaginasDia: number): { faltam: number
 }
 
 /**
- * Link que roda o atalho do iPhone e volta para o app (x-callback-url do app Atalhos).
- * O atalho recebe o número de minutos como texto ("0" = desligar o foco).
+ * Link que roda o atalho do iPhone (x-callback-url do app Atalhos). O atalho recebe o número de minutos como texto
+ * ("0" = desligar o foco). `volta` = para onde o Atalhos devolve depois; sem `volta`, o Atalhos não abre nada ao terminar.
  */
-export function linkAtalho(nome: string, minutos: number, volta: string): string {
-  const q = new URLSearchParams({ name: nome, input: "text", text: String(Math.max(0, Math.round(minutos))), "x-success": volta, "x-cancel": volta, "x-error": volta });
+export function linkAtalho(nome: string, minutos: number, volta?: string): string {
+  const q = new URLSearchParams({ name: nome, input: "text", text: String(Math.max(0, Math.round(minutos))) });
+  if (volta) for (const k of ["x-success", "x-cancel", "x-error"]) q.set(k, volta);
   return `shortcuts://x-callback-url/run-shortcut?${q.toString().replace(/\+/g, "%20")}`;
 }
 
-/** Para onde o atalho devolve a pessoa: o web app instalado na Tela de Início (`webapp://host`) ou, no Safari, a própria página. */
-export function urlDeVolta(emApp: boolean, origem: string, host: string, caminho: string, hash: string): string {
-  return emApp ? `webapp://${host}` : `${origem}${caminho}${hash}`;
+/**
+ * Para onde o atalho devolve a pessoa. No Safari, para a própria página. No web app da Tela de Início: para lugar nenhum
+ * (undefined), porque o iOS não deixa um atalho voltar para um web app instalado: qualquer link `https` abre o **Safari**,
+ * onde o app não enxerga os dados do app instalado (o armazenamento é separado), e `webapp://` não funciona no iOS 26.
+ */
+export function urlDeVolta(emApp: boolean, origem: string, caminho: string, hash: string): string | undefined {
+  return emApp ? undefined : `${origem}${caminho}${hash}`;
 }
 
 /** Minutos (para cima, no mínimo 1) entre agora e o fim: é o que o atalho recebe para ligar o Foco "até" a hora certa. */

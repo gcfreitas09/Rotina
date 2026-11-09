@@ -20,6 +20,7 @@ export const CONFIG_PADRAO: Config = {
   metaPaginasDia: 20,
   metaMinutosLeitura: 30,
   atalhoLeitura: "",
+  focoSemSair: false,
 };
 
 function disponivel(): Storage | null {

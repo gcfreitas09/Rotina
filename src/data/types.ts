@@ -210,6 +210,8 @@ export interface Config extends Base {
   metaMinutosLeitura: number;
   /** Nome do atalho do iPhone que liga o Foco "Leitura" ("" = não usar). Ver modules/leitura. */
   atalhoLeitura: string;
+  /** Liga o Foco sem sair do app: o Rotina copia os minutos e a pessoa aciona o atalho (Toque Duplo, Botão de Ação…). */
+  focoSemSair: boolean;
 }
 
 /** Livro na estante de leitura. */
