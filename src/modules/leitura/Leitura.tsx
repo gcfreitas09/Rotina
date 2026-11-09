@@ -25,7 +25,6 @@ function ligarFocoAoIniciar(cfg: Config, minutos: number) {
   location.href = linkAtalho(cfg.atalhoLeitura, minutos, voltaDoAtalho());
 }
 const temFoco = (cfg: Config) => cfg.focoSemSair || !!cfg.atalhoLeitura;
-const toqueNaTela = () => matchMedia("(pointer: coarse)").matches;
 
 /** Leitura: metas do dia, livros (página onde parou) e sessões cronometradas. Rotas: #/mais/leitura[/agora]. */
 export default function Leitura({ sub }: { sub?: string }) {
@@ -374,15 +373,12 @@ function IniciarForm({ livro, aoFechar }: { livro: Livro; aoFechar: () => void }
 function LendoAgora() {
   const leituras = useColecao("leituras");
   const livros = useColecao("livros");
-  const cfg = useConfig();
   const ativa = sessaoAtiva(leituras);
   const livro = ativa && livros.find((l) => l.id === ativa.livroId);
   const agora = useAgora(1000).getTime();
   const [encerrando, setEncerrando] = useState(false);
   const [pagina, setPagina] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [travaVista, setTravaVista] = useState(false);
-  const [focoVisto, setFocoVisto] = useState(false);
   const avisou = useRef(false);
   useTelaAcesa(!!ativa);
 
@@ -465,21 +461,6 @@ function LendoAgora() {
           </div>
         )}
       </div>
-
-      {cfg.focoSemSair && ativa.focoIphone && !focoVisto && !cumprido && !encerrando && (
-        <div className="folha travar-app" role="note">
-          <p className="sobretitulo">Ligue o Foco agora</p>
-          <p>Acione o seu atalho: <b>Toque Duplo</b> atrás do iPhone, <b>Botão de Ação</b> ou o botão de <b>Atalhos</b> na Central de Controle. Ele liga o Foco por cima do Rotina, sem sair daqui. Para desligar depois: Central de Controle → Foco.</p>
-          <button type="button" className="botao pequeno" onClick={() => setFocoVisto(true)}>Já liguei</button>
-        </div>
-      )}
-      {toqueNaTela() && !encerrando && !travaVista && (
-        <div className="folha travar-app" role="note">
-          <p className="sobretitulo">Para não sair do app</p>
-          <p>Clique <b>3 vezes no botão lateral</b> → <i>Opções</i> → <i>Limite de tempo</i>: <b className="num">{Math.max(1, Math.ceil(restanteMs / 60000))} min</b> → <i>Iniciar</i>. É o Acesso Guiado: o iPhone fica preso neste app até o tempo acabar ou você usar o código/Face ID.</p>
-          <button type="button" className="botao pequeno" onClick={() => setTravaVista(true)}>Entendi</button>
-        </div>
-      )}
 
       {encerrando && (
         <form className="folha form encerrar-leitura" onSubmit={salvarFim} noValidate>

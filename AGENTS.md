@@ -87,10 +87,10 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   se a sessão ligou (`focoIphone`). Passo a passo do atalho fica na própria tela.
   Foco do iPhone, **versão simples (pedido do Guilherme: "deixe só ao começar ligar o foco ficando no app, o cara se vira depois
   para desligar")**: o app só **liga** o Foco ao começar e não mexe mais nele (nada de desligar, copiar minutos, "+5 min" religando,
-  cartão no fim). Modo `Config.focoSemSair`: a sessão mostra "Ligue o Foco agora" e a pessoa aciona o atalho por gesto (Toque
+  cartão no fim). Modo `Config.focoSemSair`: a pessoa aciona o atalho por gesto (Toque
   Duplo/Botão de Ação/Central de Controle), que roda por cima do app; o atalho tem **uma ação só** (Definir Foco: Leitura, Ativar).
   Modo "nome do atalho": abre o app Atalhos. Limites do iOS (pesquisados): o Foco não impede sair para outros apps e nenhum site
-  liga o Acesso Guiado (trava num app, limite de tempo; só a pessoa liga) → cartão com o passo a passo; **nada volta sozinho para
+  liga o Acesso Guiado (trava num app, limite de tempo; só a pessoa liga) → só está no passo a passo da tela de Leitura (os cartões na sessão foram tirados a pedido do Guilherme: poluíam a tela); **nada volta sozinho para
   um web app instalado** (`https` no x-success abre o Safari, com armazenamento separado; `webapp://` não funciona no iOS 26) →
   no app da Tela de Início o link do atalho não leva `x-success` (`urlDeVolta`). Isso já deu bug: a versão com cópia da área de
   transferência, "Ativar até" e desligar pelo app ficou complicada e travava; não reintroduzir sem pedido.
