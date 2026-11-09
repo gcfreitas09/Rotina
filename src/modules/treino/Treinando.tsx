@@ -9,7 +9,7 @@ import { Vazio, confirmar, mostrarAviso, useAgora } from "../../components/ui.ts
 import Segmentos from "../../components/Segmentos.tsx";
 import { navegar } from "../../rota.ts";
 import { pulso } from "../../components/movimento.tsx";
-import { avisarFimDescanso, useTelaAcesa } from "../../components/alerta.ts";
+import { avisarFimDescanso, liberarSom, useTelaAcesa } from "../../components/alerta.ts";
 import { fichaDoDia } from "./Treino.tsx";
 import {
   adicionarSerie, cargaSugerida, concluirSerie, desfazerSerie, formatarDuracao, novaSessao, proximaSerie, relogio,
@@ -70,6 +70,7 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
   }, [fimDescanso, restante]);
 
   const iniciarDescanso = () => {
+    liberarSom(); // o toque em "Concluir série" libera o som do fim do descanso (o iPhone não toca som sem um toque antes)
     const ms = cfg.descansoSeg * 1000;
     setFimDescanso(Date.now() + ms);
     setTotalDescanso(ms);

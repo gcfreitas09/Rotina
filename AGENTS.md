@@ -93,6 +93,10 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (`urlDeVolta` devolve undefined); e existe o modo `Config.focoSemSair`: o app copia os minutos (`pedirFoco`) e a pessoa aciona o
   atalho por gesto (Toque Duplo/Botão de Ação/Central de Controle), que roda por cima do app sem abrir o Atalhos. O atalho lê
   Entrada de Atalho ou, se vazia, a Área de Transferência. **Cópia para a área de transferência não testada num iPhone.**
+  Som de fim de tempo: o iPhone só libera áudio depois de um toque, então `components/alerta.ts` destrava o contexto de áudio num
+  toque (`liberarSom`: iniciar leitura, +5 min, primeiro toque da sessão, concluir série) e o alarme (`tocarAlarme`, ~6 s) reaproveita
+  esse contexto; criar o áudio na hora do fim (sem toque) saía mudo. Em volta toca um silêncio (`manter`) para tentar ignorar a chave
+  de silêncio (melhor esforço, não verificado num iPhone). No fim do tempo, modo sem sair do app: cartão "Desligar o Foco" (copia 0).
   Foco que o app ligou: o atalho usa "Ativar até <hora>", então sai sozinho no fim; no modo Atalhos, com o app aberto, ao acabar o
   tempo ele também chama o atalho com 0 (uma vez, `Leitura.focoEncerrado`); "+5 min" religa/recopia até o novo fim (`minutosPara`).
   Campo "Livro": ao digitar, lista de opções clicáveis da Open Library (`leitura/catalogo.ts`, direto do navegador: libera CORS;
