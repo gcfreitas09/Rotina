@@ -91,6 +91,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   português. Sem internet, a lista avisa e o cadastro à mão continua valendo.
   No desktop a Leitura tem item próprio no menu lateral (`navLateral` em `App.tsx`, entre Saúde e Mais); no celular fica em
   Mais para a barra de baixo seguir com 5 itens (pedido do Guilherme, 08/11/2026).
+  Também no desktop (≥ 900 px) a aba "Leitura" some das abas de Mais, e a barra de abas inteira some quando se está na Leitura
+  (CSS `.mais-abas` em `styles.css`; `Abas` marca cada aba com `data-aba` e reposiciona o traço ao redimensionar).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 
