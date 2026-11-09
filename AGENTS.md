@@ -85,18 +85,19 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Foco do iPhone: site não liga Foco nem bloqueia apps; o app abre o atalho do usuário (`Config.atalhoLeitura`) por
   `shortcuts://x-callback-url/run-shortcut` com os minutos (0 = desligar) e volta pelo `x-success`. Só desliga ao encerrar
   se a sessão ligou (`focoIphone`). Passo a passo do atalho fica na própria tela.
-  Limites do iOS (pesquisados, 08/11/2026): (1) o Foco não impede sair para outros apps e nenhum site liga o Acesso Guiado
-  (trava num app, com limite de tempo; só a pessoa liga: 3× botão lateral/Siri/Central de Controle) → a sessão mostra um cartão
-  com o passo a passo e o tempo restante; (2) **nada volta sozinho para um web app instalado**: o `x-success` com `https` abre o
-  Safari (armazenamento separado: lá o app não vê a leitura) e `webapp://` deixou de funcionar no iOS 26 (relatos de abril/2026;
-  o Guilherme confirmou que seguia abrindo o Safari). Por isso: no app da Tela de Início o link do atalho **não leva** `x-success`
-  (`urlDeVolta` devolve undefined); e existe o modo `Config.focoSemSair`: o app copia os minutos (`pedirFoco`) e a pessoa aciona o
-  atalho por gesto (Toque Duplo/Botão de Ação/Central de Controle), que roda por cima do app sem abrir o Atalhos. O atalho lê
-  Entrada de Atalho ou, se vazia, a Área de Transferência. **Cópia para a área de transferência não testada num iPhone.**
+  Foco do iPhone, **versão simples (pedido do Guilherme: "deixe só ao começar ligar o foco ficando no app, o cara se vira depois
+  para desligar")**: o app só **liga** o Foco ao começar e não mexe mais nele (nada de desligar, copiar minutos, "+5 min" religando,
+  cartão no fim). Modo `Config.focoSemSair`: a sessão mostra "Ligue o Foco agora" e a pessoa aciona o atalho por gesto (Toque
+  Duplo/Botão de Ação/Central de Controle), que roda por cima do app; o atalho tem **uma ação só** (Definir Foco: Leitura, Ativar).
+  Modo "nome do atalho": abre o app Atalhos. Limites do iOS (pesquisados): o Foco não impede sair para outros apps e nenhum site
+  liga o Acesso Guiado (trava num app, limite de tempo; só a pessoa liga) → cartão com o passo a passo; **nada volta sozinho para
+  um web app instalado** (`https` no x-success abre o Safari, com armazenamento separado; `webapp://` não funciona no iOS 26) →
+  no app da Tela de Início o link do atalho não leva `x-success` (`urlDeVolta`). Isso já deu bug: a versão com cópia da área de
+  transferência, "Ativar até" e desligar pelo app ficou complicada e travava; não reintroduzir sem pedido.
   Som de fim de tempo: o iPhone só libera áudio depois de um toque, então `components/alerta.ts` destrava o contexto de áudio num
   toque (`liberarSom`: iniciar leitura, +5 min, primeiro toque da sessão, concluir série) e o alarme (`tocarAlarme`, ~6 s) reaproveita
   esse contexto; criar o áudio na hora do fim (sem toque) saía mudo. Em volta toca um silêncio (`manter`) para tentar ignorar a chave
-  de silêncio (melhor esforço, não verificado num iPhone). No fim do tempo, modo sem sair do app: cartão "Desligar o Foco" (copia 0).
+  de silêncio (melhor esforço, não verificado num iPhone).
   Foco que o app ligou: o atalho usa "Ativar até <hora>", então sai sozinho no fim; no modo Atalhos, com o app aberto, ao acabar o
   tempo ele também chama o atalho com 0 (uma vez, `Leitura.focoEncerrado`); "+5 min" religa/recopia até o novo fim (`minutosPara`).
   Campo "Livro": ao digitar, lista de opções clicáveis da Open Library (`leitura/catalogo.ts`, direto do navegador: libera CORS;

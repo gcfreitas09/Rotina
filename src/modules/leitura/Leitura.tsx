@@ -9,7 +9,7 @@ import { Conta } from "../../components/movimento.tsx";
 import { liberarSom, soltarSom, tocarAlarme, useTelaAcesa } from "../../components/alerta.ts";
 import { navegar } from "../../rota.ts";
 import { useBuscaLivros, type SugestaoLivro } from "./catalogo.ts";
-import { encerrar, lidoNoDia, linkAtalho, minutosDe, minutosPara, paginasDe, previsao, sequencia, sessaoAtiva, urlDeVolta } from "./logica.ts";
+import { encerrar, lidoNoDia, linkAtalho, minutosDe, paginasDe, previsao, sequencia, sessaoAtiva, urlDeVolta } from "./logica.ts";
 
 const MINUTOS = [15, 20, 30, 45, 60];
 /** Aberto pelo ícone da Tela de Início (web app) e não numa aba do Safari. */
@@ -17,17 +17,12 @@ const emAppDaTela = () => (navigator as { standalone?: boolean }).standalone ===
 /** Só no Safari o atalho devolve para a página; no app da Tela de Início não há como voltar sozinho (ver `urlDeVolta`). */
 const voltaDoAtalho = (hash = "#/mais/leitura/agora") => urlDeVolta(emAppDaTela(), location.origin, location.pathname, hash);
 /**
- * Liga/desliga o Foco. Modo "sem sair do app": copia os minutos para a área de transferência (o atalho lê de lá) e a pessoa
- * o aciona por um gesto (Toque Duplo, Botão de Ação, Central de Controle), que roda por cima do app. Senão, abre o Atalhos.
+ * Liga o Foco ao começar. Modo "sem sair do app": nada a fazer aqui (a sessão mostra o que acionar: Toque Duplo, Botão de Ação…).
+ * Senão, abre o app Atalhos. O app não mexe mais no Foco depois disso: a pessoa desliga quando quiser.
  */
-function pedirFoco(cfg: Config, minutos: number, hash?: string): "copiado" | "saiu" | "nada" {
-  if (cfg.focoSemSair) {
-    navigator.clipboard?.writeText(String(Math.max(0, Math.round(minutos)))).catch(() => {});
-    return "copiado";
-  }
-  if (!cfg.atalhoLeitura) return "nada";
-  location.href = linkAtalho(cfg.atalhoLeitura, minutos, voltaDoAtalho(hash));
-  return "saiu";
+function ligarFocoAoIniciar(cfg: Config, minutos: number) {
+  if (cfg.focoSemSair || !cfg.atalhoLeitura) return;
+  location.href = linkAtalho(cfg.atalhoLeitura, minutos, voltaDoAtalho());
 }
 const temFoco = (cfg: Config) => cfg.focoSemSair || !!cfg.atalhoLeitura;
 const toqueNaTela = () => matchMedia("(pointer: coarse)").matches;
@@ -197,18 +192,12 @@ function FocoIphone() {
         <summary>Como montar no iPhone (uma vez só)</summary>
         <ol>
           <li><b>Criar o Foco.</b> Ajustes → Foco → + → Leitura. Em <i>Pessoas</i> e <i>Apps</i>, não permita ninguém (assim nenhuma notificação chega). Em <i>Telas</i>, escolha uma página da Tela de Início só com o Rotina.</li>
-          <li><b>Criar o atalho</b> no app Atalhos (com o nome acima, se for usar o nome):
-            <ul>
-              <li><i>Se</i> Entrada de Atalho <i>tem algum valor</i> → <i>Definir variável</i> Minutos = Entrada de Atalho. <i>Senão</i> → <i>Obter Área de Transferência</i> → <i>Definir variável</i> Minutos = Área de Transferência. <i>Fim do Se</i>.</li>
-              <li><i>Se</i> Minutos <i>é</i> 0 → <i>Definir Foco</i> Leitura: <i>Desativar</i>.</li>
-              <li><i>Senão</i> → <i>Ajustar data</i>: Data Atual, <i>Somar</i> Minutos minutos → <i>Definir Foco</i> Leitura: <i>Ativar até</i> Hora → Data ajustada. É esse "até" que desliga o Foco sozinho no fim do tempo, mesmo com o app fechado.</li>
-              <li><b>Para voltar ao app sozinho</b> (só no modo que abre o Atalhos): por último, acrescente <i>Abrir App</i> e procure <i>Rotina</i> na lista. Se ele aparecer, escolha: é a única forma de o atalho voltar para o app da Tela de Início. Se não aparecer, o iPhone não deixa: use "Ligar o Foco sem sair do app".</li>
-            </ul>
-          </li>
-          <li><b>Ligar sem sair do app</b> (chave acima): ao iniciar a leitura, o Rotina copia os minutos e você aciona o atalho por um gesto, que roda por cima do app, sem abrir o Atalhos: <i>Toque Duplo</i> atrás do iPhone (Ajustes → Acessibilidade → Toque → Toque Atrás), <i>Botão de Ação</i> (Ajustes → Botão de Ação → Atalho) ou o botão <i>Atalhos</i> da Central de Controle (editar → Adicionar controle).</li>
-          <li><b>Preparar o Acesso Guiado</b> (é ele que impede de sair para outro app): Ajustes → Acessibilidade → Acesso Guiado → ligar. Em <i>Ajustes do código</i>, defina o código (ou ligue o Face ID). Opcional: adicione o Acesso Guiado à Central de Controle.</li>
-          <li><b>Ler:</b> toque em <i>Iniciar leitura</i>, ligue o Foco (gesto) e clique <b>3 vezes no botão lateral</b> → <i>Opções</i> → <i>Limite de tempo</i> (os mesmos minutos) → <i>Iniciar</i>. O gesto de voltar à Tela de Início para de funcionar até o tempo acabar ou você destravar com o código/Face ID.</li>
+          <li><b>Criar o atalho</b> no app Atalhos, com <b>uma ação só</b>: <i>Definir Foco</i> → <i>Leitura</i> → <i>Ativar</i> (sem horário: o Foco fica ligado até você desligar). Nome sugerido: Iniciar leitura.</li>
+          <li><b>Ligar sem sair do app</b> (chave acima): ao iniciar a leitura, o Rotina avisa e você aciona o atalho por um gesto, que roda por cima do app, sem abrir o Atalhos: <i>Toque Duplo</i> atrás do iPhone (Ajustes → Acessibilidade → Toque → Toque Atrás), <i>Botão de Ação</i> (Ajustes → Botão de Ação → Atalho) ou o botão <i>Atalhos</i> da Central de Controle (editar → Adicionar controle).</li>
+          <li><b>Preparar o Acesso Guiado</b> (é ele que impede de sair para outro app): Ajustes → Acessibilidade → Acesso Guiado → ligar. Em <i>Ajustes do código</i>, defina o código (ou ligue o Face ID).</li>
+          <li><b>Ler:</b> toque em <i>Iniciar leitura</i>, ligue o Foco (gesto) e clique <b>3 vezes no botão lateral</b> → <i>Opções</i> → <i>Limite de tempo</i> (os mesmos minutos) → <i>Iniciar</i>. Ao acabar, o alarme toca. Para desligar o Foco: Central de Controle → Foco → Leitura.</li>
         </ol>
+        <p className="suave">Se você preferir que o Rotina abra o app Atalhos (campo "Nome do atalho"), o iPhone para lá e não volta sozinho para o app da Tela de Início. Dica: no fim do atalho, tente a ação <i>Abrir App</i> e procure <i>Rotina</i>; se ele não aparecer na lista, o iOS não deixa.</p>
         <p className="suave">Por que não volta sozinho com o nome do atalho: o iPhone não deixa um atalho ou site voltar para um web app instalado. Qualquer link abre o Safari, que não enxerga a sua leitura, e o endereço <code>webapp://</code> deixou de funcionar no iOS 26. E nenhum site liga o Acesso Guiado: só você (botão lateral, Siri ou Central de Controle).</p>
         <p className="suave">Som de fim de tempo: o app toca um alarme de uns 6 segundos. Se não tocar, confira o volume e a chave de silêncio do iPhone (o app tenta tocar mesmo no silencioso, mas o iOS pode bloquear).</p>
       </details>
@@ -339,7 +328,7 @@ function IniciarForm({ livro, aoFechar }: { livro: Livro; aoFechar: () => void }
     if (p !== livro.pagina) salvar("livros", { ...livro, pagina: p });
     aoFechar();
     navegar("mais/leitura/agora");
-    if (ligarFoco) pedirFoco(cfg, m);
+    if (ligarFoco) ligarFocoAoIniciar(cfg, m);
   };
   return (
     <Dialogo titulo="Iniciar leitura" aoFechar={aoFechar}>
@@ -360,7 +349,7 @@ function IniciarForm({ livro, aoFechar }: { livro: Livro; aoFechar: () => void }
         {temFoco(cfg) ? (
           <label className="opcao-linha">
             <input type="checkbox" className="check" checked={foco} onChange={(e) => setFoco(e.target.checked)} />
-            <span>Ligar o Foco no iPhone <small className="suave">{cfg.focoSemSair ? "(o app copia o tempo e você aciona o atalho, sem sair daqui)" : `(abre o atalho "${cfg.atalhoLeitura}")`}</small></span>
+            <span>Ligar o Foco no iPhone <small className="suave">{cfg.focoSemSair ? "(você aciona o atalho, sem sair daqui)" : `(abre o atalho "${cfg.atalhoLeitura}")`}</small></span>
           </label>
         ) : (
           <p className="suave" style={{ fontSize: 13 }}>Para silenciar o iPhone durante a leitura, configure "Foco no iPhone" na tela de Leitura.</p>
@@ -394,7 +383,6 @@ function LendoAgora() {
   const [erro, setErro] = useState<string | null>(null);
   const [travaVista, setTravaVista] = useState(false);
   const [focoVisto, setFocoVisto] = useState(false);
-  const [focoDesligado, setFocoDesligado] = useState(false);
   const avisou = useRef(false);
   useTelaAcesa(!!ativa);
 
@@ -408,29 +396,18 @@ function LendoAgora() {
     document.addEventListener("pointerdown", liberar, { capture: true, passive: true });
     return () => { document.removeEventListener("pointerdown", liberar, true); soltarSom(); };
   }, [!!ativa]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Acabou o tempo com o app aberto: toca o alarme (uma vez) e, no modo "abrir o Atalhos", desliga o Foco que o app ligou
-  // (atalho com 0) quando o alarme termina. Se o app estava fechado, o Foco já saiu sozinho (o atalho liga "até" uma hora).
+  // Acabou o tempo com o app aberto: toca o alarme (uma vez). O app não desliga o Foco: a pessoa desliga quando quiser.
   useEffect(() => {
-    if (!ativa || !cumprido || restanteMs <= -60_000) return;
-    const tocar = !avisou.current;
-    if (tocar) { avisou.current = true; mostrarAviso("Tempo de leitura cumprido."); }
-    const alarme = tocar ? tocarAlarme(4) : Promise.resolve();
-    if (ativa.focoIphone && !ativa.focoEncerrado) {
-      salvar("leituras", { ...ativa, focoEncerrado: true });
-      if (!cfg.focoSemSair && cfg.atalhoLeitura) alarme.then(() => { if (document.visibilityState === "visible") pedirFoco(cfg, 0); });
-    }
-  }, [ativa, cumprido, restanteMs, cfg]);
-  // "+5 min": o Foco tem de acompanhar. Liga de novo "até" o novo fim (se já tinha acabado, volta a ligar).
+    if (!ativa || !cumprido || restanteMs <= -60_000 || avisou.current) return;
+    avisou.current = true;
+    mostrarAviso(ativa.focoIphone ? "Tempo de leitura cumprido. Desligue o Foco quando quiser." : "Tempo de leitura cumprido.");
+    void tocarAlarme(4);
+  }, [ativa, cumprido, restanteMs]);
   const maisCinco = () => {
     if (!ativa) return;
     liberarSom(true);
-    const novoFim = ativa.inicio + (ativa.planejadoMin + 5) * 60000;
-    salvar("leituras", { ...ativa, planejadoMin: ativa.planejadoMin + 5, focoEncerrado: false });
+    salvar("leituras", { ...ativa, planejadoMin: ativa.planejadoMin + 5 });
     avisou.current = false;
-    if (ativa.focoIphone && temFoco(cfg)) {
-      const m = minutosPara(novoFim, Date.now());
-      if (pedirFoco(cfg, m) === "copiado") mostrarAviso(`Copiei ${m} min. Acione o atalho de novo para o Foco durar até o novo fim.`);
-    }
   };
   useEffect(() => { if (ativa && !pagina) setPagina(String(ativa.paginaInicio)); }, [ativa, pagina]);
 
@@ -447,20 +424,13 @@ function LendoAgora() {
     e.preventDefault();
     const p = lerNumero(pagina);
     if (p === null || Number.isNaN(p) || !Number.isInteger(p) || p < 0 || p > livro.paginas) return setErro(`Página: de 0 a ${livro.paginas}.`);
-    const antesDoFim = Date.now() < fimPlanejado;
     const r = encerrar(ativa, livro, p, Date.now(), hoje());
     salvar("leituras", r.leitura);
     salvar("livros", r.livro);
     const pags = paginasDe(r.leitura), mins = minutosDe(r.leitura);
     const resumo = r.livro.estado === "lido" ? `Você terminou ${livro.titulo}!` : `${pags} ${pags === 1 ? "página" : "páginas"} em ${mins} min. Parou na ${p}.`;
-    // encerrou antes do tempo: desliga o foco (o atalho recebe 0)
-    const desligar = antesDoFim && ativa.focoIphone && temFoco(cfg);
-    if (desligar && cfg.focoSemSair) {
-      pedirFoco(cfg, 0);
-      mostrarAviso(`${resumo} Para desligar o Foco, acione o atalho (copiei 0) ou use a Central de Controle.`);
-    } else mostrarAviso(resumo);
+    mostrarAviso(ativa.focoIphone ? `${resumo} Desligue o Foco quando quiser.` : resumo);
     navegar("mais/leitura");
-    if (desligar && !cfg.focoSemSair) pedirFoco(cfg, 0, "#/mais/leitura");
   };
 
   const descartar = async () => {
@@ -496,22 +466,10 @@ function LendoAgora() {
         )}
       </div>
 
-      {cfg.focoSemSair && ativa.focoIphone && cumprido && !focoDesligado && !encerrando && (
-        <div className="folha travar-app" role="note">
-          <p className="sobretitulo">Tempo cumprido</p>
-          <p>O Foco sai sozinho se o seu atalho usa <i>Ativar até</i>. Se ele continua ligado, toque abaixo: o app copia 0 {cfg.atalhoLeitura ? `e abre o atalho "${cfg.atalhoLeitura}"` : "e você aciona o atalho (Toque Duplo, Botão de Ação ou Central de Controle)"}.</p>
-          <button type="button" className="botao pequeno" onClick={() => {
-            setFocoDesligado(true);
-            navigator.clipboard?.writeText("0").catch(() => {});
-            if (cfg.atalhoLeitura) location.href = linkAtalho(cfg.atalhoLeitura, 0);
-            else mostrarAviso("Copiei 0. Acione o atalho para desligar o Foco.");
-          }}>Desligar o Foco</button>
-        </div>
-      )}
       {cfg.focoSemSair && ativa.focoIphone && !focoVisto && !cumprido && !encerrando && (
         <div className="folha travar-app" role="note">
           <p className="sobretitulo">Ligue o Foco agora</p>
-          <p>Acione o seu atalho: <b>Toque Duplo</b> atrás do iPhone, <b>Botão de Ação</b> ou o botão de <b>Atalhos</b> na Central de Controle. Ele já vai ler o tempo na área de transferência ({ativa.planejadoMin} min), por cima do Rotina, sem sair daqui.</p>
+          <p>Acione o seu atalho: <b>Toque Duplo</b> atrás do iPhone, <b>Botão de Ação</b> ou o botão de <b>Atalhos</b> na Central de Controle. Ele liga o Foco por cima do Rotina, sem sair daqui. Para desligar depois: Central de Controle → Foco.</p>
           <button type="button" className="botao pequeno" onClick={() => setFocoVisto(true)}>Já liguei</button>
         </div>
       )}

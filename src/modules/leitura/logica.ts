@@ -65,8 +65,3 @@ export function linkAtalho(nome: string, minutos: number, volta?: string): strin
 export function urlDeVolta(emApp: boolean, origem: string, caminho: string, hash: string): string | undefined {
   return emApp ? undefined : `${origem}${caminho}${hash}`;
 }
-
-/** Minutos (para cima, no mínimo 1) entre agora e o fim: é o que o atalho recebe para ligar o Foco "até" a hora certa. */
-export function minutosPara(fimMs: number, agoraMs: number): number {
-  return Math.max(1, Math.ceil((fimMs - agoraMs) / 60000));
-}
