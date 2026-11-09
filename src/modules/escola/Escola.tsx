@@ -61,7 +61,7 @@ export default function Escola() {
         </button>
       </div>
 
-      <div className="grade-tela">
+      <div className="grade-tela grade-escola">
       <div className="col-principal col-fixa">
 
       <section className="secao">

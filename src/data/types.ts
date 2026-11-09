@@ -205,6 +205,37 @@ export interface Config extends Base {
   metaAguaMl: number;
   tema: Tema;
   descansoSeg: number;
+  /** Metas diárias de leitura. */
+  metaPaginasDia: number;
+  metaMinutosLeitura: number;
+  /** Nome do atalho do iPhone que liga o Foco "Leitura" ("" = não usar). Ver modules/leitura. */
+  atalhoLeitura: string;
+}
+
+/** Livro na estante de leitura. */
+export interface Livro extends Base {
+  titulo: string;
+  autor: string;
+  /** Total de páginas. */
+  paginas: number;
+  /** Página onde parou. */
+  pagina: number;
+  estado: "lendo" | "lido";
+  concluidoEm?: string | null;
+}
+
+/** Uma sessão de leitura com tempo. fim = null enquanto está lendo. */
+export interface Leitura extends Base {
+  livroId: string;
+  data: string;
+  inicio: number;
+  /** Minutos escolhidos ao iniciar. */
+  planejadoMin: number;
+  fim: number | null;
+  paginaInicio: number;
+  paginaFim: number | null;
+  /** Ligou o Foco do iPhone pelo atalho ao começar (aí, encerrar antes do tempo desliga). */
+  focoIphone?: boolean;
 }
 
 export interface Colecoes {
@@ -220,6 +251,8 @@ export interface Colecoes {
   pesos: Peso;
   baralhos: Baralho;
   cartoes: Cartao;
+  livros: Livro;
+  leituras: Leitura;
 }
 
 export type NomeColecao = keyof Colecoes;
@@ -237,4 +270,6 @@ export const COLECOES: NomeColecao[] = [
   "pesos",
   "baralhos",
   "cartoes",
+  "livros",
+  "leituras",
 ];

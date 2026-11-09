@@ -373,7 +373,9 @@ async function flashcards() {
     await espera(900);
     cs = await ls("cartoes");
     const respondido = cs.find((c) => c.frente === frente);
-    checar(respondido?.caixa === 2 && respondido.proxima > new Date().toISOString().slice(0, 10) && respondido.acertos === 1, `Acertei: caixa 2 e revisão adiada (${respondido?.caixa}, ${respondido?.proxima})`);
+    // data LOCAL (o app usa a data do aparelho); toISOString() é UTC e à noite no Brasil já é o dia seguinte
+    const hojeLocal = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+    checar(respondido?.caixa === 2 && respondido.proxima > hojeLocal && respondido.acertos === 1, `Acertei: caixa 2 e revisão adiada (${respondido?.caixa}, ${respondido?.proxima})`);
     await clicar(".cartao-3d");
     await espera(700);
     await clicar("button::-p-text(Errei)");
@@ -810,6 +812,89 @@ async function foco() {
   console.log(falhas.length ? `FOCO FALHOU (${falhas.length})` : "FOCO OK");
 }
 
+// Leitura: estante, metas, iniciar leitura com tempo, encerrar com a página onde parou, livro lido, atalho do iPhone configurável.
+async function leitura() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await (await browser.createBrowserContext()).newPage();
+  await page.setViewport({ width: 390, height: 844 });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 300) => new Promise((r) => setTimeout(r, ms));
+  const clicar = async (sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+  const texto = () => page.evaluate(() => document.body.textContent);
+  const digitar = async (sel, t) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => { e.scrollIntoView({ block: "center" }); e.select?.(); }); await el.type(t); };
+
+  console.log("\nLeitura (390 px)");
+  await page.goto(BASE + "#/mais/leitura", { waitUntil: "networkidle0" });
+  await espera(900);
+  checar((await texto()).includes("Estante") && (await texto()).includes("Metas do dia"), "Aba Leitura em Mais");
+  await clicar("button::-p-text(Adicionar livro)");
+  await espera(400);
+  await digitar('.dialogo input[placeholder="Ex.: Dom Casmurro"]', "Dom Casmurro");
+  await digitar('.dialogo input[placeholder="Ex.: Machado de Assis"]', "Machado de Assis");
+  await digitar('.dialogo input[placeholder="256"]', "256");
+  const pag = (await page.$$(".dialogo .linha-campos input"))[1];
+  await pag.evaluate((e) => e.select()); await pag.type("40");
+  await clicar("button::-p-text(Pôr na estante)");
+  await espera(500);
+  let livro = (await ls("livros"))[0];
+  checar(livro?.titulo === "Dom Casmurro" && livro.paginas === 256 && livro.pagina === 40, "Livro cadastrado com total e página onde parou");
+  checar((await texto()).includes("pág. 40 de 256") && (await texto()).includes("faltam 216"), "Estante mostra página e quanto falta");
+  // meta
+  const metas = await page.$$(".col-lateral .linha-campos input");
+  await metas[0].evaluate((e) => e.select()); await metas[0].type("10"); await metas[0].evaluate((e) => e.blur()); await espera(300);
+  checar((await page.evaluate(() => JSON.parse(localStorage.getItem("rotina:config") || "[]")[0]?.metaPaginasDia)) === 10, "Meta de páginas salva");
+  // atalho
+  await digitar('input[placeholder="Ex.: Iniciar leitura"]', "Iniciar leitura");
+  await page.$eval('input[placeholder="Ex.: Iniciar leitura"]', (e) => e.blur()); await espera(300);
+  checar((await page.evaluate(() => JSON.parse(localStorage.getItem("rotina:config") || "[]")[0]?.atalhoLeitura)) === "Iniciar leitura", "Nome do atalho do iPhone salvo");
+  await page.screenshot({ path: path.join(SHOTS, "leitura-estante.png"), fullPage: true });
+  // iniciar
+  await clicar("button::-p-text(Iniciar leitura)");
+  await espera(400);
+  const foco = await page.$(".dialogo .opcao-linha input");
+  checar(foco && (await foco.evaluate((e) => e.checked)), "Com atalho configurado, \"Ligar o Foco no iPhone\" vem marcado");
+  await foco.click(); // no navegador de teste não há app Atalhos
+  await clicar('.dialogo button::-p-text(15 min)');
+  await clicar("button::-p-text(Começar a ler)");
+  await espera(900);
+  checar((await page.evaluate(() => location.hash)) === "#/mais/leitura/agora" && (await texto()).includes("faltam"), "Começar a ler abre o cronômetro");
+  checar(/1[45]:\d\d/.test(await page.$eval(".contador-tempo", (e) => e.textContent)), `Contagem de 15 min (${await page.$eval(".contador-tempo", (e) => e.textContent)})`);
+  await page.screenshot({ path: path.join(SHOTS, "leitura-agora.png") });
+  await clicar("button::-p-text(5 min)");
+  checar((await ls("leituras"))[0].planejadoMin === 20, "+5 min soma ao tempo");
+  await clicar("button::-p-text(Encerrar leitura)");
+  await digitar(".encerrar-leitura input", "52");
+  await page.screenshot({ path: path.join(SHOTS, "leitura-encerrar.png") });
+  await clicar("button::-p-text(Salvar leitura)");
+  await espera(700);
+  const s = (await ls("leituras"))[0];
+  livro = (await ls("livros"))[0];
+  checar(s.fim !== null && s.paginaInicio === 40 && s.paginaFim === 52 && livro.pagina === 52, "Encerrar guarda a sessão e a página onde parou");
+  checar(s.focoIphone === false && (await page.evaluate(() => location.protocol)) !== "shortcuts:", "Sem o Foco ligado, encerrar não chama o atalho do iPhone");
+  checar((await page.evaluate(() => location.hash)) === "#/mais/leitura" && (await page.$eval(".numeros", (e) => e.textContent)).includes("12"), "Volta para a estante com 12 páginas hoje");
+  // terminar o livro
+  await page.$eval('button[aria-label="Editar Dom Casmurro"]', (b) => b.click()); // o aviso da sessão pode estar por cima
+  await espera(500);
+  const p2 =(await page.$$(".dialogo .linha-campos input"))[1];
+  await p2.evaluate((e) => e.select()); await p2.type("256");
+  await clicar("button::-p-text(Salvar livro)");
+  await espera(500);
+  const lv = (await ls("livros"))[0];
+  checar(lv.estado === "lido" && (await texto()).includes("Lidos"), `Chegar à última página move o livro para Lidos (${lv.estado}, pág. ${lv.pagina})`);
+  const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  checar(sobra === 0, "Sem rolagem lateral");
+  await page.setViewport({ width: 1440, height: 900 });
+  await espera(500);
+  await page.screenshot({ path: path.join(SHOTS, "leitura-1440.png") });
+  checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await browser.close();
+  console.log(falhas.length ? `LEITURA FALHOU (${falhas.length})` : "LEITURA OK");
+}
+
 // Ficha de treino aceita faixa de repetições ("8-10") e mostra "8–10" na ficha e no treino.
 async function reps() {
   const puppeteer = qa("puppeteer");
@@ -937,6 +1022,7 @@ try {
   else if (modo === "diario") await diario();
   else if (modo === "reps") await reps();
   else if (modo === "foco") await foco();
+  else if (modo === "leitura") await leitura();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

@@ -74,6 +74,11 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Contador de repetições na lousa (cada toque = um risco de giz, grupos de 5), atalhos com a meta, peso ±1/±2,5, "Concluir série"
   abre o descanso no mesmo painel (anel, ±15 s, pular; no fim vibra e apita), série extra, anterior/próximo, resumo e "Salvar treino".
   Aba "Lista" = o modo antigo (corrigir séries). Tela fica acesa (Wake Lock). Lógica em `treino/sessao.ts` (testada).
+- `src/modules/leitura/` — aba Leitura em Mais (`#/mais/leitura`, sessão em `#/mais/leitura/agora`): livros (`livros`), sessões com
+  tempo (`leituras`, `fim: null` = em andamento), metas do dia em `Config` (`metaPaginasDia`, `metaMinutosLeitura`).
+  Foco do iPhone: site não liga Foco nem bloqueia apps; o app abre o atalho do usuário (`Config.atalhoLeitura`) por
+  `shortcuts://x-callback-url/run-shortcut` com os minutos (0 = desligar) e volta pelo `x-success`. Só desliga ao encerrar
+  se a sessão ligou (`focoIphone`). Passo a passo do atalho fica na própria tela.
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 
@@ -132,6 +137,9 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (~120/s); depois: 0. Medir sempre pintura/composição, não só quadros de JavaScript: o rAF do headless mostra 60 fps mesmo travando.
 
 ## Armadilhas já resolvidas
+- `.col-principal { order: 1 }` (feito para a Escola no celular) valia para todas as telas e jogava a coluna principal para
+  baixo (livros da Leitura depois das metas, Treino de hoje depois do gráfico) → escopo `.grade-escola`. Regra: `order` só
+  com o seletor da tela.
 - Repetições "8 a 10" eram recusadas (campo só aceitava inteiro e abria teclado numérico, sem traço) → `treino/reps.ts`
   (`lerReps`/`formatarReps`), `Exercicio.repsMax`; o campo é texto. Regra: campo que aceita faixa não usa `inputMode="numeric"`.
 - Subtarefa no formulário de tarefa "estourava": o checkbox mora dentro de `.campo`, e `.campo input { width: 100% }`

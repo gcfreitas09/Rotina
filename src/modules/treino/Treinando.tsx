@@ -9,6 +9,7 @@ import { Vazio, confirmar, mostrarAviso, useAgora } from "../../components/ui.ts
 import Segmentos from "../../components/Segmentos.tsx";
 import { navegar } from "../../rota.ts";
 import { pulso } from "../../components/movimento.tsx";
+import { avisarFimDescanso, useTelaAcesa } from "../../components/alerta.ts";
 import { fichaDoDia } from "./Treino.tsx";
 import {
   adicionarSerie, cargaSugerida, concluirSerie, desfazerSerie, formatarDuracao, novaSessao, proximaSerie, relogio,
@@ -374,40 +375,4 @@ function CampoNumero({ valor, rotulo, aoMudar, decimal }: { valor: number; rotul
       onBlur={() => (invalido ? setT(num(valor)) : v !== valor && aoMudar(v as number))}
     />
   );
-}
-
-/** Tela não apaga durante o treino (onde o navegador deixa). */
-function useTelaAcesa(ativo: boolean) {
-  useEffect(() => {
-    if (!ativo || !("wakeLock" in navigator)) return;
-    let trava: WakeLockSentinel | null = null;
-    const pedir = () => navigator.wakeLock.request("screen").then((t) => (trava = t)).catch(() => {});
-    pedir();
-    const voltou = () => document.visibilityState === "visible" && pedir();
-    document.addEventListener("visibilitychange", voltou);
-    return () => { document.removeEventListener("visibilitychange", voltou); trava?.release().catch(() => {}); };
-  }, [ativo]);
-}
-
-/** Fim do descanso: vibra e dá dois bipes curtos (o toque na tela já liberou o áudio). */
-function avisarFimDescanso() {
-  navigator.vibrate?.([200, 100, 200]);
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    [0, 0.22].forEach((t) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = 880;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
-      g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.16);
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + t);
-      o.stop(ctx.currentTime + t + 0.18);
-    });
-    setTimeout(() => ctx.close().catch(() => {}), 800);
-  } catch {
-    /* sem áudio: fica a vibração e o aviso */
-  }
 }

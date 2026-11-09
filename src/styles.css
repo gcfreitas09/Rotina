@@ -801,7 +801,7 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 @media (max-width: 1099px) {
   .col-resumo { display: contents; }
   .col-resumo > .numeros { order: -1; margin-bottom: 8px; }
-  .col-principal { order: 1; }
+  .grade-escola > .col-principal { order: 1; } /* só na Escola: antes valia para todas as telas e jogava a coluna principal para baixo */
   .col-resumo > .secao { order: 2; }
 }
 @media (min-width: 1100px) {
@@ -1078,3 +1078,28 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
   .foco-mapa { grid-column: 2; grid-row: 1 / span 6; border-top: 0; }
 }
 .treinando .segmentos .seg { min-height: 44px; } .treinando .segmentos .seg-t { font-size: 13.5px; }
+
+/* ------------------------------------------------------------ leitura */
+.leitura-ativa { display: grid; gap: 4px; justify-items: start; padding: 16px; margin-bottom: 16px; text-decoration: none; color: inherit; }
+.leitura-ativa strong { font: 700 20px/1.2 var(--f-titulo); letter-spacing: -0.02em; }
+.leitura-ativa .botao { margin-top: 6px; }
+.livros .livro { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--linha); flex-wrap: wrap; }
+.livro-corpo { flex: 1 1 220px; min-width: 0; display: grid; gap: 3px; }
+.livro-titulo { margin: 0; font: 700 clamp(18px, 4.6vw, 21px)/1.2 var(--f-titulo); letter-spacing: -0.02em; }
+.livro-autor { margin: 0; font-size: 14px; color: var(--grafite-suave); }
+.livro-pagina { margin: 4px 0 0; font-size: 13.5px; }
+.livro-acoes { display: flex; align-items: center; gap: 4px; }
+.livro.lido .livro-titulo { font-size: 17px; }
+.opcao-neutra[aria-pressed="true"] { color: var(--lousa); background: var(--giz); border-color: var(--giz); }
+:root:not([data-tema="escuro"]) .opcao-neutra[aria-pressed="true"] { color: var(--giz); background: var(--lousa); border-color: var(--lousa); }
+.opcao-linha { display: flex; align-items: center; gap: 4px; font-size: 14.5px; cursor: pointer; }
+.opcao-linha .check { margin: 10px 10px 10px 0; }
+.passo-a-passo { font-size: 14px; line-height: 1.5; margin-top: 10px; }
+.passo-a-passo summary { cursor: pointer; font-weight: 650; min-height: 44px; display: flex; align-items: center; }
+.passo-a-passo ol { padding-left: 20px; display: grid; gap: 10px; margin: 6px 0 12px; }
+.passo-a-passo ul { padding-left: 18px; margin: 6px 0 0; display: grid; gap: 4px; }
+.lendo { max-width: 640px; margin: 0 auto; display: grid; gap: 6px; }
+.lendo-titulo { font-size: clamp(30px, 8vw, 46px); margin: 0; }
+.lendo-relogio { margin-top: 14px; }
+.lendo-relogio.cumprido .anel-giro { stroke: var(--giz-suave); }
+.encerrar-leitura { padding: 18px; margin-top: 10px; }

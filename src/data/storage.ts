@@ -17,6 +17,9 @@ export const CONFIG_PADRAO: Config = {
   metaAguaMl: 2500,
   tema: "sistema",
   descansoSeg: 90,
+  metaPaginasDia: 20,
+  metaMinutosLeitura: 30,
+  atalhoLeitura: "",
 };
 
 function disponivel(): Storage | null {

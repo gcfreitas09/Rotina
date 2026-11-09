@@ -60,7 +60,7 @@ export default function App() {
     secao === "tarefas" ? <Tarefas /> :
     secao === "escola" ? <Escola /> :
     secao === "saude" ? <Saude aba={rota[1]} sub={rota[2]} extra={rota[3]} /> :
-    secao === "mais" ? <Mais aba={rota[1]} /> :
+    secao === "mais" ? <Mais aba={rota[1]} sub={rota[2]} /> :
     <Hoje />;
 
   const nav = ITENS.map(({ id, nome, Icone }) => (
