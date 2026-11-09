@@ -98,8 +98,6 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   toque (`liberarSom`: iniciar leitura, +5 min, primeiro toque da sessão, concluir série) e o alarme (`tocarAlarme`, ~6 s) reaproveita
   esse contexto; criar o áudio na hora do fim (sem toque) saía mudo. Em volta toca um silêncio (`manter`) para tentar ignorar a chave
   de silêncio (melhor esforço, não verificado num iPhone).
-  Foco que o app ligou: o atalho usa "Ativar até <hora>", então sai sozinho no fim; no modo Atalhos, com o app aberto, ao acabar o
-  tempo ele também chama o atalho com 0 (uma vez, `Leitura.focoEncerrado`); "+5 min" religa/recopia até o novo fim (`minutosPara`).
   Campo "Livro": ao digitar, lista de opções clicáveis da Open Library (`leitura/catalogo.ts`, direto do navegador: libera CORS;
   a API do Google Livros está sem cota sem chave). Preenche livro, autor e páginas (edição mediana: o app avisa para conferir).
   Resultados vêm sujos, então `ranquear` filtra (todas as palavras digitadas), tira resumos/repetidas e prefere obra conhecida em
