@@ -22,11 +22,15 @@ export default function Segmentos<T extends string>({ itens, atual, aoMudar, rot
         const alvo = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
         const marca = el?.querySelector<HTMLElement>(".seg-marca");
         if (!alvo || !marca) return;
-        gsap.to(marca, { x: alvo.offsetLeft, width: alvo.offsetWidth, duration: animar && !reduzido() ? 0.5 : 0, ease: "power3.inOut" });
+        // overwrite: a troca nova substitui a animação em andamento (duas animações da mesma pílula brigavam: ela ia ao destino,
+        // voltava ao ponto antigo e só então deslizava)
+        gsap.to(marca, { x: alvo.offsetLeft, width: alvo.offsetWidth, duration: animar && !reduzido() ? 0.5 : 0, ease: "power3.inOut", overwrite: true });
       };
       posicionar(true);
-      // a largura das células muda com a tela (girar o celular, redimensionar): a pílula acompanha sem animar
-      const ro = el ? new ResizeObserver(() => posicionar(false)) : null;
+      // a largura das células muda com a tela (girar o celular, redimensionar): a pílula acompanha sem animar.
+      // O observador dispara uma vez ao ser criado: só reage se a largura mudou de verdade.
+      let largura = el?.offsetWidth ?? 0;
+      const ro = el ? new ResizeObserver(() => { const l = el.offsetWidth; if (l === largura) return; largura = l; posicionar(false); }) : null;
       if (el) ro?.observe(el);
       return () => ro?.disconnect();
     },

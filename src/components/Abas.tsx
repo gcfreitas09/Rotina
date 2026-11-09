@@ -11,11 +11,13 @@ export default function Abas({ itens, atual, rotulo, base }: { itens: [string, s
       const alvo = el?.querySelector<HTMLElement>('[aria-selected="true"]');
       const traco = el?.querySelector<HTMLElement>(".traco");
       if (!alvo || !traco) return;
-      gsap.to(traco, { x: alvo.offsetLeft, width: alvo.offsetWidth, duration: animar && !reduzido() ? 0.45 : 0, ease: "power3.inOut" });
+      gsap.to(traco, { x: alvo.offsetLeft, width: alvo.offsetWidth, duration: animar && !reduzido() ? 0.45 : 0, ease: "power3.inOut", overwrite: true });
     };
     posicionar(true);
-    // aba escondida/mostrada por largura de tela (ex.: Leitura some no desktop): o traço acompanha sem animar
-    const ro = el ? new ResizeObserver(() => posicionar(false)) : null;
+    // aba escondida/mostrada por largura de tela (ex.: Leitura some no desktop): o traço acompanha sem animar.
+    // O observador dispara uma vez ao ser criado: só reage se a largura mudou de verdade (senão cancelava a animação e dava um tranco).
+    let largura = el?.offsetWidth ?? 0;
+    const ro = el ? new ResizeObserver(() => { const l = el.offsetWidth; if (l === largura) return; largura = l; posicionar(false); }) : null;
     if (el) ro?.observe(el);
     return () => ro?.disconnect();
   }, { dependencies: [atual], scope: ref });

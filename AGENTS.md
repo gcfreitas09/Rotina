@@ -165,6 +165,9 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (~120/s); depois: 0. Medir sempre pintura/composição, não só quadros de JavaScript: o rAF do headless mostra 60 fps mesmo travando.
 
 ## Armadilhas já resolvidas
+- "Choque" ao trocar o filtro (pílula do `Segmentos` ia ao destino, voltava ao ponto antigo e só então deslizava; o traço das `Abas` tem o
+  mesmo código) → duas animações GSAP da mesma peça: a instantânea do `ResizeObserver` (que dispara ao ser criado) e a deslizante.
+  Regra: `gsap.to` de peça que reposiciona leva `overwrite: true`, e o observador só reage se a largura mudou de verdade.
 - Filtro "Semana" das Tarefas sumia com a tarefa de amanhã aos domingos (usava a semana de calendário, que acaba no domingo) →
   agora é hoje + 6 dias (`filtrar` em `tarefas/logica.ts`). Regra: filtro de "semana" no app = próximos 7 dias, nunca fim de semana de calendário.
 - Zoom no celular (pedido do Guilherme, 08/11/2026): o Safari dá zoom ao tocar em campo com letra < 16 px → em tela de toque todo
