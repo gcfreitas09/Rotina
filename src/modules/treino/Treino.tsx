@@ -86,26 +86,29 @@ export default function Treino() {
         ) : (
           <ul className="lista">
             {fichas.map((f) => (
-              <li key={f.id}>
-                <div className="item" style={{ alignItems: "flex-start" }}>
-                  <div className="item-corpo" style={{ paddingTop: 10 }}>
-                    <p className="item-titulo" style={{ fontFamily: "var(--f-titulo)", fontSize: 18 }}>{f.nome}</p>
-                    <p className="item-meta">{f.dias.length ? f.dias.map((d) => DIAS_CURTOS[d]).join(", ") : "Sem dia na semana"}</p>
-                    <table className="tabela tabela-ficha">
-                      <tbody>
-                        {f.exercicios.map((e) => (
-                          <tr key={e.id}>
-                            <td>{e.nome}</td>
-                            <td className="num">{e.series}×{formatarReps(e)}</td>
-                            <td className="num">{num(e.carga)} kg</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              <li key={f.id} className="ficha">
+                {/* botões no cabeçalho: a tabela usa a largura toda (antes eles ocupavam uma coluna e a tabela ficava espremida) */}
+                <div className="ficha-cab">
+                  <div>
+                    <p className="item-titulo" style={{ fontFamily: "var(--f-titulo)", fontSize: 19 }}>{f.nome}</p>
+                    <p className="item-meta">{f.dias.length ? f.dias.map((d) => DIAS_CURTOS[d]).join(", ") : "Sem dia na semana"} · {f.exercicios.length} exercícios</p>
                   </div>
-                  <button className="icone-btn" onClick={() => navegar(`saude/treino/agora/${f.id}`)} aria-label={`Iniciar treino ${f.nome}`}><Play size={17} strokeWidth={1.6} /></button>
-                  <button className="icone-btn" onClick={() => setEditando(f)} aria-label={`Editar ficha ${f.nome}`}><Pencil size={17} strokeWidth={1.6} /></button>
+                  <div className="ficha-acoes">
+                    <button className="botao pequeno" onClick={() => navegar(`saude/treino/agora/${f.id}`)} aria-label={`Iniciar treino ${f.nome}`}><Play size={15} strokeWidth={1.8} aria-hidden="true" /> Iniciar</button>
+                    <button className="icone-btn" onClick={() => setEditando(f)} aria-label={`Editar ficha ${f.nome}`}><Pencil size={17} strokeWidth={1.6} /></button>
+                  </div>
                 </div>
+                <table className="tabela tabela-ficha">
+                  <tbody>
+                    {f.exercicios.map((e) => (
+                      <tr key={e.id}>
+                        <td>{e.nome}</td>
+                        <td className="num">{e.series}×{formatarReps(e)}</td>
+                        <td className="num">{e.carga ? `${num(e.carga)} kg` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </li>
             ))}
           </ul>

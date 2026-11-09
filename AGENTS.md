@@ -170,9 +170,14 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Regra: `gsap.to` de peça que reposiciona leva `overwrite: true`, e o observador só reage se a largura mudou de verdade.
 - Filtro "Semana" das Tarefas sumia com a tarefa de amanhã aos domingos (usava a semana de calendário, que acaba no domingo) →
   agora é hoje + 6 dias (`filtrar` em `tarefas/logica.ts`). Regra: filtro de "semana" no app = próximos 7 dias, nunca fim de semana de calendário.
-- Zoom no celular (pedido do Guilherme, 08/11/2026): o Safari dá zoom ao tocar em campo com letra < 16 px → em tela de toque todo
-  `input`/`select`/`textarea` fica com 16 px (`@media (pointer: coarse)` em `styles.css`, com `!important` de propósito), o viewport tem
-  `maximum-scale=1` e o `html` tem `touch-action: manipulation` (sem zoom no toque duplo). Campo novo não precisa de nada, a regra pega.
+- Zoom no celular (pedido do Guilherme: "bloqueie o zoom em todo o aplicativo"): (1) o Safari dá zoom ao tocar em campo com letra
+  < 16 px → em tela de toque todo `input`/`select`/`textarea` fica com 16 px (`@media (pointer: coarse)`, `!important` de propósito);
+  (2) o iPhone ignora `maximum-scale`/`user-scalable=no` para a pinça → `main.tsx` barra `gesturestart`/`gesturechange` e `touchmove`
+  com 2 dedos; (3) toque duplo → `html { touch-action: pan-x pan-y }` (manipulation não basta: ainda deixa a pinça).
+- Campo de data no iPhone tem largura mínima própria e passava por cima da coluna ao lado (data sobre a prioridade da tarefa) →
+  `.linha-campos > * { min-width: 0 }` e date/time com `appearance: none; min-width: 0`. Regra: campo de data em linha com outro sempre assim.
+- Fichas do treino no celular: os botões ocupavam uma coluna à direita e a tabela ficava espremida ("3×10-" / "12", "0" / "kg") →
+  botões ("Iniciar" + lápis) no cabeçalho da ficha, tabela em largura total, números sem quebra, carga 0 aparece "—".
 - `.col-principal { order: 1 }` (feito para a Escola no celular) valia para todas as telas e jogava a coluna principal para
   baixo (livros da Leitura depois das metas, Treino de hoje depois do gráfico) → escopo `.grade-escola`. Regra: `order` só
   com o seletor da tela.

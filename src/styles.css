@@ -57,7 +57,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-bottom: 110px; scroll-padding-top: 16px; touch-action: manipulation; } /* foco e rolagem nunca param atrás da barra flutuante; touch-action: sem zoom no toque duplo */
+html { -webkit-text-size-adjust: 100%; scroll-padding-bottom: 110px; scroll-padding-top: 16px; touch-action: pan-x pan-y; } /* foco e rolagem nunca param atrás da barra flutuante; touch-action: só rolar, sem zoom de pinça nem de toque duplo (pedido do Guilherme) */
 /* Sem zoom ao tocar num campo: o Safari do iPhone dá zoom em qualquer campo com letra menor que 16 px.
    !important de propósito: vale sobre todas as regras de campo do app, e só em tela de toque. */
 @media (pointer: coarse) {
@@ -242,6 +242,10 @@ p { margin: 0; }
 .campo .erro, .erro-campo { color: var(--atraso); font-size: 13px; }
 .campo [aria-invalid="true"], .entrada[aria-invalid="true"] { border-color: var(--atraso); box-shadow: 0 0 0 3px color-mix(in srgb, var(--atraso) 16%, transparent); }
 .linha-campos { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.linha-campos > * { min-width: 0; }
+/* No iPhone o campo de data/hora tem largura mínima própria e passava por cima da coluna ao lado (data sobre a prioridade). */
+.campo input[type="date"], .campo input[type="time"], .campo input[type="datetime-local"] { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; display: block; }
+.campo input[type="date"]::-webkit-date-and-time-value, .campo input[type="time"]::-webkit-date-and-time-value { text-align: left; }
 .form { display: grid; gap: 18px; }
 .acoes { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
@@ -566,8 +570,14 @@ p { margin: 0; }
 .tabela th { text-align: left; font-weight: 550; font-size: 12.5px; color: var(--grafite-suave); padding: 6px 8px 6px 0; border-bottom: 1px solid var(--linha); }
 .tabela td { padding: 10px 8px 10px 0; border-bottom: 1px solid var(--linha); }
 .tabela th:not(:first-child), .tabela td:not(:first-child) { text-align: right; }
-.tabela-ficha { margin-top: 8px; font-size: 13.5px; }
-.tabela-ficha td { padding: 6px 8px 6px 0; }
+.tabela-ficha { margin-top: 8px; font-size: 14px; }
+.tabela-ficha td { padding: 9px 0 9px 10px; }
+.tabela-ficha td:first-child { padding-left: 0; width: 100%; }
+.tabela-ficha td.num { white-space: nowrap; }
+.ficha { padding: 16px 0 6px; border-bottom: 1px solid var(--linha); }
+.ficha-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ficha-cab .item-titulo { margin: 0; }
+.ficha-acoes { display: flex; align-items: center; gap: 2px; flex: none; }
 .tabela-ficha tr:last-child td { border-bottom: 0; }
 .treino-hoje { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .peso-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
