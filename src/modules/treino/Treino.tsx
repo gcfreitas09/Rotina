@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatarReps, lerReps } from "./reps.ts";
 import { Pencil, Play, Plus, Trash2, X } from "../../components/icones.tsx";
-import type { Dia, Exercicio, Ficha } from "../../data/types.ts";
+import type { Dia, Exercicio, Ficha, Sessao } from "../../data/types.ts";
+import { resumoProgresso, type Tendencia, type TipoTendencia } from "./progresso.ts";
 import { excluir, salvar, salvarVarios, useColecao } from "../../data/store.ts";
 import { DIAS, DIAS_CURTOS, DIAS_LONGOS, br, brCurta, diaDaSemana, hoje } from "../../data/datas.ts";
 import { lerNumero, novoId, num } from "../../data/formato.ts";
@@ -30,18 +31,6 @@ export default function Treino() {
   const daVez = fichaDoDia(fichas, diaDaSemana(h));
   const sessaoHoje = sessoes.find((s) => s.data === h && s.fichaId === daVez?.id);
 
-  const nomesEx = [...new Set(sessoes.flatMap((s) => s.exercicios.map((e) => e.nome)))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const [exercicio, setExercicio] = useState<string>("");
-  const exAtual = exercicio || nomesEx[0] || "";
-  const serieCarga = sessoes
-    .filter((s) => s.concluida)
-    .map((s) => {
-      const e = s.exercicios.find((x) => x.nome === exAtual);
-      const feitas = e?.series.filter((x) => x.feita) ?? [];
-      return feitas.length ? { data: s.data, valor: Math.max(...feitas.map((x) => x.carga)) } : null;
-    })
-    .filter((x): x is { data: string; valor: number } => x !== null)
-    .sort((a, b) => a.data.localeCompare(b.data));
 
   return (
     <>
@@ -116,19 +105,8 @@ export default function Treino() {
       </section>
 
       <section className="secao">
-        <header><h2>Evolução da carga</h2></header>
-        {nomesEx.length === 0 ? (
-          <p className="suave">Termine um treino para ver a evolução de cada exercício.</p>
-        ) : (
-          <>
-            <Campo rotulo="Exercício">
-              <select value={exAtual} onChange={(e) => setExercicio(e.target.value)}>
-                {nomesEx.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </Campo>
-            <GraficoLinha pontos={serieCarga} unidade="kg" rotulo={`Carga máxima em ${exAtual}`} />
-          </>
-        )}
+        <header><h2>Progresso</h2></header>
+        <Progresso sessoes={sessoes} />
       </section>
       </div>
       <div className="col-lateral">
@@ -308,5 +286,62 @@ function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: F
         </div>
       </form>
     </Dialogo>
+  );
+}
+
+const ROTULO_TEND: Record<TipoTendencia, string> = { subindo: "Subindo ↑", estavel: "Estável", caindo: "Caiu ↓", inicio: "Começo" };
+
+function textoTendencia(t: Tendencia): string {
+  if (t.tipo === "inicio") return `1º registro em ${brCurta(t.desde)}`;
+  if (t.tipo === "subindo") return t.variacao > 0 ? `+${num(t.variacao)} kg desde ${brCurta(t.desde)}` : "mais repetições com o mesmo peso";
+  if (t.tipo === "caindo") return `abaixo do recorde (${num(t.recorde.melhor.carga)} kg × ${t.recorde.melhor.reps})`;
+  return t.mesmaCargaHa >= 3 ? `mesma carga há ${t.mesmaCargaHa} treinos: hora de subir?` : "no mesmo nível dos últimos treinos";
+}
+
+/** Cada exercício treinado: última melhor série, tendência (subindo/estável/caiu) e, ao tocar, gráfico + histórico. */
+function Progresso({ sessoes }: { sessoes: Sessao[] }) {
+  const lista = useMemo(() => resumoProgresso(sessoes), [sessoes]);
+  const [aberto, setAberto] = useState<string | null>(null);
+  if (!lista.length) {
+    return <p className="suave">Conclua séries no <b>Iniciar treino</b>: cada uma fica salva aqui com o peso e as repetições, e você vê se está evoluindo em cada exercício.</p>;
+  }
+  return (
+    <>
+      <p className="suave" style={{ fontSize: 13.5, marginTop: 0 }}>Toda série concluída fica salva. Toque num exercício para ver o gráfico e o histórico.</p>
+      <ul className="progresso">
+        {lista.map((p) => {
+          const ult = p.hist[p.hist.length - 1];
+          const t = p.tendencia;
+          const ab = aberto === p.nome;
+          return (
+            <li key={p.nome} className={`prog ${ab ? "aberto" : ""}`}>
+              <button type="button" className="prog-linha" aria-expanded={ab} onClick={() => setAberto(ab ? null : p.nome)}>
+                <span className="prog-nome">{p.nome}</span>
+                <span className={`selo-tend tend-${t.tipo}`}>{ROTULO_TEND[t.tipo]}</span>
+                <span className="prog-texto">{textoTendencia(t)}</span>
+                <span className="prog-ult num">{num(ult.melhor.carga)} kg × {ult.melhor.reps}</span>
+              </button>
+              {ab && (
+                <div className="prog-detalhe">
+                  <GraficoLinha pontos={p.hist.map((d) => ({ data: d.data, valor: d.melhor.carga }))} unidade="kg" rotulo={`Peso da melhor série em ${p.nome}`} />
+                  <p className="prog-recorde">
+                    Recorde: <b className="num">{num(t.recorde.melhor.carga)} kg × {t.recorde.melhor.reps}</b> em {brCurta(t.recorde.data)} · {p.hist.length} {p.hist.length === 1 ? "treino" : "treinos"}
+                  </p>
+                  <ul className="prog-hist">
+                    {[...p.hist].reverse().slice(0, 10).map((d) => (
+                      <li key={d.data}>
+                        <span className="num prog-data">{brCurta(d.data)}</span>
+                        <span className="num prog-series">{d.series.map((x, i) => <span key={i} className={x === d.melhor ? "melhor" : ""}>{num(x.carga)}×{x.reps}</span>)}</span>
+                        <span className="num suave prog-vol">{num(Math.round(d.volume), 0)} kg</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

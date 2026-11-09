@@ -1135,3 +1135,27 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
   .mais-abas[data-atual="leitura"] { display: none; }
 }
 .travar-app { display: grid; gap: 8px; justify-items: start; padding: 16px 18px; margin-top: 12px; font-size: 14.5px; line-height: 1.5; } .travar-app p { margin: 0; }
+
+/* Treino: progresso por exercício */
+.progresso { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--linha); }
+.prog { border-bottom: 1px solid var(--linha); }
+.prog-linha {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; align-items: center; width: 100%; min-height: 56px;
+  padding: 12px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.prog-nome { font-weight: 650; font-size: 15.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-texto { font-size: 13px; color: var(--grafite-suave); min-width: 0; }
+.prog-ult { font-size: 14px; text-align: right; white-space: nowrap; }
+.selo-tend { justify-self: end; font-size: 12px; font-weight: 650; padding: 3px 9px; border-radius: 999px; white-space: nowrap; color: var(--grafite-suave); border: 1px solid var(--linha-forte); }
+.selo-tend.tend-subindo { color: var(--musgo-vivo, var(--musgo)); border-color: currentColor; background: color-mix(in srgb, var(--musgo) 14%, transparent); }
+.selo-tend.tend-caindo { color: var(--atraso); border-color: color-mix(in srgb, var(--atraso) 55%, transparent); }
+.prog.aberto .prog-nome { color: var(--musgo-vivo, var(--musgo)); }
+.prog-detalhe { padding: 0 0 16px; }
+.prog-recorde { margin: 6px 0 10px; font-size: 13.5px; color: var(--grafite-suave); }
+.prog-recorde b { color: var(--grafite); }
+.prog-hist { list-style: none; margin: 0; padding: 0; display: grid; }
+.prog-hist li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 7px 0; border-top: 1px dashed var(--linha); font-size: 13.5px; }
+.prog-series { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.prog-series .melhor { font-weight: 700; color: var(--grafite); text-decoration: underline; text-decoration-color: var(--musgo-vivo, var(--musgo)); text-underline-offset: 3px; }
+.prog-data { color: var(--grafite-suave); }
+.prog-vol { font-size: 12.5px; }

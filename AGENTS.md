@@ -81,6 +81,12 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Contador de repetições na lousa (cada toque = um risco de giz, grupos de 5), atalhos com a meta, peso ±1/±2,5, "Concluir série"
   abre o descanso no mesmo painel (anel, ±15 s, pular; no fim vibra e apita), série extra, anterior/próximo, resumo e "Salvar treino".
   Aba "Lista" = o modo antigo (corrigir séries). Tela fica acesa (Wake Lock). Lógica em `treino/sessao.ts` (testada).
+  **Progresso** (pedido do Guilherme, 09/11/2026: "salve as cargas… para ver se estou evoluindo"): `treino/progresso.ts` (testado em
+  `tests/progresso.test.ts`). Conta **toda série concluída**, com ou sem "Salvar treino" (antes só os treinos salvos entravam e quem
+  saía antes perdia o registro). Por exercício: histórico por dia, melhor série pelo 1RM estimado (Epley, para comparar pesos e reps
+  diferentes), tendência (último treino vs média dos até 3 anteriores: +2 % sobe, −3 % cai), recorde e "mesma carga há N treinos".
+  Tela "Progresso" no Treino (lista; tocar abre gráfico + histórico). O treino novo começa cada série com o peso usado nela da última
+  vez (`novaSessao(..., anteriores)`); sem histórico, o da ficha.
 - `src/modules/leitura/` — aba Leitura em Mais (`#/mais/leitura`, sessão em `#/mais/leitura/agora`): livros (`livros`), sessões com
   tempo (`leituras`, `fim: null` = em andamento), metas do dia em `Config` (`metaPaginasDia`, `metaMinutosLeitura`).
   Foco do iPhone: site não liga Foco nem bloqueia apps; o app abre o atalho do usuário (`Config.atalhoLeitura`) por

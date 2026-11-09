@@ -1,12 +1,16 @@
 import type { Ficha, Sessao, SerieFeita } from "../../data/types.ts";
 
-/** Sessão nova a partir da ficha: uma série por linha da ficha, com a carga sugerida e as reps do começo da faixa. */
-export function novaSessao(ficha: Ficha, data: string, inicio: number): Sessao {
+/**
+ * Sessão nova a partir da ficha: uma série por linha da ficha, reps do começo da faixa e, em cada série, **o peso usado
+ * nela no último treino** (`anteriores`); sem histórico, o peso da ficha.
+ */
+export function novaSessao(ficha: Ficha, data: string, inicio: number, anteriores: Sessao[] = []): Sessao {
+  const base: Sessao = { id: `ses-${data}-${ficha.id}`, _m: 0, data, fichaId: ficha.id, fichaNome: ficha.nome, concluida: false, inicio, exercicios: [] };
   return {
-    id: `ses-${data}-${ficha.id}`, _m: 0, data, fichaId: ficha.id, fichaNome: ficha.nome, concluida: false, inicio,
+    ...base,
     exercicios: ficha.exercicios.map((e) => ({
       exercicioId: e.id, nome: e.nome,
-      series: Array.from({ length: e.series }, () => ({ reps: e.reps, carga: e.carga, feita: false })),
+      series: Array.from({ length: e.series }, (_, i) => ({ reps: e.reps, carga: ultimaVez(anteriores, base, e.id, e.nome, i)?.carga ?? e.carga, feita: false })),
     })),
   };
 }
@@ -60,10 +64,10 @@ export function cargaSugerida(s: Sessao, p: Posicao): number {
   return series[p.si].carga;
 }
 
-/** O que foi feito nessa mesma série no último treino concluído com o exercício. */
+/** O que foi feito nessa mesma série no último treino com o exercício (séries concluídas). */
 export function ultimaVez(sessoes: Sessao[], atual: Sessao, exercicioId: string, nome: string, si: number): (SerieFeita & { data: string }) | null {
   const ant = sessoes
-    .filter((x) => x.concluida && x.id !== atual.id && x.data <= atual.data)
+    .filter((x) => x.id !== atual.id && x.data <= atual.data) // toda série concluída vale, com ou sem "Salvar treino"
     .sort((a, b) => b.data.localeCompare(a.data));
   for (const x of ant) {
     const e = x.exercicios.find((y) => y.exercicioId === exercicioId) ?? x.exercicios.find((y) => y.nome === nome);

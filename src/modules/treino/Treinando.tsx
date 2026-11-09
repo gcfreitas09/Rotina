@@ -42,7 +42,7 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
   const cfg = useConfig();
   const h = hoje();
   // A sessão é salva ao entrar: guarda a hora de início (duração do treino).
-  const sessao: Sessao = existente ?? novaSessao(ficha, h, Date.now());
+  const sessao: Sessao = existente ?? novaSessao(ficha, h, Date.now(), sessoes);
   useEffect(() => {
     if (!existente) salvar("sessoes", sessao);
     // eslint-disable-next-line react-hooks/exhaustive-deps
