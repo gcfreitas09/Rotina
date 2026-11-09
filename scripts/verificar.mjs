@@ -905,6 +905,80 @@ async function leitura() {
   console.log(falhas.length ? `LEITURA FALHOU (${falhas.length})` : "LEITURA OK");
 }
 
+// Escolher o livro numa lista (Open Library, precisa de internet) e o que acontece sem internet.
+async function livros() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const espera = (ms = 300) => new Promise((r) => setTimeout(r, ms));
+  const novaPagina = async (bloquear) => {
+    const page = await (await browser.createBrowserContext()).newPage();
+    await page.setViewport({ width: 390, height: 844 });
+    if (bloquear) { await page.setRequestInterception(true); page.on("request", (r) => (r.url().includes("openlibrary.org") ? r.abort() : r.continue())); }
+    await page.goto(BASE + "#/mais/leitura", { waitUntil: "networkidle0" });
+    await espera(900);
+    return page;
+  };
+  const clicar = async (page, sel) => { const el = await page.locator(sel).waitHandle(); await el.evaluate((e) => e.scrollIntoView({ block: "center" })); await el.click(); await espera(); };
+  const ls = (page, c) => page.evaluate((c) => JSON.parse(localStorage.getItem("rotina:" + c) || "[]").filter((r) => !r._x), c);
+  const campos = (page) => page.$$(".dialogo .linha-campos input");
+
+  console.log("\nEscolher o livro (390 px)");
+  let page = await novaPagina(false);
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  await clicar(page, "button::-p-text(Adicionar livro)");
+  await espera(400);
+  await page.type('.dialogo input[placeholder="Ex.: Dom Casmurro"]', "dom casmu");
+  await page.waitForSelector('.sugestoes-livros [role="option"]', { timeout: 15000 });
+  const opcoes = await page.$$eval('.sugestoes-livros [role="option"]', (os) => os.map((o) => o.textContent));
+  checar(opcoes.length >= 2 && opcoes[0].startsWith("Dom Casmurro") && opcoes[0].includes("Machado de Assis"), `Digitar "dom casmu" lista Dom Casmurro primeiro (${opcoes[0]})`);
+  checar(opcoes.length <= 6 && !opcoes.some((o) => /^(Resumo|Cuaderno)/.test(o)), `Sem resumos nem ruído, no máximo 6 opções (${opcoes.length})`);
+  await page.screenshot({ path: path.join(SHOTS, "livros-lista.png") });
+  await page.$eval('.sugestoes-livros [role="option"]', (o) => o.click());
+  await espera(400);
+  const titulo = await page.$eval('.dialogo input[placeholder="Ex.: Dom Casmurro"]', (e) => e.value);
+  const autor = await page.$eval('.dialogo input[placeholder="Ex.: Machado de Assis"]', (e) => e.value);
+  const [paginasInp] = await campos(page);
+  const paginas = await paginasInp.evaluate((e) => e.value);
+  checar(titulo === "Dom Casmurro" && autor.includes("Machado") && Number(paginas) > 50, `Escolher preenche livro, autor e páginas (${titulo} | ${autor} | ${paginas})`);
+  checar(!(await page.$(".sugestoes-livros")), "A lista fecha depois de escolher");
+  checar((await page.evaluate(() => document.body.textContent)).includes("confira na sua"), "Avisa que as páginas são da edição mais comum");
+  await page.screenshot({ path: path.join(SHOTS, "livros-escolhido.png") });
+  await clicar(page, "button::-p-text(Pôr na estante)");
+  await espera(500);
+  const l = (await ls(page, "livros"))[0];
+  checar(l?.titulo === "Dom Casmurro" && l.autor.includes("Machado") && l.paginas === Number(paginas) && l.pagina === 0, "Salva o livro escolhido, começando na página 0");
+  // teclado: setas + Enter
+  await clicar(page, "button::-p-text(Livro)");
+  await espera(400);
+  await page.type('.dialogo input[placeholder="Ex.: Dom Casmurro"]', "hora da estre");
+  await page.waitForSelector('.sugestoes-livros [role="option"]', { timeout: 15000 });
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await espera(400);
+  const t2 = await page.$eval('.dialogo input[placeholder="Ex.: Dom Casmurro"]', (e) => e.value);
+  checar(/hora da estrela/i.test(t2) && !(await page.$(".dialogo .erro-campo")), `Seta para baixo + Enter escolhe a opção, sem enviar o formulário (${t2})`);
+  checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  await page.close();
+
+  // sem internet: avisa e dá para preencher à mão
+  page = await novaPagina(true);
+  await clicar(page, "button::-p-text(Adicionar livro)");
+  await espera(400);
+  await page.type('.dialogo input[placeholder="Ex.: Dom Casmurro"]', "meu livro raro");
+  await page.waitForFunction(() => document.querySelector(".sugestoes-livros")?.textContent.includes("Não consegui buscar"), { timeout: 10000 }).catch(() => {});
+  checar((await page.$eval(".sugestoes-livros", (e) => e.textContent)).includes("Não consegui buscar"), "Sem internet a lista avisa");
+  const cs = await campos(page);
+  await cs[0].type("120");
+  await clicar(page, "button::-p-text(Pôr na estante)");
+  await espera(500);
+  checar((await ls(page, "livros")).some((x) => x.titulo === "meu livro raro" && x.paginas === 120), "Dá para cadastrar à mão mesmo sem a busca");
+  const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  checar(sobra === 0, "Sem rolagem lateral");
+  await browser.close();
+  console.log(falhas.length ? `LIVROS FALHOU (${falhas.length})` : "LIVROS OK");
+}
+
 // Ficha de treino aceita faixa de repetições ("8-10") e mostra "8–10" na ficha e no treino.
 async function reps() {
   const puppeteer = qa("puppeteer");
@@ -1033,6 +1107,7 @@ try {
   else if (modo === "reps") await reps();
   else if (modo === "foco") await foco();
   else if (modo === "leitura") await leitura();
+  else if (modo === "livros") await livros();
   else { console.log("uso: node scripts/verificar.mjs <navegador|lighthouse>"); falhas.push("modo"); }
 } catch (e) {
   console.log("ERRO: " + (e.stack || e));

@@ -1103,3 +1103,13 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .lendo-relogio { margin-top: 14px; }
 .lendo-relogio.cumprido .anel-giro { stroke: var(--giz-suave); }
 .encerrar-leitura { padding: 18px; margin-top: 10px; }
+
+/* leitura: opções de livro */
+.sugestoes-livros li[role="option"] { display: flex; align-items: center; gap: 12px; }
+.capa-livro { flex: none; position: relative; width: 34px; height: 50px; border-radius: 3px; background: var(--papel-2); overflow: hidden; display: grid; place-items: center; color: var(--grafite-suave); }
+.capa-livro img { position: absolute; inset: 0; width: 34px; height: 50px; object-fit: cover; }
+.dialogo .linha-campos { align-items: start; }
+.sugestao-livro { display: grid; gap: 1px; min-width: 0; }
+.sugestao-livro strong { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sugestao-livro small { color: var(--grafite-suave); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sugestoes-livros li[role="option"] { min-height: 62px; }

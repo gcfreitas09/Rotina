@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Pencil, Play, Plus, Trash2 } from "../../components/icones.tsx";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { ArrowLeft, BookOpen, Pencil, Play, Plus, Trash2 } from "../../components/icones.tsx";
 import type { Livro } from "../../data/types.ts";
 import { excluir, salvar, salvarConfig, useColecao, useConfig } from "../../data/store.ts";
 import { brCurta, hoje } from "../../data/datas.ts";
@@ -8,6 +8,7 @@ import { Campo, Dialogo, Vazio, confirmar, excluirComDesfazer, mostrarAviso, use
 import { Conta } from "../../components/movimento.tsx";
 import { avisarFimDescanso, useTelaAcesa } from "../../components/alerta.ts";
 import { navegar } from "../../rota.ts";
+import { useBuscaLivros, type SugestaoLivro } from "./catalogo.ts";
 import { encerrar, lidoNoDia, linkAtalho, minutosDe, paginasDe, previsao, sequencia, sessaoAtiva } from "./logica.ts";
 
 const MINUTOS = [15, 20, 30, 45, 60];
@@ -195,6 +196,22 @@ function LivroForm({ livro, aoFechar }: { livro: Livro | null; aoFechar: () => v
   const [paginas, setPaginas] = useState(livro ? String(livro.paginas) : "");
   const [pagina, setPagina] = useState(livro ? String(livro.pagina) : "0");
   const [erros, setErros] = useState<Record<string, string>>({});
+  const [aberta, setAberta] = useState(false);
+  const [ativo, setAtivo] = useState(-1);
+  const [daLista, setDaLista] = useState<string | null>(null); // total de páginas veio do catálogo (edição mediana)
+  const idLista = useId();
+  const refPaginas = useRef<HTMLInputElement>(null);
+  const busca = useBuscaLivros(titulo, aberta && !livro);
+  const mostrarLista = aberta && !livro && titulo.trim().length >= 3 && (busca.estado !== "parada");
+  const escolher = (s: SugestaoLivro) => {
+    setTitulo(s.titulo);
+    setAutor(s.autor);
+    if (s.paginas) { setPaginas(String(s.paginas)); setDaLista(`${s.paginas} págs. é a edição mais comum: confira na sua.`); }
+    else { setDaLista(null); setTimeout(() => refPaginas.current?.focus(), 0); }
+    setErros({});
+    setAberta(false);
+    setAtivo(-1);
+  };
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
     const er: Record<string, string> = {};
@@ -220,10 +237,51 @@ function LivroForm({ livro, aoFechar }: { livro: Livro | null; aoFechar: () => v
   return (
     <Dialogo titulo={livro ? "Editar livro" : "Novo livro"} aoFechar={aoFechar}>
       <form className="form" onSubmit={enviar} noValidate>
-        <Campo rotulo="Livro" erro={erros.titulo}><input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Dom Casmurro" aria-invalid={!!erros.titulo} /></Campo>
+        <Campo rotulo="Livro" erro={erros.titulo} dica={livro ? undefined : "Comece a escrever e escolha o livro na lista, ou termine de escrever do seu jeito."}>
+          <input
+            value={titulo}
+            onChange={(e) => { setTitulo(e.target.value); setAberta(true); setAtivo(-1); }}
+            onFocus={() => setAberta(true)}
+            onBlur={() => setAberta(false)}
+            onKeyDown={(e) => {
+              if (!mostrarLista || !busca.itens.length) return;
+              if (e.key === "ArrowDown") { e.preventDefault(); setAtivo((i) => (i + 1) % busca.itens.length); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); setAtivo((i) => (i <= 0 ? busca.itens.length - 1 : i - 1)); }
+              else if (e.key === "Enter" && ativo >= 0) { e.preventDefault(); escolher(busca.itens[ativo]); }
+              else if (e.key === "Escape") { e.stopPropagation(); setAberta(false); }
+            }}
+            placeholder="Ex.: Dom Casmurro"
+            aria-invalid={!!erros.titulo}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={mostrarLista}
+            aria-controls={idLista}
+            aria-activedescendant={ativo >= 0 ? `${idLista}-${ativo}` : undefined}
+            autoComplete="off"
+          />
+        </Campo>
+        {mostrarLista && (
+          <ul className="sugestoes sugestoes-livros" id={idLista} role="listbox" aria-label="Livros encontrados">
+            {busca.itens.map((s, i) => (
+              <Fragment key={s.chave}>
+                <li id={`${idLista}-${i}`} role="option" aria-selected={i === ativo} onMouseDown={(e) => e.preventDefault()} onClick={() => escolher(s)}>
+                  <span className="capa-livro" aria-hidden="true"><BookOpen size={16} strokeWidth={1.5} />{s.capa && <img src={s.capa} alt="" width="34" height="50" loading="lazy" decoding="async" onError={(e) => (e.currentTarget.style.display = "none")} />}</span>
+                  <span className="sugestao-livro">
+                    <strong>{s.titulo}</strong>
+                    <small>{[s.autor, s.ano, s.paginas ? `${s.paginas} págs.` : null].filter(Boolean).join(" · ") || "sem mais dados"}</small>
+                  </span>
+                </li>
+              </Fragment>
+            ))}
+            {busca.estado === "buscando" && <li role="presentation" className="sugestoes-status">Procurando livros…</li>}
+            {busca.estado === "erro" && <li role="presentation" className="sugestoes-status">Não consegui buscar agora (sem internet?). Escreva o nome e preencha o resto.</li>}
+            {busca.estado === "ok" && busca.itens.length === 0 && <li role="presentation" className="sugestoes-status">Nenhum livro com esse nome. Use o nome que você escreveu e preencha o resto.</li>}
+            {busca.estado === "ok" && busca.itens.length > 0 && <li role="presentation" className="sugestoes-status">Fonte: Open Library. Não é o seu livro? Continue escrevendo.</li>}
+          </ul>
+        )}
         <Campo rotulo="Autor (opcional)"><input value={autor} onChange={(e) => setAutor(e.target.value)} placeholder="Ex.: Machado de Assis" /></Campo>
         <div className="linha-campos">
-          <Campo rotulo="Total de páginas" erro={erros.paginas}><input className="num" inputMode="numeric" value={paginas} onChange={(e) => setPaginas(e.target.value)} placeholder="256" aria-invalid={!!erros.paginas} /></Campo>
+          <Campo rotulo="Total de páginas" erro={erros.paginas} dica={daLista ?? undefined}><input ref={refPaginas} className="num" inputMode="numeric" value={paginas} onChange={(e) => { setPaginas(e.target.value); setDaLista(null); }} placeholder="256" aria-invalid={!!erros.paginas} /></Campo>
           <Campo rotulo="Página onde parou" erro={erros.pagina}><input className="num" inputMode="numeric" value={pagina} onChange={(e) => setPagina(e.target.value)} aria-invalid={!!erros.pagina} /></Campo>
         </div>
         <div className="acoes" style={{ justifyContent: "space-between" }}>
