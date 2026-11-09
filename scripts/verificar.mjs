@@ -890,6 +890,16 @@ async function leitura() {
   await page.setViewport({ width: 1440, height: 900 });
   await espera(500);
   await page.screenshot({ path: path.join(SHOTS, "leitura-1440.png") });
+  // desktop: Leitura tem item próprio no menu lateral, marcado (e o Mais não)
+  const menu = await page.$$eval(".lateral a[aria-current=page]", (as) => as.map((a) => a.textContent));
+  checar(menu.length === 1 && menu[0] === "Leitura", `Menu lateral marca Leitura (${menu.join(",")})`);
+  await page.evaluate(() => (location.hash = "/mais/horarios")); await espera(600);
+  const menu2 = await page.$$eval(".lateral a[aria-current=page]", (as) => as.map((a) => a.textContent));
+  checar(menu2.join() === "Mais", `Em Horários o menu marca Mais (${menu2.join(",")})`);
+  await page.$eval('.lateral a[href="#/mais/leitura"]', (a) => a.click()); await espera(600);
+  checar((await page.evaluate(() => location.hash)) === "#/mais/leitura", "Item Leitura do menu abre a Leitura");
+  await page.setViewport({ width: 390, height: 844 }); await espera(400);
+  checar((await page.$$(".barra a")).length === 5, "No celular a barra de baixo continua com 5 itens");
   checar(erros.length === 0, `sem erro${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
   await browser.close();
   console.log(falhas.length ? `LEITURA FALHOU (${falhas.length})` : "LEITURA OK");

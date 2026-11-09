@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Cena, gsap, reduzido, useGSAP } from "./components/movimento.tsx";
-import { GraduationCap, HeartPulse, LayoutGrid, ListChecks, Sunrise, type Icone } from "./components/icones.tsx";
+import { BookOpen, GraduationCap, HeartPulse, LayoutGrid, ListChecks, Sunrise, type Icone } from "./components/icones.tsx";
 import { useRota } from "./rota.ts";
 import { useConfig } from "./data/store.ts";
 import { useSync } from "./data/sync.ts";
@@ -69,6 +69,24 @@ export default function App() {
       <span>{nome}</span>
     </a>
   ));
+  // No desktop a Leitura tem item próprio no menu lateral (no celular ela fica em Mais, para a barra continuar com 5 itens).
+  const naLeitura = secao === "mais" && rota[1] === "leitura";
+  const navLateral = ITENS.flatMap(({ id, nome, Icone }) => {
+    const item = (
+      <a key={id} href={`#/${id}`} aria-current={secao === id && !naLeitura ? "page" : undefined}>
+        <Icone size={21} strokeWidth={1.7} aria-hidden="true" />
+        <span>{nome}</span>
+      </a>
+    );
+    if (id !== "mais") return [item];
+    return [
+      <a key="leitura" href="#/mais/leitura" aria-current={naLeitura ? "page" : undefined}>
+        <BookOpen size={21} strokeWidth={1.7} aria-hidden="true" />
+        <span>Leitura</span>
+      </a>,
+      item,
+    ];
+  });
 
   // pílula da barra inferior desliza até o item ativo
   const barra = useRef<HTMLElement>(null);
@@ -83,7 +101,7 @@ export default function App() {
     <div className="app">
       <nav className="lateral" aria-label="Seções">
         <div className="marca"><b>Rotina</b><span className="marca-regua" aria-hidden="true" /></div>
-        {nav}
+        {navLateral}
         <p className="rodape-lat">
           <a href="#/mais/configuracoes" style={{ all: "unset", cursor: "pointer" }}>
             <i className={sync.status === "ok" ? "ok" : ""} aria-hidden="true" />{TEXTO_SYNC[sync.status]}

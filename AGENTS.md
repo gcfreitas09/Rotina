@@ -79,6 +79,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Foco do iPhone: site não liga Foco nem bloqueia apps; o app abre o atalho do usuário (`Config.atalhoLeitura`) por
   `shortcuts://x-callback-url/run-shortcut` com os minutos (0 = desligar) e volta pelo `x-success`. Só desliga ao encerrar
   se a sessão ligou (`focoIphone`). Passo a passo do atalho fica na própria tela.
+  No desktop a Leitura tem item próprio no menu lateral (`navLateral` em `App.tsx`, entre Saúde e Mais); no celular fica em
+  Mais para a barra de baixo seguir com 5 itens (pedido do Guilherme, 08/11/2026).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 
