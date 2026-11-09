@@ -4,8 +4,9 @@
  *
  * Semestre (soma, máx. 10):  P1 (3,5) + P2 (3,5) + Trabalho 1 (2,0) + Trabalho 2 (1,0)
  * Ponto extra (0,5):         soma no semestre, mas o semestre nunca passa de 10.
- * Recuperação (7,0):         bloco das provas = (P1 + P2 + 2 × Rec) / 2,
- *                            limitado ao máximo do bloco (7,0) e nunca abaixo de P1 + P2.
+ * Recuperação (7,0):         bloco das provas = (P1 + P2 + 2 × Rec) / 3   (documento da escola, seção 4).
+ *                            A recuperação "só será computada se trouxer benefício": o bloco nunca fica abaixo de
+ *                            P1 + P2. Com P1 + P2 ≤ 7 e Rec ≤ 7 o resultado nunca passa de 7 (21 / 3).
  * Média anual:               (1º semestre + 2º semestre) / 2
  * Exame final (10):          média final = (média anual + exame) / 2
  */
@@ -62,12 +63,12 @@ const r = (v: number) => Math.round(v * 1000) / 1000;
 
 // ---------------------------------------------------------------- fórmulas
 
-/** Resultado da fórmula da recuperação, sem os limites. */
+/** Fórmula da recuperação, como na escola: (P1 + P2 + 2 × Rec) / 3. */
 export function formulaRecuperacao(somaProvas: number, rec: number): number {
-  return (somaProvas + 2 * rec) / 2;
+  return (somaProvas + 2 * rec) / 3;
 }
 
-/** Bloco das provas já com recuperação: nunca abaixo de P1+P2, nunca acima de 7,0. */
+/** Bloco das provas já com recuperação: só muda se a recuperação trouxer benefício (nunca abaixo de P1+P2). */
 export function blocoProvas(s: Pick<NotasSemestre, "p1" | "p2" | "rec">): {
   original: number;
   final: number;
@@ -216,8 +217,8 @@ export function recuperacaoNecessaria(s: NotasSemestre, media: number): Necessid
   if (semRec.nota >= media) return { tipo: "garantido" };
   const outros = n(s.t1) + n(s.t2) + n(s.extra);
   const blocoAlvo = r(media - outros);
-  // (soma + 2·rec) / 2 = blocoAlvo  →  rec = blocoAlvo − soma/2
-  const rec = r(blocoAlvo - semRec.blocoOriginal / 2);
+  // (soma + 2·rec) / 3 = blocoAlvo  →  rec = (3 × blocoAlvo − soma) / 2
+  const rec = r((3 * blocoAlvo - semRec.blocoOriginal) / 2);
   if (blocoAlvo > MAX_BLOCO_PROVAS || rec > MAXIMOS.rec) {
     return { tipo: "impossivel", precisa: Math.max(rec, 0), maximo: MAXIMOS.rec };
   }

@@ -26,9 +26,12 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 
 ## Regras de nota (confirmadas pelo Guilherme em 08/11/2026)
 - Semestre = P1 (3,5) + P2 (3,5) + T1 (2,0) + T2 (1,0), soma até 10.
-- Recuperação (vale 7): bloco das provas = (P1 + P2 + 2 × Rec) / 2. Ele insistiu nessa fórmula.
-  Como ela passa de 7 (P1+P2=3, Rec=6 → 7,5), o bloco é **limitado a 7,0** e nunca fica abaixo de P1+P2.
-  Era esse o bug da "recuperação MUITO maior". Se a escola usar outra fórmula, muda só `formulaRecuperacao`.
+- Recuperação (vale 7): bloco das provas = **(P1 + P2 + 2 × Rec) / 3**, e só vale se trouxer benefício (se der menos ou igual a
+  P1 + P2, a recuperação é ignorada e ficam as provas). Fonte: documento oficial da escola, seção "Recuperações semestrais"
+  (o Guilherme mandou a imagem em 08/11/2026). Com P1+P2 ≤ 7 e Rec ≤ 7 o bloco nunca passa de 7 (21/3), então não há limite artificial.
+  **Histórico do erro:** o Guilherme tinha dito "÷ 2" de cabeça e o app foi feito assim (com um limite de 7 para esconder que passava);
+  dava nota muito acima da real (P1+P2 = 3,5 e Rec = 5 → 6,75 em vez de 4,5). Na dúvida, o documento da escola vale mais que a memória.
+  Só `formulaRecuperacao` e `recuperacaoNecessaria` (inversa: rec = (3 × bloco − soma) / 2) em `gradingRules.ts` conhecem a conta.
 - Ponto extra (0,5): soma no semestre, mas o semestre nunca passa de 10.
 - Média anual = (S1 + S2) / 2. Exame só se anual < média; final = (anual + exame) / 2; passa com ≥ mínimo (padrão 5,0).
 
@@ -143,6 +146,9 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (~120/s); depois: 0. Medir sempre pintura/composição, não só quadros de JavaScript: o rAF do headless mostra 60 fps mesmo travando.
 
 ## Armadilhas já resolvidas
+- Zoom no celular (pedido do Guilherme, 08/11/2026): o Safari dá zoom ao tocar em campo com letra < 16 px → em tela de toque todo
+  `input`/`select`/`textarea` fica com 16 px (`@media (pointer: coarse)` em `styles.css`, com `!important` de propósito), o viewport tem
+  `maximum-scale=1` e o `html` tem `touch-action: manipulation` (sem zoom no toque duplo). Campo novo não precisa de nada, a regra pega.
 - `.col-principal { order: 1 }` (feito para a Escola no celular) valia para todas as telas e jogava a coluna principal para
   baixo (livros da Leitura depois das metas, Treino de hoje depois do gráfico) → escopo `.grade-escola`. Regra: `order` só
   com o seletor da tela.

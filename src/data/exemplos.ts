@@ -30,7 +30,7 @@ function gerar(): { [C in NomeColecao]?: Colecoes[C][] } {
   const materias: Materia[] = [
     { ...base, id: PFX + "mat", nome: "Matemática", semestres: [sem(3.0, 3.2, 1.8, 1.0), sem(3.3, null, 1.5, null, null, null, { p2: d(9) })], exame: av(null) },
     { ...base, id: PFX + "por", nome: "Português", semestres: [sem(2.8, 2.5, 1.7, 0.8, 0.5), sem(1.0, 1.0, null, null, null, null, { rec: d(12), t1: d(5) })], exame: av(null) },
-    { ...base, id: PFX + "his", nome: "História", semestres: [sem(1.5, 2.0, 1.0, 0.5, null, 3.0), sem(2.5, 2.0, 1.2, 0.6)], exame: av(null, d(26)) },
+    { ...base, id: PFX + "his", nome: "História", semestres: [sem(1.5, 2.0, 1.0, 0.5, null, 5.0), sem(2.5, 2.0, 1.2, 0.6)], exame: av(null, d(26)) },
     { ...base, id: PFX + "fis", nome: "Física", semestres: [sem(1.5, 1.5, 2.0, 1.0, null, 4.0), sem(2.9, 3.1, 1.6, 0.9)], exame: av(null) },
     { ...base, id: PFX + "bio", nome: "Biologia", semestres: [sem(3.4, 3.0, 2.0, 0.9), sem(3.1, null, null, null, null, null, { p2: d(3), t1: d(16) })], exame: av(null) },
   ];

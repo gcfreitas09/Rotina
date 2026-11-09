@@ -112,18 +112,25 @@ async function navegador() {
   const tHoje = await texto();
   for (const s of ["Para hoje", "Treino", "Próxima prova", "Refeições", "Água", "Média geral"]) checar(tHoje.includes(s), `Hoje mostra "${s}"`);
 
-  // Escola: recuperação nunca passa de 7 no bloco
+  // Escola: recuperação segue (P1 + P2 + 2 × Rec) / 3 e só conta se trouxer benefício (documento da escola)
   await ir(page, "escola/ex-his");
-  checar((await texto()).includes("(3,5 + 2 × 3,0) ÷ 2 = 4,8"), "História: cálculo da recuperação exibido (3,5 + 2×3,0)/2");
+  checar((await texto()).includes("(3,5 + 2 × 5,0) ÷ 3 = 4,5"), "História: cálculo da recuperação exibido (3,5 + 2×5,0) ÷ 3 = 4,5");
   const recInput = await page.$$("input[inputmode=decimal]");
   // ordem: p1 p2 t1 t2 extra rec (1º sem)
   await preencher(recInput[5], "7", true);
   await new Promise((r) => setTimeout(r, 200));
   const tRec = await texto();
-  checar(tRec.includes("limitado a 7,0"), "Recuperação 7 com P1+P2=3,5: bloco limitado a 7,0");
+  checar(tRec.includes("(3,5 + 2 × 7,0) ÷ 3 = 5,8") && tRec.includes("vale no lugar das provas"), "Recuperação 7 com P1+P2=3,5: (3,5 + 14) ÷ 3 = 5,8, vale no lugar das provas");
   const his = (await ls("materias")).find((m) => m.id === "ex-his");
   checar(his.semestres[0].rec.nota === 7, "Recuperação salva no armazenamento");
-  checar(/1º semestre[\s\S]{0,40}8,5/.test(tRec), "1º semestre de História = 8,5 (7,0 + 1,5 dos trabalhos)");
+  checar(/1º semestre[\s\S]{0,40}7,3/.test(tRec), "1º semestre de História = 7,3 (5,8 + 1,5 dos trabalhos)");
+  // recuperação abaixo das provas juntas não conta
+  await preencher((await page.$$("input[inputmode=decimal]"))[5], "2", true);
+  await new Promise((r) => setTimeout(r, 200));
+  const tIgn = await texto();
+  checar(tIgn.includes("não trouxe benefício") && /1º semestre[\s\S]{0,40}5,0/.test(tIgn), "Recuperação 2 (abaixo das provas): não conta, semestre fica em 5,0 (3,5 + 1,5)");
+  await preencher((await page.$$("input[inputmode=decimal]"))[5], "7", true);
+  await new Promise((r) => setTimeout(r, 200));
 
   // Ponto extra: máximo 0,5 e não passa de 10
   await ir(page, "escola/ex-mat");

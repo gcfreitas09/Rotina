@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "../../components/icones.tsx";
 import type { Avaliacao, Materia, Semestre } from "../../data/types.ts";
 import {
-  MAXIMOS, MAX_BLOCO_PROVAS, ROTULOS, exameNecessario, faltaNoSemestre, formulaRecuperacao, recuperacaoNecessaria,
+  MAXIMOS, ROTULOS, exameNecessario, faltaNoSemestre, formulaRecuperacao, recuperacaoNecessaria,
   validarNota, type ChaveAvaliacao, type Necessidade, type Regras, type ResultadoSemestre,
 } from "../../config/gradingRules.ts";
 import { excluir, salvar, useColecao } from "../../data/store.ts";
@@ -115,10 +115,11 @@ function SemestreBloco({ indice, s, res, media, aoMudar }: {
       ) : null}
       {s.rec.nota !== null && (
         <p className="calculo">
-          Provas com recuperação: ({nota(res.blocoOriginal)} + 2 × {nota(s.rec.nota)}) ÷ 2 ={" "}
+          Provas com recuperação: ({nota(res.blocoOriginal)} + 2 × {nota(s.rec.nota)}) ÷ 3 ={" "}
           <span className="num">{nota(formulaRecuperacao(res.blocoOriginal, s.rec.nota))}</span>
-          {formulaRecuperacao(res.blocoOriginal, s.rec.nota) > MAX_BLOCO_PROVAS && <> → limitado a <span className="num">{nota(MAX_BLOCO_PROVAS)}</span>, o máximo das provas</>}
-          {!res.usouRecuperacao && <> → mantida a soma original <span className="num">{nota(res.blocoOriginal)}</span></>}
+          {res.usouRecuperacao
+            ? <> → vale no lugar das provas ({nota(res.blocoOriginal)})</>
+            : <> → não trouxe benefício, então não conta: ficam as provas, <span className="num">{nota(res.blocoOriginal)}</span></>}
           .
         </p>
       )}

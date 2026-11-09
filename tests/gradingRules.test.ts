@@ -12,24 +12,30 @@ test("semestre é soma simples", () => {
   assert.equal(calcularSemestre(sem({ p1: 3, p2: 2.5, t1: 1.5, t2: 1 })).nota, 8);
 });
 
-test("recuperação segue (P1+P2+2×Rec)/2", () => {
-  // P1+P2 = 2,0 e Rec = 4,0 → (2 + 8)/2 = 5,0
-  assert.equal(blocoProvas({ p1: 1, p2: 1, rec: 4 }).final, 5);
+test("recuperação segue (P1+P2+2×Rec)/3, como no documento da escola", () => {
+  // P1+P2 = 2,0 e Rec = 4,0 → (2 + 8)/3 = 3,333…
+  assert.equal(blocoProvas({ p1: 1, p2: 1, rec: 4 }).final, 3.333);
+  assert.equal(blocoProvas({ p1: 1.5, p2: 2, rec: 5 }).final, 4.5); // (3,5 + 10)/3
+  // o app antigo dividia por 2 e dava 6,75 aqui
 });
 
-test("recuperação nunca passa do máximo do bloco (7,0)", () => {
-  // Bug do app antigo: P1+P2 = 3 e Rec = 6 davam 7,5 no bloco
-  const b = blocoProvas({ p1: 1.5, p2: 1.5, rec: 6 });
-  assert.equal(b.final, 7);
+test("recuperação nota máxima não passa de 7,0 sozinha", () => {
+  assert.equal(blocoProvas({ p1: 3.5, p2: 3.5, rec: 7 }).final, 7); // (7 + 14)/3
+  assert.equal(blocoProvas({ p1: 0, p2: 0, rec: 7 }).final, 4.667); // 14/3
   const s = calcularSemestre(sem({ p1: 1.5, p2: 1.5, t1: 2, t2: 1, rec: 7 }));
-  assert.ok(s.nota <= 10);
-  assert.equal(s.nota, 10);
+  assert.equal(s.nota, 8.667); // (3 + 14)/3 = 5,667 + 3 dos trabalhos
 });
 
-test("recuperação nunca baixa a nota", () => {
+test("recuperação só conta se trouxer benefício (senão fica P1+P2)", () => {
   const b = blocoProvas({ p1: 3, p2: 3, rec: 1 });
   assert.equal(b.final, 6);
   assert.equal(b.usouRecuperacao, false);
+  // empate também não conta: (4 + 8)/3 = 4
+  assert.equal(blocoProvas({ p1: 2, p2: 2, rec: 4 }).usouRecuperacao, false);
+  // rec abaixo das provas juntas: (3,5 + 6)/3 = 3,17 < 3,5
+  const c = blocoProvas({ p1: 1.5, p2: 2, rec: 3 });
+  assert.equal(c.final, 3.5);
+  assert.equal(c.usouRecuperacao, false);
 });
 
 test("ponto extra soma só até 10", () => {
@@ -42,13 +48,13 @@ test("ponto extra soma só até 10", () => {
 
 test("situação: aprovado, em exame, reprovado, aprovado após exame", () => {
   const bom = sem({ p1: 3, p2: 3, t1: 2, t2: 1 }); // 9
-  const ruim = sem({ p1: 1, p2: 1, t1: 1, t2: 0.5, rec: 2 }); // bloco (2+4)/2=3 → 4,5
+  const ruim = sem({ p1: 1, p2: 1, t1: 1, t2: 0.5, rec: 4 }); // bloco (2+8)/3=3,333 → 4,833
   assert.equal(calcularMateria([bom, bom], null, regras).situacao, "Aprovado");
-  const m = calcularMateria([bom, ruim], null, regras); // anual 6,75
-  assert.equal(m.anual, 6.75);
+  const m = calcularMateria([bom, ruim], null, regras); // anual (9 + 4,833)/2 = 6,917
+  assert.equal(m.anual, 6.917);
   assert.equal(m.situacao, "Em exame");
-  assert.equal(calcularMateria([bom, ruim], 3, regras).situacao, "Reprovado"); // (6,75+3)/2=4,875
-  assert.equal(calcularMateria([bom, ruim], 4, regras).situacao, "Aprovado"); // 5,375
+  assert.equal(calcularMateria([bom, ruim], 3, regras).situacao, "Reprovado"); // (6,917+3)/2=4,958
+  assert.equal(calcularMateria([bom, ruim], 4, regras).situacao, "Aprovado"); // 5,458
 });
 
 test("situação: em recuperação quando provas lançadas e não dá mais para chegar à média", () => {
@@ -56,14 +62,17 @@ test("situação: em recuperação quando provas lançadas e não dá mais para 
   assert.equal(calcularMateria([s, sem({})], null, regras).situacao, "Em recuperação");
 });
 
-test("quanto preciso na recuperação (fórmula invertida)", () => {
-  const s = sem({ p1: 1, p2: 1, t1: 2, t2: 1 }); // 5; alvo bloco 4 → rec = 4 − 1 = 3
+test("quanto preciso na recuperação (fórmula invertida, ÷ 3)", () => {
+  const s = sem({ p1: 1, p2: 1, t1: 2, t2: 1 }); // 5; alvo bloco 4 → rec = (3×4 − 2)/2 = 5
   const r = recuperacaoNecessaria(s, 7);
-  assert.deepEqual(r, { tipo: "precisa", valor: 3, maximo: 7 });
-  const s2 = sem({ p1: 0, p2: 0, t1: 0, t2: 0 }); // alvo bloco 7 → rec 7
-  assert.equal(recuperacaoNecessaria(s2, 7).tipo, "precisa");
-  const s3 = sem({ p1: 0, p2: 0, t1: 0, t2: 0 });
-  assert.equal(recuperacaoNecessaria(s3, 7.5).tipo, "impossivel");
+  assert.deepEqual(r, { tipo: "precisa", valor: 5, maximo: 7 });
+  // conferindo de volta: com essa nota o semestre chega na média
+  assert.equal(calcularSemestre({ ...s, rec: 5 }).nota, 7);
+  // sem nada nas provas e nos trabalhos, mesmo 7 na recuperação (bloco 4,667) não chega a 7
+  const s2 = sem({ p1: 0, p2: 0, t1: 0, t2: 0 });
+  assert.equal(recuperacaoNecessaria(s2, 7).tipo, "impossivel");
+  // para média 5 com P1+P2 = 2 e sem trabalhos: bloco alvo 5 → rec = (15 − 2)/2 = 6,5
+  assert.deepEqual(recuperacaoNecessaria(sem({ p1: 1, p2: 1, t1: 0, t2: 0 }), 5), { tipo: "precisa", valor: 6.5, maximo: 7 });
 });
 
 test("quanto preciso no exame = 2×mínimo − anual", () => {

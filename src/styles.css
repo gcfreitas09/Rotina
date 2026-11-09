@@ -57,7 +57,12 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-bottom: 110px; scroll-padding-top: 16px; } /* foco e rolagem nunca param atrás da barra flutuante */
+html { -webkit-text-size-adjust: 100%; scroll-padding-bottom: 110px; scroll-padding-top: 16px; touch-action: manipulation; } /* foco e rolagem nunca param atrás da barra flutuante; touch-action: sem zoom no toque duplo */
+/* Sem zoom ao tocar num campo: o Safari do iPhone dá zoom em qualquer campo com letra menor que 16 px.
+   !important de propósito: vale sobre todas as regras de campo do app, e só em tela de toque. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea { font-size: 16px !important; }
+}
 @media (min-width: 900px) { html { scroll-padding-bottom: 24px; } }
 body {
   margin: 0;
