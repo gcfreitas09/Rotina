@@ -149,6 +149,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (~120/s); depois: 0. Medir sempre pintura/composição, não só quadros de JavaScript: o rAF do headless mostra 60 fps mesmo travando.
 
 ## Armadilhas já resolvidas
+- Filtro "Semana" das Tarefas sumia com a tarefa de amanhã aos domingos (usava a semana de calendário, que acaba no domingo) →
+  agora é hoje + 6 dias (`filtrar` em `tarefas/logica.ts`). Regra: filtro de "semana" no app = próximos 7 dias, nunca fim de semana de calendário.
 - Zoom no celular (pedido do Guilherme, 08/11/2026): o Safari dá zoom ao tocar em campo com letra < 16 px → em tela de toque todo
   `input`/`select`/`textarea` fica com 16 px (`@media (pointer: coarse)` em `styles.css`, com `!important` de propósito), o viewport tem
   `maximum-scale=1` e o `html` tem `touch-action: manipulation` (sem zoom no toque duplo). Campo novo não precisa de nada, a regra pega.

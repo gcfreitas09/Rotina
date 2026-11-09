@@ -1,5 +1,5 @@
 import type { Tarefa } from "../../data/types.ts";
-import { diaDaSemana, diasEntre, inicioDaSemana, somarDias } from "../../data/datas.ts";
+import { diaDaSemana, diasEntre, somarDias } from "../../data/datas.ts";
 
 export const CATEGORIAS_FIXAS = ["Escola", "Trabalho", "Pessoal", "Freela"];
 
@@ -79,8 +79,9 @@ export interface Linha {
 const PESO = { alta: 0, media: 1, baixa: 2 } as const;
 
 export function filtrar(tarefas: Tarefa[], filtro: Filtro, hoje: string, categoria: string | null): Linha[] {
-  const seg = inicioDaSemana(hoje);
-  const dom = somarDias(seg, 6);
+  // "Semana" = hoje e os próximos 6 dias, não a semana de calendário: aos domingos a de calendário acabava hoje e
+  // a tarefa de amanhã (segunda) sumia do filtro.
+  const dom = somarDias(hoje, 6);
   const linhas: Linha[] = [];
   for (const t of tarefas) {
     if (categoria && t.categoria !== categoria) continue;

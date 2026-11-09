@@ -31,3 +31,24 @@ test("além de 7 dias tudo é tranquilo, até a de prioridade alta", () => {
   assert.equal(urgencia("alta", "2026-11-16", H), "tranquila");
   assert.equal(urgencia("media", "2026-12-25", H), "tranquila");
 });
+
+import { filtrar } from "../src/modules/tarefas/logica.ts";
+import type { Tarefa } from "../src/data/types.ts";
+
+const tarefa = (id: string, data: string, extra: Partial<Tarefa> = {}): Tarefa => ({
+  id, _m: 0, titulo: id, descricao: "", data, prioridade: "media", categoria: "Escola", subtarefas: [],
+  recorrencia: { tipo: "nenhuma" }, concluida: false, concluidaEm: null, feitasEm: [], ...extra,
+});
+
+test("filtro Semana vale hoje e os próximos 6 dias (domingo vê a segunda)", () => {
+  // 08/11/2026 é domingo: a semana de calendário (seg a dom) acaba hoje, mas amanhã tem de aparecer
+  const ts = [tarefa("hoje", "2026-11-08"), tarefa("amanha", "2026-11-09"), tarefa("dia6", "2026-11-14"), tarefa("dia7", "2026-11-15"), tarefa("atrasada", "2026-11-01")];
+  const ids = (f: "semana" | "hoje") => filtrar(ts, f, H, null).map((l) => l.tarefa.id);
+  assert.deepEqual(ids("semana"), ["atrasada", "hoje", "amanha", "dia6"]); // dia 7 (15/11) ainda não
+  assert.deepEqual(ids("hoje"), ["atrasada", "hoje"]);
+});
+
+test("filtro Semana também traz a próxima ocorrência das tarefas recorrentes", () => {
+  const diaria = tarefa("seg", "2026-11-02", { recorrencia: { tipo: "dias", dias: [0] } }); // toda segunda
+  assert.equal(filtrar([diaria], "semana", H, null)[0]?.data, "2026-11-09");
+});

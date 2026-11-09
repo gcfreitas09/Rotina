@@ -19,7 +19,7 @@ const FILTROS: [Filtro, string][] = [
 
 const VAZIOS: Record<Filtro, string> = {
   hoje: "Nada para hoje.",
-  semana: "Nada para esta semana.",
+  semana: "Nada nos próximos 7 dias.",
   atrasadas: "Nenhuma tarefa atrasada.",
   todas: "Nenhuma tarefa pendente.",
   concluidas: "Nenhuma tarefa concluída ainda.",
