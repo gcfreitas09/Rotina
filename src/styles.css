@@ -1124,3 +1124,4 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
   .mais-abas [data-aba="leitura"] { display: none; }
   .mais-abas[data-atual="leitura"] { display: none; }
 }
+.travar-app { display: grid; gap: 8px; justify-items: start; padding: 16px 18px; margin-top: 12px; font-size: 14.5px; line-height: 1.5; } .travar-app p { margin: 0; }

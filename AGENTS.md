@@ -85,6 +85,13 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Foco do iPhone: site não liga Foco nem bloqueia apps; o app abre o atalho do usuário (`Config.atalhoLeitura`) por
   `shortcuts://x-callback-url/run-shortcut` com os minutos (0 = desligar) e volta pelo `x-success`. Só desliga ao encerrar
   se a sessão ligou (`focoIphone`). Passo a passo do atalho fica na própria tela.
+  Limites do iOS (pesquisados, 08/11/2026): (1) o Foco não impede sair para outros apps e nenhum site liga o Acesso Guiado
+  (trava num app, com limite de tempo; só a pessoa liga: 3× botão lateral/Siri/Central de Controle) → a sessão mostra um cartão
+  com o passo a passo e o tempo restante; (2) no web app da Tela de Início o link `https` do x-success cai no Safari, então o app
+  devolve por `webapp://<host>` (`urlDeVolta`, só vale quando `navigator.standalone`; relatado como funcional desde iOS/iPadOS 17,
+  **não verificado num iPhone daqui**: se abrir o Safari, o usuário põe "Abrir URL webapp://host" no fim do atalho).
+  Foco que o app ligou: o atalho usa "Ativar até <hora>", então sai sozinho no fim; com o app aberto, ao acabar o tempo ele também
+  chama o atalho com 0 (uma vez, `Leitura.focoEncerrado`); "+5 min" religa o Foco até o novo fim (`minutosPara`).
   Campo "Livro": ao digitar, lista de opções clicáveis da Open Library (`leitura/catalogo.ts`, direto do navegador: libera CORS;
   a API do Google Livros está sem cota sem chave). Preenche livro, autor e páginas (edição mediana: o app avisa para conferir).
   Resultados vêm sujos, então `ranquear` filtra (todas as palavras digitadas), tira resumos/repetidas e prefere obra conhecida em

@@ -9,10 +9,14 @@ import { Conta } from "../../components/movimento.tsx";
 import { avisarFimDescanso, useTelaAcesa } from "../../components/alerta.ts";
 import { navegar } from "../../rota.ts";
 import { useBuscaLivros, type SugestaoLivro } from "./catalogo.ts";
-import { encerrar, lidoNoDia, linkAtalho, minutosDe, paginasDe, previsao, sequencia, sessaoAtiva } from "./logica.ts";
+import { encerrar, lidoNoDia, linkAtalho, minutosDe, minutosPara, paginasDe, previsao, sequencia, sessaoAtiva, urlDeVolta } from "./logica.ts";
 
 const MINUTOS = [15, 20, 30, 45, 60];
-const voltaDoAtalho = () => `${location.origin}${location.pathname}#/mais/leitura/agora`;
+/** Aberto pelo ícone da Tela de Início (web app) e não numa aba do Safari. */
+const emAppDaTela = () => (navigator as { standalone?: boolean }).standalone === true || matchMedia("(display-mode: standalone)").matches;
+/** O atalho devolve para o app da Tela de Início (webapp://) quando é de lá que se usa; no Safari, para a página. */
+const voltaDoAtalho = (hash = "#/mais/leitura/agora") => urlDeVolta(emAppDaTela(), location.origin, location.host, location.pathname, hash);
+const toqueNaTela = () => matchMedia("(pointer: coarse)").matches;
 
 /** Leitura: metas do dia, livros (página onde parou) e sessões cronometradas. Rotas: #/mais/leitura[/agora]. */
 export default function Leitura({ sub }: { sub?: string }) {
@@ -174,17 +178,19 @@ function FocoIphone() {
       <details className="passo-a-passo">
         <summary>Como montar no iPhone (uma vez só)</summary>
         <ol>
-          <li><b>Criar o Foco.</b> Ajustes → Foco → + → Leitura. Em <i>Pessoas</i> e <i>Apps</i>, não permita ninguém (assim nenhuma notificação chega). Em <i>Telas</i>, escolha uma página da Tela de Início só com o Safari.</li>
+          <li><b>Criar o Foco.</b> Ajustes → Foco → + → Leitura. Em <i>Pessoas</i> e <i>Apps</i>, não permita ninguém (assim nenhuma notificação chega). Em <i>Telas</i>, escolha uma página da Tela de Início só com o Rotina.</li>
           <li><b>Criar o atalho</b> no app Atalhos, com o nome que você escreveu acima:
             <ul>
               <li><i>Receber</i> entrada de texto (é o número de minutos).</li>
               <li><i>Se</i> a entrada <i>é</i> 0 → <i>Definir Foco</i> Leitura: <i>Desativar</i>.</li>
-              <li><i>Senão</i> → <i>Ajustar data</i>: Data Atual, <i>Somar</i> (entrada) minutos → <i>Definir Foco</i> Leitura: <i>Ativar até</i> Hora → Data ajustada.</li>
+              <li><i>Senão</i> → <i>Ajustar data</i>: Data Atual, <i>Somar</i> (entrada) minutos → <i>Definir Foco</i> Leitura: <i>Ativar até</i> Hora → Data ajustada. É esse "até" que desliga o Foco sozinho no fim do tempo, mesmo com o app fechado.</li>
             </ul>
+            O app devolve você para o <b>Rotina da Tela de Início</b> (pelo endereço <code>webapp://{location.host}</code>). Se, no seu iPhone, isso abrir o Safari, acrescente no fim do atalho a ação <i>Abrir URL</i> com esse endereço.
           </li>
-          <li><b>Abrir o Rotina pelo Safari</b> (ou pelo ícone na Tela de Início) e tocar em <i>Iniciar leitura</i>. Na primeira vez o iPhone pergunta se o site pode abrir o Atalhos: permita.</li>
+          <li><b>Preparar o Acesso Guiado</b> (é ele que impede de sair para outro app): Ajustes → Acessibilidade → Acesso Guiado → ligar. Em <i>Ajustes do código</i>, defina o código (ou ligue o Face ID). Opcional: adicione o Acesso Guiado à Central de Controle.</li>
+          <li><b>Ler:</b> abra o Rotina pelo ícone, toque em <i>Iniciar leitura</i> e, de volta ao app, clique <b>3 vezes no botão lateral</b> → <i>Opções</i> → <i>Limite de tempo</i> (os mesmos minutos) → <i>Iniciar</i>. O gesto de voltar à Tela de Início para de funcionar até o tempo acabar ou você destravar com o código/Face ID.</li>
         </ol>
-        <p className="suave">O Foco silencia as notificações e esconde os outros apps da Tela de Início, mas não impede abrir um app pela busca. Para bloquear de verdade, use o <b>Tempo de Uso → Tempo de Inatividade</b> do iPhone com o Safari em <i>Sempre Permitido</i>: o Rotina, como site, não consegue ligar isso sozinho.</p>
+        <p className="suave">Nenhum site ou app consegue ligar o Acesso Guiado sozinho: a Apple só deixa a própria pessoa fazer isso (botão lateral, Siri ou Central de Controle). O Foco, sozinho, silencia as notificações e esconde os outros apps, mas não impede de sair para eles.</p>
       </details>
     </section>
   );
@@ -359,6 +365,7 @@ function LendoAgora() {
   const [encerrando, setEncerrando] = useState(false);
   const [pagina, setPagina] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [travaVista, setTravaVista] = useState(false);
   const avisou = useRef(false);
   useTelaAcesa(!!ativa);
 
@@ -369,6 +376,21 @@ function LendoAgora() {
     // avisa uma vez, só se o tempo acabar com a tela aberta
     if (cumprido && !avisou.current && restanteMs > -5000) { avisou.current = true; avisarFimDescanso(); mostrarAviso("Tempo de leitura cumprido."); }
   }, [cumprido, restanteMs]);
+  // Acabou o tempo com o app aberto: desliga o Foco que o app ligou (atalho com 0). Se o app estava fechado, o Foco já saiu
+  // sozinho (o atalho liga "até" uma hora), então não chama o atalho de novo: só marca como encerrado.
+  useEffect(() => {
+    if (!ativa || !cumprido || !ativa.focoIphone || ativa.focoEncerrado) return;
+    salvar("leituras", { ...ativa, focoEncerrado: true });
+    if (restanteMs > -60_000 && cfg.atalhoLeitura && document.visibilityState === "visible") location.href = linkAtalho(cfg.atalhoLeitura, 0, voltaDoAtalho());
+  }, [ativa, cumprido, restanteMs, cfg.atalhoLeitura]);
+  // "+5 min": o Foco tem de acompanhar. Liga de novo "até" o novo fim (se já tinha acabado, volta a ligar).
+  const maisCinco = () => {
+    if (!ativa) return;
+    const novoFim = ativa.inicio + (ativa.planejadoMin + 5) * 60000;
+    salvar("leituras", { ...ativa, planejadoMin: ativa.planejadoMin + 5, focoEncerrado: false });
+    avisou.current = false;
+    if (ativa.focoIphone && cfg.atalhoLeitura) location.href = linkAtalho(cfg.atalhoLeitura, minutosPara(novoFim, Date.now()), voltaDoAtalho());
+  };
   useEffect(() => { if (ativa && !pagina) setPagina(String(ativa.paginaInicio)); }, [ativa, pagina]);
 
   const voltar = <a href="#/mais/leitura" className="botao texto voltar"><ArrowLeft size={18} strokeWidth={1.6} aria-hidden="true" /> Leitura</a>;
@@ -392,7 +414,7 @@ function LendoAgora() {
     mostrarAviso(r.livro.estado === "lido" ? `Você terminou ${livro.titulo}!` : `${pags} ${pags === 1 ? "página" : "páginas"} em ${mins} min. Parou na ${p}.`);
     navegar("mais/leitura");
     // encerrou antes do tempo: desliga o foco (o atalho recebe 0)
-    if (antesDoFim && ativa.focoIphone && cfg.atalhoLeitura) location.href = linkAtalho(cfg.atalhoLeitura, 0, `${location.origin}${location.pathname}#/mais/leitura`);
+    if (antesDoFim && ativa.focoIphone && cfg.atalhoLeitura) location.href = linkAtalho(cfg.atalhoLeitura, 0, voltaDoAtalho("#/mais/leitura"));
   };
 
   const descartar = async () => {
@@ -422,11 +444,19 @@ function LendoAgora() {
         <p className="contador-proxima">{cumprido ? `Meta de ${ativa.planejadoMin} min cumprida. Pode continuar lendo.` : `${ativa.planejadoMin} min de leitura`}</p>
         {!encerrando && (
           <div className="contador-botoes">
-            <button className="botao giz" onClick={() => salvar("leituras", { ...ativa, planejadoMin: ativa.planejadoMin + 5 })}><Plus size={16} strokeWidth={2} aria-hidden="true" /> 5 min</button>
+            <button className="botao giz" onClick={maisCinco}><Plus size={16} strokeWidth={2} aria-hidden="true" /> 5 min</button>
             <button className="botao giz" aria-pressed={cumprido} onClick={() => setEncerrando(true)}>Encerrar leitura</button>
           </div>
         )}
       </div>
+
+      {toqueNaTela() && !encerrando && !travaVista && (
+        <div className="folha travar-app" role="note">
+          <p className="sobretitulo">Para não sair do app</p>
+          <p>Clique <b>3 vezes no botão lateral</b> → <i>Opções</i> → <i>Limite de tempo</i>: <b className="num">{Math.max(1, Math.ceil(restanteMs / 60000))} min</b> → <i>Iniciar</i>. É o Acesso Guiado: o iPhone fica preso neste app até o tempo acabar ou você usar o código/Face ID.</p>
+          <button type="button" className="botao pequeno" onClick={() => setTravaVista(true)}>Entendi</button>
+        </div>
+      )}
 
       {encerrando && (
         <form className="folha form encerrar-leitura" onSubmit={salvarFim} noValidate>

@@ -55,3 +55,13 @@ export function linkAtalho(nome: string, minutos: number, volta: string): string
   const q = new URLSearchParams({ name: nome, input: "text", text: String(Math.max(0, Math.round(minutos))), "x-success": volta, "x-cancel": volta, "x-error": volta });
   return `shortcuts://x-callback-url/run-shortcut?${q.toString().replace(/\+/g, "%20")}`;
 }
+
+/** Para onde o atalho devolve a pessoa: o web app instalado na Tela de Início (`webapp://host`) ou, no Safari, a própria página. */
+export function urlDeVolta(emApp: boolean, origem: string, host: string, caminho: string, hash: string): string {
+  return emApp ? `webapp://${host}` : `${origem}${caminho}${hash}`;
+}
+
+/** Minutos (para cima, no mínimo 1) entre agora e o fim: é o que o atalho recebe para ligar o Foco "até" a hora certa. */
+export function minutosPara(fimMs: number, agoraMs: number): number {
+  return Math.max(1, Math.ceil((fimMs - agoraMs) / 60000));
+}

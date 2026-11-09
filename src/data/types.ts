@@ -236,6 +236,8 @@ export interface Leitura extends Base {
   paginaFim: number | null;
   /** Ligou o Foco do iPhone pelo atalho ao começar (aí, encerrar antes do tempo desliga). */
   focoIphone?: boolean;
+  /** O Foco foi desligado ao acabar o tempo (para não desligar duas vezes). */
+  focoEncerrado?: boolean;
 }
 
 export interface Colecoes {
