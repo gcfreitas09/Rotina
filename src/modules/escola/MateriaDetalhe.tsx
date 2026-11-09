@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "../../components/icones.tsx";
 import type { Avaliacao, Materia, Semestre } from "../../data/types.ts";
 import {
-  MAXIMOS, ROTULOS, exameNecessario, faltaNoSemestre, formulaRecuperacao, recuperacaoNecessaria,
+  MAXIMOS, ROTULOS, exameNecessario, faltaNoSemestre, formulaRecuperacao, minimoNaProva, recuperacaoNecessaria,
   validarNota, type ChaveAvaliacao, type Necessidade, type Regras, type ResultadoSemestre,
 } from "../../config/gradingRules.ts";
 import { excluir, salvar, useColecao } from "../../data/store.ts";
@@ -89,6 +89,7 @@ function SemestreBloco({ indice, s, res, media, aoMudar }: {
 }) {
   const ns = notas(s);
   const falta = faltaNoSemestre(ns, media);
+  const minimo = minimoNaProva(ns, media);
   const rec = recuperacaoNecessaria(ns, media);
   const mostrarRec = res.provasLancadas && (s.rec.nota !== null || res.nota < media || falta.tipo === "impossivel");
   return (
@@ -124,7 +125,8 @@ function SemestreBloco({ indice, s, res, media, aoMudar }: {
         </p>
       )}
 
-      {!res.completo && (
+      {!res.completo && minimo && <MinimoProva m={minimo} media={media} />}
+      {!res.completo && !minimo && (
         <Calculo
           titulo={falta.pendentes.length ? `Em ${falta.pendentes.map((k) => ROTULOS[k]).join(", ")}` : "No semestre"}
           n={falta}
@@ -137,6 +139,33 @@ function SemestreBloco({ indice, s, res, media, aoMudar }: {
         <Calculo titulo="Na recuperação" n={rec} alvo={media} garantido="Não precisa de recuperação." />
       )}
     </section>
+  );
+}
+
+/** Nota mínima na prova que falta, supondo nota máxima nos trabalhos que ainda faltam. */
+function MinimoProva({ m, media }: { m: ReturnType<typeof minimoNaProva> & object; media: number }) {
+  const provas = m.provas.map((k) => ROTULOS[k]).join(" e ");
+  const trab = m.trabalhosAssumidos.map((t) => `${nota(t.valor)} no ${ROTULOS[t.chave]}`).join(" e ");
+  const supondo = trab ? `Supondo nota máxima nos trabalhos que faltam (${trab}).` : "";
+  const sit = m.situacao;
+  return (
+    <div className="calculadora">
+      <p className="sobretitulo">Nota mínima {m.provas.length > 1 ? "nas provas" : "na prova"} · {provas}</p>
+      {sit.tipo === "garantido" && <p>{trab ? `Com ${trab}, a média ${nota(media)} já está garantida, mesmo tirando zero ${m.provas.length > 1 ? "nas provas" : "na prova"}.` : `A média ${nota(media)} já está garantida.`}</p>}
+      {sit.tipo === "precisa" && (
+        <p>
+          <span className="medio">{nota(m.provas.length > 1 ? sit.porProva : sit.soma)}</span>{" "}
+          <span className="suave">de {nota(sit.maximoPorProva)}{m.provas.length > 1 ? " em cada" : ""}</span>
+          {m.provas.length > 1 && <span className="suave" style={{ display: "block", fontSize: 13 }}>Somando {provas}: {nota(sit.soma)} de {nota(sit.maximo)}.</span>}
+          {supondo && <span className="suave" style={{ display: "block", fontSize: 13 }}>{supondo}</span>}
+        </p>
+      )}
+      {sit.tipo === "impossivel" && (
+        <p className="atraso">
+          Nem com a nota máxima nos trabalhos dá para chegar a {nota(media)}: {m.provas.length > 1 ? "as provas teriam" : "a prova teria"} de somar {nota(sit.precisa)}, e {m.provas.length > 1 ? "valem" : "vale"} até {nota(sit.maximo)}. Vai depender da recuperação.
+        </p>
+      )}
+    </div>
   );
 }
 

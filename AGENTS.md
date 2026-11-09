@@ -32,6 +32,9 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   **Histórico do erro:** o Guilherme tinha dito "÷ 2" de cabeça e o app foi feito assim (com um limite de 7 para esconder que passava);
   dava nota muito acima da real (P1+P2 = 3,5 e Rec = 5 → 6,75 em vez de 4,5). Na dúvida, o documento da escola vale mais que a memória.
   Só `formulaRecuperacao` e `recuperacaoNecessaria` (inversa: rec = (3 × bloco − soma) / 2) em `gradingRules.ts` conhecem a conta.
+- "Quanto preciso tirar": com prova ainda por fazer, mostra a **nota mínima na prova** supondo nota máxima nos trabalhos que faltam
+  (`minimoNaProva`; pedido do Guilherme, 08/11/2026, no lugar de "quanto falta no semestre"). Com as duas provas já feitas, sobra só
+  a soma dos trabalhos (`faltaNoSemestre`).
 - Ponto extra (0,5): soma no semestre, mas o semestre nunca passa de 10.
 - Média anual = (S1 + S2) / 2. Exame só se anual < média; final = (anual + exame) / 2; passa com ≥ mínimo (padrão 5,0).
 

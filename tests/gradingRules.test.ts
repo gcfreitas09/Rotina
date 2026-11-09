@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   blocoProvas, calcularSemestre, calcularMateria, recuperacaoNecessaria, exameNecessario,
-  faltaNoSemestre, validarNota, type NotasSemestre,
+  faltaNoSemestre, minimoNaProva, validarNota, type NotasSemestre,
 } from "../src/config/gradingRules.ts";
 
 const sem = (p: Partial<NotasSemestre>): NotasSemestre => ({ p1: null, p2: null, t1: null, t2: null, extra: null, rec: null, ...p });
@@ -92,4 +92,24 @@ test("validação de máximo", () => {
   assert.equal(validarNota("p1", 3.5), null);
   assert.match(validarNota("p1", 3.6) ?? "", /máximo 3,5/);
   assert.match(validarNota("extra", 0.6) ?? "", /máximo 0,5/);
+});
+
+test("nota mínima na prova supõe nota máxima nos trabalhos que faltam", () => {
+  // Caso da tela do Guilherme: P1 feita, T2 = 1,0, faltam P2 e T1. Faltam 4,9 no semestre; T1 máximo (2,0) → P2 precisa de 2,9.
+  const s = sem({ p1: 1.1, p2: null, t1: null, t2: 1 }); // nota atual 2,1 → falta 4,9
+  const m = minimoNaProva(s, 7)!;
+  assert.deepEqual(m.provas, ["p2"]);
+  assert.deepEqual(m.trabalhosAssumidos, [{ chave: "t1", valor: 2 }]);
+  assert.deepEqual(m.situacao, { tipo: "precisa", soma: 2.9, porProva: 2.9, maximo: 3.5, maximoPorProva: 3.5 });
+});
+
+test("nota mínima: duas provas, garantido e impossível", () => {
+  const duas = minimoNaProva(sem({}), 7)!; // nada lançado: trabalhos 3,0 → provas somam 4,0 (2,0 cada)
+  assert.deepEqual(duas.situacao, { tipo: "precisa", soma: 4, porProva: 2, maximo: 7, maximoPorProva: 3.5 });
+  // P1 = 3,5 e média 6,5: os dois trabalhos (3,0) já fecham a conta, então a P2 pode ser zero
+  assert.equal(minimoNaProva(sem({ p1: 3.5 }), 6.5)!.situacao.tipo, "garantido");
+  // trabalhos já lançados: a P2 tem de dar o que falta (6,5 → 0,5)
+  assert.deepEqual(minimoNaProva(sem({ p1: 3.5, t1: 2, t2: 1 }), 7)!.situacao, { tipo: "precisa", soma: 0.5, porProva: 0.5, maximo: 3.5, maximoPorProva: 3.5 });
+  assert.equal(minimoNaProva(sem({ p1: 0.5, t1: 0, t2: 0 }), 7) && minimoNaProva(sem({ p1: 0.5, t1: 0, t2: 0 }), 7)!.situacao.tipo, "impossivel"); // 0,5 + até 3,5 = 4 < 7
+  assert.equal(minimoNaProva(sem({ p1: 2, p2: 2 }), 7), null); // provas feitas: sobram só os trabalhos
 });

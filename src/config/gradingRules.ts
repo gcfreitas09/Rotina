@@ -211,6 +211,38 @@ export function faltaNoSemestre(
   return { tipo: "precisa", valor: falta, maximo, pendentes };
 }
 
+export interface MinimoNaProva {
+  /** Provas ainda não feitas (P1, P2 ou as duas). */
+  provas: ("p1" | "p2")[];
+  /** Trabalhos que ainda faltam e a nota máxima que se supõe neles (o "gabarito"). */
+  trabalhosAssumidos: { chave: "t1" | "t2"; valor: number }[];
+  situacao:
+    | { tipo: "garantido" }
+    /** `soma` = quanto precisa somar nas provas pendentes; `porProva` = soma dividida igualmente. */
+    | { tipo: "precisa"; soma: number; porProva: number; maximo: number; maximoPorProva: number }
+    | { tipo: "impossivel"; precisa: number; maximo: number };
+}
+
+/**
+ * Nota mínima na(s) prova(s) que faltam para o semestre chegar à média, supondo **nota máxima nos trabalhos que ainda
+ * faltam** (T1 2,0 e T2 1,0). null se as duas provas já foram feitas (aí só restam os trabalhos).
+ */
+export function minimoNaProva(s: NotasSemestre, media: number): MinimoNaProva | null {
+  const provas = (["p1", "p2"] as const).filter((k) => !lancada(s[k]));
+  if (provas.length === 0) return null;
+  const trabalhosAssumidos = (["t1", "t2"] as const).filter((k) => !lancada(s[k])).map((chave) => ({ chave, valor: MAXIMOS[chave] }));
+  const bonus = trabalhosAssumidos.reduce((t, x) => t + x.valor, 0);
+  const falta = r(media - calcularSemestre(s).nota);
+  const precisa = r(falta - bonus);
+  const maximo = r(provas.reduce((t, k) => t + MAXIMOS[k], 0));
+  if (precisa <= 0) return { provas, trabalhosAssumidos, situacao: { tipo: "garantido" } };
+  if (precisa > maximo) return { provas, trabalhosAssumidos, situacao: { tipo: "impossivel", precisa, maximo } };
+  return {
+    provas, trabalhosAssumidos,
+    situacao: { tipo: "precisa", soma: precisa, porProva: r(precisa / provas.length), maximo, maximoPorProva: r(maximo / provas.length) },
+  };
+}
+
 /** Nota mínima na recuperação para o semestre chegar à média (fórmula invertida). */
 export function recuperacaoNecessaria(s: NotasSemestre, media: number): Necessidade {
   const semRec = calcularSemestre({ ...s, rec: null });
