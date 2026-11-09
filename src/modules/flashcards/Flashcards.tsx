@@ -330,6 +330,8 @@ function Pasta({ b }: { b: Baralho }) {
   // O botão Estudar segue o filtro: em "Médio" só estuda (e conta) os médios.
   const [opc, setOpc] = useState(opcoesEstudo);
   const mudarOpc = (n: OpcoesEstudo) => { opcoesEstudo = n; setOpc(n); };
+  // A lista de baixo também obedece o filtro de dificuldade (antes só o botão Estudar obedecia, e parecia que o filtro não fazia nada).
+  const visiveis = opc.dificuldade ? cartoes.filter((c) => dificuldadeDe(c) === opc.dificuldade) : cartoes;
   const noFiltro = fila(cartoes, h, true, opc).length;
   const rev = fila(cartoes, h, false, opc).length;
   const plural = opc.dificuldade ? PLURAL_DIF[opc.dificuldade] : "";
@@ -376,7 +378,7 @@ function Pasta({ b }: { b: Baralho }) {
         <div className="col-principal">
           <section className="secao">
             <header>
-              <h2>Cartões <small>{cartoes.length}</small></h2>
+              <h2>Cartões <small>{opc.dificuldade ? `${visiveis.length} de ${cartoes.length}` : cartoes.length}</small></h2>
               <button className="botao primario" disabled={!noFiltro} onClick={() => navegar(`escola/flashcards/${b.id}/estudar`)}>
                 {rev ? `Estudar ${rev} ${plural ? plural + " " : ""}de hoje` : plural ? `Estudar ${plural}` : "Estudar agora"}
               </button>
@@ -384,9 +386,11 @@ function Pasta({ b }: { b: Baralho }) {
             {cartoes.length > 0 && <OpcoesDeEstudo cartoes={cartoes} o={opc} mudar={mudarOpc} />}
             {cartoes.length === 0 ? (
               <p className="suave">Nenhum cartão ainda. Escreva a primeira pergunta ao lado.</p>
+            ) : visiveis.length === 0 ? (
+              <p className="suave">Nenhum cartão {DIFICULDADES.find((d) => d.id === opc.dificuldade)?.nome.toLowerCase()} nesta pasta. Mude a dificuldade nos cartões ou escolha "Todas".</p>
             ) : (
               <ul className="cartoes-lista">
-                {cartoes.map((c) => (
+                {visiveis.map((c) => (
                   <li key={c.id} className="ficha-cartao">
                     {c.imagem && <img className="ficha-img" src={c.imagem} alt={c.frente || "Imagem da pergunta"} loading="lazy" decoding="async" />}
                     <div className="ficha-texto">
