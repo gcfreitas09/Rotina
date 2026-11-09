@@ -268,9 +268,8 @@ async function navegador() {
 
   // Treino agora: marcar série abre o cronômetro (só se hoje tem ficha)
   await ir(page, "saude/treino/agora");
-  const temSerie = await page.$(".contador-toque");
+  const temSerie = await page.$(".concluir-serie");
   if (temSerie) {
-    await temSerie.click();
     await clicar("button::-p-text(Concluir série)");
     checar(!!(await page.$(".contador.descansando")), "Concluir série inicia o descanso (modo foco)");
     await page.screenshot({ path: path.join(SHOTS, "390-treinando-cronometro.png") });
@@ -763,12 +762,13 @@ async function foco() {
   await espera(900);
   checar((await texto()).includes("Supino inclinado halter") && (await texto()).includes("Série 1 de 2"), "Abre na primeira série do primeiro exercício");
   checar((await ls("sessoes")).some((s) => s.fichaId === "fA" && typeof s.inicio === "number"), "Sessão salva com a hora de início");
-  checar(await page.$eval(".concluir-serie", (b) => b.disabled), "Concluir fica desligado com 0 repetições");
-  for (let i = 0; i < 7; i++) { await page.click(".contador-toque"); await espera(60); }
-  checar((await contador()) === "7" && (await page.$$(".tracinho path")).length === 7, `7 toques = 7 repetições e 7 riscos de giz (${await contador()}, ${(await page.$$(".tracinho path")).length})`);
-  await clicar('button[aria-label="Tirar uma repetição"]');
+  checar((await contador()) === "8" && !(await page.$eval(".concluir-serie", (b) => b.disabled)), `Repetições já vêm com a meta (8) e dá para concluir direto (${await contador()})`);
+  await clicar('button[aria-label="Uma repetição a mais"]');
+  await clicar('button[aria-label="Uma repetição a mais"]');
+  await clicar('button[aria-label="Uma repetição a menos"]');
+  checar((await contador()) === "9", `+ e − ajustam as repetições (${await contador()})`);
   await clicar('button[aria-label="Fiz 10 repetições"]');
-  checar((await contador()) === "10", "Atalho da meta (10) e o −1 funcionam");
+  checar((await contador()) === "10", "Atalho da meta (10) funciona");
   await page.screenshot({ path: path.join(SHOTS, "foco-contador.png") });
   await clicar('button[aria-label="Somar 2,5 kg"]');
   checar((await peso()) === "22,5", `+2,5 kg (${await peso()})`);
@@ -780,7 +780,7 @@ async function foco() {
   let s = (await ls("sessoes")).find((x) => x.fichaId === "fA");
   checar(s.exercicios[0].series[0].feita && s.exercicios[0].series[0].reps === 10 && s.exercicios[0].series[0].carga === 22.5, "Série 1 salva com 10 reps e 22,5 kg");
   await clicar("button::-p-text(Pular)");
-  checar(!(await page.$(".contador.descansando")) && (await contador()) === "0", "Pular descanso volta ao contador zerado");
+  checar(!(await page.$(".contador.descansando")) && (await contador()) === "8", `Pular descanso: a próxima série já vem com a meta (${await contador()})`);
   await clicar('button[aria-label="Fiz 8 repetições"]');
   await clicar("button::-p-text(Concluir série)");
   await clicar("button::-p-text(Pular)");
@@ -790,10 +790,8 @@ async function foco() {
   await clicar("button::-p-text(Anterior)");
   checar((await texto()).includes("Supino inclinado halter"), "Anterior volta ao exercício anterior");
   await clicar("button::-p-text(Próximo)");
-  await clicar('button[aria-label="Fiz 12 repetições"]');
-  await clicar("button::-p-text(Concluir série)");
+  await clicar("button::-p-text(Concluir série)"); // tríceps: 12 já vem preenchido
   await clicar("button::-p-text(Pular)");
-  await clicar('button[aria-label="Fiz 12 repetições"]');
   await clicar("button::-p-text(Concluir série)");
   await espera(400);
   checar((await texto()).includes("Todas as séries feitas") && (await texto()).includes("kg de volume"), "Todas feitas: aparece o resumo");

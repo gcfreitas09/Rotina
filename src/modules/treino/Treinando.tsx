@@ -175,7 +175,8 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
 }) {
   const ex = sessao.exercicios[pos.ei];
   const serie = ex.series[pos.si];
-  const [reps, setReps] = useState(serie.feita ? serie.reps : 0);
+  // Repetições já vêm preenchidas com a meta (ou o que foi feito): ninguém conta toque a toque no meio da série.
+  const [reps, setReps] = useState(serie.reps || meta?.reps || 10);
   const [carga, setCarga] = useState(serie.feita ? serie.carga : cargaSugerida(sessao, pos));
   const refNumero = useRef<HTMLSpanElement>(null);
   const ultima = ultimaVez(sessoes, sessao, ex.exercicioId, ex.nome, pos.si);
@@ -218,14 +219,16 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
         </div>
       ) : (
         <div className="lousa contador">
-          <button type="button" className="contador-toque" onClick={() => somar(1)} aria-label={`Contar repetição. Agora: ${reps}`}>
-            <span className="contador-rotulo">{reps ? "Repetições" : "Toque a cada repetição"}</span>
-            <span className="contador-numero num" ref={refNumero}>{reps}</span>
-            <Tracinhos n={reps} />
-          </button>
+          <div className="contador-reps">
+            <span className="contador-rotulo">Repetições</span>
+            <div className="contador-ajuste">
+              <button type="button" className="botao giz contador-passo" onClick={() => somar(-1)} disabled={reps <= 1} aria-label="Uma repetição a menos"><Minus size={22} strokeWidth={2} /></button>
+              <span className="contador-numero num" ref={refNumero} aria-live="polite">{reps}</span>
+              <button type="button" className="botao giz contador-passo" onClick={() => somar(1)} aria-label="Uma repetição a mais"><Plus size={22} strokeWidth={2} /></button>
+            </div>
+          </div>
           <div className="contador-botoes">
-            <button className="botao giz" onClick={() => somar(-1)} disabled={reps === 0} aria-label="Tirar uma repetição"><Minus size={16} strokeWidth={2} aria-hidden="true" /> 1</button>
-            {atalhos.map((n) => (
+            {atalhos.length > 1 && atalhos.map((n) => (
               <button key={n} className="botao giz" aria-pressed={reps === n} onClick={() => { setReps(n); pulso(refNumero.current); }} aria-label={`Fiz ${n} repetições`}>{n}</button>
             ))}
           </div>
@@ -249,7 +252,6 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
       <button className="botao primario concluir-serie" disabled={reps === 0 || !!descanso} onClick={(e) => { pulso(e.currentTarget); aoConcluir(reps, carga); }}>
         <Check size={20} strokeWidth={2.2} aria-hidden="true" /> {serie.feita ? "Salvar série" : "Concluir série"}
       </button>
-      {reps === 0 && !descanso && <p className="suave foco-dica">Conte tocando na lousa{atalhos.length ? " ou escolha o número que fez" : ""}.</p>}
 
       <nav className="foco-nav" aria-label="Exercícios">
         <button className="botao texto" disabled={!anterior} onClick={() => anterior && aoIr(anterior)}><ArrowLeft size={16} strokeWidth={1.8} aria-hidden="true" /> Anterior</button>
@@ -270,24 +272,6 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
         ))}
       </ol>
     </div>
-  );
-}
-
-/** Contagem de giz: grupos de cinco (quatro riscos e um cortando). */
-function Tracinhos({ n }: { n: number }) {
-  const grupos = Math.ceil(Math.min(n, 40) / 5);
-  return (
-    <span className="tracinhos" aria-hidden="true">
-      {Array.from({ length: grupos }, (_, g) => {
-        const k = Math.min(5, n - g * 5);
-        return (
-          <svg key={g} viewBox="0 0 34 30" className="tracinho">
-            {Array.from({ length: Math.min(4, k) }, (_, i) => <path key={i} d={`M${5 + i * 7} ${4 + (i % 2)} L${4 + i * 7} ${27 - (i % 2)}`} />)}
-            {k === 5 && <path d="M1 22 L32 7" />}
-          </svg>
-        );
-      })}
-    </span>
   );
 }
 
