@@ -202,6 +202,7 @@ function FocoIphone() {
               <li><i>Se</i> Entrada de Atalho <i>tem algum valor</i> → <i>Definir variável</i> Minutos = Entrada de Atalho. <i>Senão</i> → <i>Obter Área de Transferência</i> → <i>Definir variável</i> Minutos = Área de Transferência. <i>Fim do Se</i>.</li>
               <li><i>Se</i> Minutos <i>é</i> 0 → <i>Definir Foco</i> Leitura: <i>Desativar</i>.</li>
               <li><i>Senão</i> → <i>Ajustar data</i>: Data Atual, <i>Somar</i> Minutos minutos → <i>Definir Foco</i> Leitura: <i>Ativar até</i> Hora → Data ajustada. É esse "até" que desliga o Foco sozinho no fim do tempo, mesmo com o app fechado.</li>
+              <li><b>Para voltar ao app sozinho</b> (só no modo que abre o Atalhos): por último, acrescente <i>Abrir App</i> e procure <i>Rotina</i> na lista. Se ele aparecer, escolha: é a única forma de o atalho voltar para o app da Tela de Início. Se não aparecer, o iPhone não deixa: use "Ligar o Foco sem sair do app".</li>
             </ul>
           </li>
           <li><b>Ligar sem sair do app</b> (chave acima): ao iniciar a leitura, o Rotina copia os minutos e você aciona o atalho por um gesto, que roda por cima do app, sem abrir o Atalhos: <i>Toque Duplo</i> atrás do iPhone (Ajustes → Acessibilidade → Toque → Toque Atrás), <i>Botão de Ação</i> (Ajustes → Botão de Ação → Atalho) ou o botão <i>Atalhos</i> da Central de Controle (editar → Adicionar controle).</li>
@@ -363,6 +364,12 @@ function IniciarForm({ livro, aoFechar }: { livro: Livro; aoFechar: () => void }
           </label>
         ) : (
           <p className="suave" style={{ fontSize: 13 }}>Para silenciar o iPhone durante a leitura, configure "Foco no iPhone" na tela de Leitura.</p>
+        )}
+        {foco && emAppDaTela() && !cfg.focoSemSair && cfg.atalhoLeitura && (
+          <p className="suave" style={{ fontSize: 13, margin: 0 }}>
+            No app da Tela de Início, o iPhone para no Atalhos e não volta sozinho.{" "}
+            <button type="button" className="link-botao" onClick={() => { salvarConfig({ focoSemSair: true }); mostrarAviso("Agora o Foco liga sem sair do app: você aciona o atalho."); }}>Ligar sem sair do app</button>
+          </p>
         )}
         {erro && <p className="erro-campo" role="alert">{erro}</p>}
         <div className="acoes">
