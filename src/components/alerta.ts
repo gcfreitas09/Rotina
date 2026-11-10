@@ -1,15 +1,28 @@
 import { useEffect } from "react";
 
-/** Tela não apaga (treino, leitura), onde o navegador deixa. */
+/**
+ * Tela não apaga (treino, leitura), onde o navegador deixa.
+ * Ao sair do app a trava é solta; ao voltar, pedida de novo depois de a página repintar. Pedir a trava no mesmo instante
+ * da volta (com a antiga ainda presa) coincidia com a tela preta do app instalado no iPhone.
+ */
 export function useTelaAcesa(ativo: boolean) {
   useEffect(() => {
     if (!ativo || !("wakeLock" in navigator)) return;
     let trava: WakeLockSentinel | null = null;
-    const pedir = () => navigator.wakeLock.request("screen").then((t) => (trava = t)).catch(() => {});
+    let espera = 0;
+    const soltar = () => { const t = trava; trava = null; t?.release().catch(() => {}); };
+    const pedir = () => {
+      if (trava || document.visibilityState !== "visible") return;
+      navigator.wakeLock.request("screen").then((t) => { trava = t; t.addEventListener("release", () => { if (trava === t) trava = null; }); }).catch(() => {});
+    };
     pedir();
-    const voltou = () => document.visibilityState === "visible" && pedir();
-    document.addEventListener("visibilitychange", voltou);
-    return () => { document.removeEventListener("visibilitychange", voltou); trava?.release().catch(() => {}); };
+    const mudou = () => {
+      clearTimeout(espera);
+      if (document.visibilityState === "visible") espera = window.setTimeout(pedir, 600);
+      else soltar();
+    };
+    document.addEventListener("visibilitychange", mudou);
+    return () => { clearTimeout(espera); document.removeEventListener("visibilitychange", mudou); soltar(); };
   }, [ativo]);
 }
 
@@ -82,6 +95,9 @@ function bipe(c: AudioContext, freq: number, t: number, dur: number) {
  */
 export function tocarAlarme(repeticoes = 4): Promise<void> {
   navigator.vibrate?.([300, 150, 300, 150, 600]);
+  // Safari 16.4+: "transient" toca por cima da música (só abaixa o volume dela um instante), em vez de parar a música.
+  const sessao = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+  try { if (sessao) sessao.type = "transient"; } catch { /* nada */ }
   try {
     const c = contexto();
     if (!c) return Promise.resolve();
@@ -90,13 +106,12 @@ export function tocarAlarme(repeticoes = 4): Promise<void> {
     for (let r = 0; r < repeticoes; r++) {
       [880, 1175, 880, 1175].forEach((f, i) => bipe(c, f, t0 + r * 1.5 + i * 0.22, 0.18));
     }
-    return new Promise((fim) => setTimeout(fim, repeticoes * 1500 + 200));
+    return new Promise((fim) => setTimeout(() => {
+      try { if (sessao) sessao.type = "auto"; } catch { /* nada */ }
+      fim();
+    }, repeticoes * 1500 + 200));
   } catch {
     return Promise.resolve();
   }
 }
 
-/** Fim do descanso do treino: alarme curto. */
-export function avisarFimDescanso() {
-  void tocarAlarme(2);
-}

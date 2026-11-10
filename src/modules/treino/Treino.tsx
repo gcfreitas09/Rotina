@@ -3,7 +3,8 @@ import { formatarReps, lerReps } from "./reps.ts";
 import { Pencil, Play, Plus, Trash2, X } from "../../components/icones.tsx";
 import type { Dia, Exercicio, Ficha, Sessao } from "../../data/types.ts";
 import { resumoProgresso, type Tendencia, type TipoTendencia } from "./progresso.ts";
-import { excluir, salvar, salvarVarios, useColecao } from "../../data/store.ts";
+import { excluir, salvar, salvarVarios, useColecao, useConfig } from "../../data/store.ts";
+import { formatarDescanso, lerDescanso } from "./descanso.ts";
 import { DIAS, DIAS_CURTOS, DIAS_LONGOS, br, brCurta, diaDaSemana, hoje } from "../../data/datas.ts";
 import { lerNumero, novoId, num } from "../../data/formato.ts";
 import { Campo, DiasRepetir, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
@@ -91,7 +92,7 @@ export default function Treino() {
                   <tbody>
                     {f.exercicios.map((e) => (
                       <tr key={e.id}>
-                        <td>{e.nome}</td>
+                        <td>{e.nome}{e.descanso ? <small className="ficha-descanso">descanso {formatarDescanso(e)}</small> : null}</td>
                         <td className="num">{e.series}×{formatarReps(e)}</td>
                         <td className="num">{e.carga ? `${num(e.carga)} kg` : "—"}</td>
                       </tr>
@@ -202,14 +203,15 @@ function PesoCorporal({ pesos }: { pesos: { id: string; data: string; kg: number
   );
 }
 
-type ExTexto = { id: string; nome: string; series: string; reps: string; carga: string };
+type ExTexto = { id: string; nome: string; series: string; reps: string; carga: string; descanso: string };
 
 function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: Ficha[]; aoFechar: () => void }) {
+  const cfg = useConfig();
   const [nome, setNome] = useState(ficha?.nome ?? "");
   const [dias, setDias] = useState<Dia[]>(ficha?.dias ?? []);
   const [exs, setExs] = useState<ExTexto[]>(
-    ficha?.exercicios.map((e) => ({ id: e.id, nome: e.nome, series: String(e.series), reps: formatarReps(e).replace("–", "-"), carga: num(e.carga) })) ??
-      [{ id: novoId("e"), nome: "", series: "3", reps: "10", carga: "" }],
+    ficha?.exercicios.map((e) => ({ id: e.id, nome: e.nome, series: String(e.series), reps: formatarReps(e).replace("–", "-"), carga: num(e.carga), descanso: formatarDescanso(e).replace(" s", "").replace("–", "-") })) ??
+      [{ id: novoId("e"), nome: "", series: "3", reps: "10", carga: "", descanso: "" }],
   );
   const [erros, setErros] = useState<Record<string, string>>({});
   const mudar = (id: string, p: Partial<ExTexto>) => setExs(exs.map((e) => (e.id === id ? { ...e, ...p } : e)));
@@ -227,7 +229,9 @@ function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: F
       else if (!Number.isInteger(series) || series < 1 || series > 20) er["e" + x.id] = "Séries: um número inteiro de 1 a 20.";
       else if (!reps) er["e" + x.id] = "Repetições: um número (10) ou uma faixa (8-10), de 1 a 100.";
       else if (Number.isNaN(carga) || carga < 0) er["e" + x.id] = "Carga: use um número em kg, como 22,5.";
-      if (reps) lista.push({ id: x.id, nome: x.nome.trim(), series, ...reps, carga });
+      const desc = x.descanso.trim() ? lerDescanso(x.descanso) : {};
+      if (!desc && !er["e" + x.id]) er["e" + x.id] = "Descanso: segundos (90) ou uma faixa (120-190), de 10 a 900. Vazio = o padrão.";
+      if (reps) lista.push({ id: x.id, nome: x.nome.trim(), series, ...reps, carga, ...(desc ?? {}) });
     }
     if (!lista.length && !er.nome) er.exs = "Adicione pelo menos um exercício.";
     setErros(er);
@@ -269,11 +273,15 @@ function FichaForm({ ficha, fichas, aoFechar }: { ficha: Ficha | null; fichas: F
               <input className="entrada num" value={x.reps} onChange={(e) => mudar(x.id, { reps: e.target.value })} placeholder="8-10" aria-label="Repetições (número ou faixa, como 8-10)" />
               <input className="entrada num" inputMode="decimal" value={x.carga} onChange={(e) => mudar(x.id, { carga: e.target.value })} placeholder="0" aria-label="Carga em kg" />
               <button type="button" className="icone-btn" onClick={() => setExs(exs.filter((y) => y.id !== x.id))} aria-label={`Remover ${x.nome || "exercício"}`}><X size={16} strokeWidth={1.6} /></button>
+              <label className="ex-descanso">
+                <span>Descanso (s)</span>
+                <input className="entrada num" value={x.descanso} onChange={(e) => mudar(x.id, { descanso: e.target.value })} placeholder={`padrão ${cfg.descansoSeg} · ex.: 120-190`} aria-label="Descanso em segundos (número ou faixa, como 120-190)" />
+              </label>
               {erros["e" + x.id] && <p className="erro-campo" role="alert" style={{ gridColumn: "1 / -1" }}>{erros["e" + x.id]}</p>}
             </div>
           ))}
           {erros.exs && <p className="erro-campo" role="alert">{erros.exs}</p>}
-          <button type="button" className="botao pequeno" style={{ justifySelf: "start" }} onClick={() => setExs([...exs, { id: novoId("e"), nome: "", series: "3", reps: "10", carga: "" }])}>
+          <button type="button" className="botao pequeno" style={{ justifySelf: "start" }} onClick={() => setExs([...exs, { id: novoId("e"), nome: "", series: "3", reps: "10", carga: "", descanso: "" }])}>
             <Plus size={16} strokeWidth={1.8} aria-hidden="true" /> Exercício
           </button>
         </fieldset>

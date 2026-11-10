@@ -82,6 +82,16 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   removido a pedido do Guilherme (não dá para tocar a cada rep no meio da série). Peso ±1/±2,5, "Concluir série"
   abre o descanso no mesmo painel (anel, ±15 s, pular; no fim vibra e apita), série extra, anterior/próximo, resumo e "Salvar treino".
   Aba "Lista" = o modo antigo (corrigir séries). Tela fica acesa (Wake Lock). Lógica em `treino/sessao.ts` (testada).
+  **Descanso por exercício** (pedido de 09/11/2026): `Exercicio.descanso`/`descansoMax` em segundos; na ficha aceita "90" ou faixa
+  "120-190" (`treino/descanso.ts`, testado). Vazio = `Config.descansoSeg`. Faixa: conta até o mínimo (alarme), mostra "Pode ir"
+  até o máximo (alarme de novo) e encerra. **O descanso em andamento fica salvo na sessão** (`Sessao.descanso {inicio,minMs,maxMs}`),
+  gravado junto com a série no mesmo `salvar` (dois `salvar` seguidos: o segundo apagava o primeiro). Sair do app, recarregar ou
+  trocar de exercício não zera; só Pular/Começar série/fim. Alarme só toca se a página estiver visível e o fim tiver menos de 5 s.
+  **Próximo exercício bloqueado** até todas as séries do atual estarem feitas (botão e mapa; voltar é livre).
+  Alarme por cima da música: Web Audio + `navigator.audioSession.type = "transient"` durante o alarme. Nunca `<audio>` em loop no
+  treino (para a música do usuário); `liberarSom(true)` com silêncio em loop é só da Leitura.
+  Tela preta ao voltar ao app instalado (iPhone): `useTelaAcesa` solta a trava ao sair e pede de novo 600 ms depois de voltar;
+  `main.tsx` força repintura em `visibilitychange`/`pageshow`. Mitigação, não verificada num iPhone real.
   **Progresso** (pedido do Guilherme, 09/11/2026: "salve as cargas… para ver se estou evoluindo"): `treino/progresso.ts` (testado em
   `tests/progresso.test.ts`). Conta **toda série concluída**, com ou sem "Salvar treino" (antes só os treinos salvos entravam e quem
   saía antes perdia o registro). Por exercício: histórico por dia, melhor série pelo 1RM estimado (Epley, para comparar pesos e reps
@@ -197,6 +207,7 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - Lista fixa da Escola com `overflow-y: auto` ganhava scroll lateral no hover (o chevron desliza 3 px) e cortava a ponta das
   letras → `.col-fixa` com `overflow-x: hidden`, respiro de 10 px e linha com `padding-right: 6px`. Regra: todo
   container com `overflow-y: auto` precisa de `overflow-x: hidden`, e nenhum filho pode passar da borda no hover. Gate `hover`.
+- Dias da repetição ("seg, ter, qua…") encostavam na borda direita da faixa de urgência da tarefa → `.item[data-urg] .item-corpo:not(.com-sub) { padding-right: 14px }` (com subtarefa já tem 32 px pela seta).
 - Barra inferior flutua sobre o fim da tela → `scroll-padding-bottom: 110px` no html (foco não some atrás dela).
   No teste, centralizar o elemento antes de clicar.
 - `<dl>` com links dentro derrubou acessibilidade no Lighthouse → faixa de números é `div` + `span`.

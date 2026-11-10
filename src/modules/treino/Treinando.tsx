@@ -9,7 +9,8 @@ import { Vazio, confirmar, mostrarAviso, useAgora } from "../../components/ui.ts
 import Segmentos from "../../components/Segmentos.tsx";
 import { navegar } from "../../rota.ts";
 import { pulso } from "../../components/movimento.tsx";
-import { avisarFimDescanso, liberarSom, useTelaAcesa } from "../../components/alerta.ts";
+import { liberarSom, tocarAlarme, useTelaAcesa } from "../../components/alerta.ts";
+import { duracaoDescanso, faseDescanso, formatarDescanso, mmss, type Fase } from "./descanso.ts";
 import { fichaDoDia } from "./Treino.tsx";
 import {
   adicionarSerie, cargaSugerida, concluirSerie, desfazerSerie, formatarDuracao, novaSessao, proximaSerie, relogio,
@@ -51,43 +52,53 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
 
   const [modo, setModo] = useState<"foco" | "lista">("foco");
   const [pos, setPos] = useState<Posicao | null>(() => proximaSerie(sessao));
-  const [fimDescanso, setFimDescanso] = useState<number | null>(null);
-  const [totalDescanso, setTotalDescanso] = useState(1);
-  const descansando = fimDescanso !== null;
-  const agora = useAgora(descansando ? 250 : 1000).getTime();
-  const restante = fimDescanso ? Math.max(0, Math.ceil((fimDescanso - agora) / 1000)) : 0;
+  // O descanso fica salvo na sessão: sair do app, voltar ou trocar de exercício não zera.
+  const descanso = sessao.descanso ?? null;
+  const agora = useAgora(descanso ? 250 : 1000).getTime();
+  const fase: Fase | null = descanso ? faseDescanso(descanso, agora) : null;
+  const descansando = !!fase && fase.fase !== "fim";
   const resumo = resumoSessao(sessao, agora);
   const tudoFeito = proximaSerie(sessao) === null;
 
   useTelaAcesa(!sessao.concluida);
 
+  // Alarme: ao cumprir o mínimo (e, numa faixa como 120–190 s, de novo ao chegar no máximo). Só toca se o app estava aberto
+  // na hora; ao voltar depois, o descanso que já acabou só fecha.
+  const avisos = useRef({ inicio: 0, min: false, max: false });
   useEffect(() => {
-    if (fimDescanso && restante === 0) {
-      setFimDescanso(null);
-      avisarFimDescanso();
-      mostrarAviso("Descanso acabou. Bora para a próxima série.");
+    if (!descanso) return;
+    if (avisos.current.inicio !== descanso.inicio) avisos.current = { inicio: descanso.inicio, min: false, max: false };
+    const t = agora - descanso.inicio;
+    const naHora = (marco: number) => t - marco < 5000 && document.visibilityState === "visible";
+    const faixa = descanso.maxMs > descanso.minMs;
+    if (!avisos.current.min && t >= descanso.minMs) {
+      avisos.current.min = true;
+      if (naHora(descanso.minMs)) { void tocarAlarme(3); mostrarAviso(faixa ? "Descanso mínimo cumprido: pode começar a próxima série." : "Descanso acabou. Bora para a próxima série."); }
     }
-  }, [fimDescanso, restante]);
+    if (!avisos.current.max && t >= descanso.maxMs) {
+      avisos.current.max = true;
+      if (faixa && naHora(descanso.maxMs)) { void tocarAlarme(3); mostrarAviso("Acabou o descanso máximo. Próxima série!"); }
+      gravar({ ...sessao, descanso: null });
+    }
+  }, [agora, descanso]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const iniciarDescanso = () => {
-    liberarSom(); // o toque em "Concluir série" libera o som do fim do descanso (o iPhone não toca som sem um toque antes)
-    const ms = cfg.descansoSeg * 1000;
-    setFimDescanso(Date.now() + ms);
-    setTotalDescanso(ms);
+  /** Sessão com o descanso do exercício `ei` começando agora (o próprio, se a ficha tiver; senão o padrão). */
+  const comDescanso = (s: Sessao, ei: number): Sessao => {
+    liberarSom(); // o toque em "Concluir série" libera o som do alarme (o iPhone não toca som sem um toque antes)
+    return { ...s, descanso: { inicio: Date.now(), ...duracaoDescanso(metaDe(ei), cfg.descansoSeg) } };
   };
 
   const concluir = (p: Posicao, reps: number, carga: number) => {
     const nova = concluirSerie(sessao, p, reps, carga);
-    gravar(nova);
     const prox = proximaSerie(nova, p);
+    gravar(prox ? comDescanso(nova, p.ei) : { ...nova, descanso: null });
     setPos(prox);
-    if (prox) iniciarDescanso();
   };
 
   const finalizar = async () => {
     const r = resumoSessao(sessao, Date.now());
     if (r.seriesFeitas < r.seriesTotal && !(await confirmar("Finalizar com séries pendentes?", `Você fez ${r.seriesFeitas} de ${r.seriesTotal} séries. As pendentes ficam como não feitas.`, "Finalizar treino"))) return;
-    gravar({ ...sessao, concluida: true, fim: Date.now() });
+    gravar({ ...sessao, concluida: true, fim: Date.now(), descanso: null });
     // A ficha passa a sugerir a maior carga usada hoje em cada exercício.
     salvarVarios("fichas", [{
       ...ficha,
@@ -96,7 +107,6 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
         return s.length ? { ...ex, carga: Math.max(...s.map((x) => x.carga)) } : ex;
       }),
     }]);
-    setFimDescanso(null);
     mostrarAviso("Treino salvo no histórico.");
     navegar("saude/treino");
   };
@@ -122,7 +132,7 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
       />
 
       {modo === "lista" ? (
-        <Lista sessao={sessao} metaDe={metaDe} gravar={gravar} aoConcluirSerie={iniciarDescanso} />
+        <Lista sessao={sessao} metaDe={metaDe} gravar={gravar} comDescanso={comDescanso} />
       ) : sessao.concluida || (tudoFeito && !descansando) || !pos ? (
         <Resumo sessao={sessao} agora={agora} concluida={sessao.concluida} aoFinalizar={finalizar} />
       ) : (
@@ -132,11 +142,11 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
           sessoes={sessoes}
           pos={pos}
           meta={metaDe(pos.ei)}
-          descanso={descansando ? { restante, fracao: Math.max(0, Math.min(1, ((fimDescanso ?? 0) - agora) / totalDescanso)) } : null}
-          aoMudarDescanso={(ms) => { setFimDescanso((f) => (f ? f + ms : f)); setTotalDescanso((t) => Math.max(1000, t + ms)); }}
-          aoPularDescanso={() => setFimDescanso(null)}
+          descanso={descanso && fase && fase.fase !== "fim" ? { fase, ...descanso } : null}
+          aoMudarDescanso={(ms) => { if (descanso) gravar({ ...sessao, descanso: { ...descanso, minMs: Math.max(5000, descanso.minMs + ms), maxMs: Math.max(5000, descanso.minMs + ms, descanso.maxMs + ms) } }); }}
+          aoPularDescanso={() => gravar({ ...sessao, descanso: null })}
           aoConcluir={(reps, carga) => concluir(pos, reps, carga)}
-          aoIr={(p) => { setFimDescanso(null); setPos(p); }}
+          aoIr={setPos}
           aoAdicionarSerie={() => { const n = adicionarSerie(sessao, pos.ei); gravar(n); setPos({ ei: pos.ei, si: n.exercicios[pos.ei].series.length - 1 }); }}
         />
       )}
@@ -144,7 +154,7 @@ function Sessao_({ ficha, existente, sessoes, voltar }: { ficha: Ficha; existent
       {!sessao.concluida && (
         <>
           <div className="descanso-config">
-            <span className="suave">Descanso entre séries</span>
+            <span className="suave">Descanso padrão <small>(exercício sem descanso na ficha)</small></span>
             <button className="icone-btn" onClick={() => salvarConfig({ descansoSeg: Math.max(15, cfg.descansoSeg - 15) })} aria-label="Diminuir descanso em 15 segundos"><Minus size={16} strokeWidth={1.8} /></button>
             <span className="num">{cfg.descansoSeg}s</span>
             <button className="icone-btn" onClick={() => salvarConfig({ descansoSeg: Math.min(600, cfg.descansoSeg + 15) })} aria-label="Aumentar descanso em 15 segundos"><Plus size={16} strokeWidth={1.8} /></button>
@@ -166,7 +176,7 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
   sessoes: Sessao[];
   pos: Posicao;
   meta?: Exercicio;
-  descanso: { restante: number; fracao: number } | null;
+  descanso: ({ fase: Fase; inicio: number; minMs: number; maxMs: number }) | null;
   aoMudarDescanso: (ms: number) => void;
   aoPularDescanso: () => void;
   aoConcluir: (reps: number, carga: number) => void;
@@ -182,7 +192,9 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
   const ultima = ultimaVez(sessoes, sessao, ex.exercicioId, ex.nome, pos.si);
   const atalhos = meta ? Array.from({ length: Math.min(6, (meta.repsMax ?? meta.reps) - meta.reps + 1) }, (_, i) => meta.reps + i) : [];
   const anterior = pos.ei > 0 ? serieDoExercicio(sessao, pos.ei - 1) : null;
-  const seguinte = pos.ei < sessao.exercicios.length - 1 ? serieDoExercicio(sessao, pos.ei + 1) : null;
+  // Não passa para o próximo exercício sem terminar as séries deste (pedido do Guilherme: avançava sem querer).
+  const terminouAtual = ex.series.every((x) => x.feita);
+  const seguinte = terminouAtual && pos.ei < sessao.exercicios.length - 1 ? serieDoExercicio(sessao, pos.ei + 1) : null;
   const somar = (d: number) => { setReps((r) => Math.max(0, Math.min(200, r + d))); pulso(refNumero.current); };
   const mudarCarga = (d: number) => setCarga((c) => Math.max(0, Math.round((c + d) * 100) / 100));
 
@@ -193,28 +205,41 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
         <p className="foco-serie">
           <span className="num">Série {pos.si + 1} de {ex.series.length}</span>
           {meta && <> · meta <span className="num">{formatarReps(meta)}</span> reps</>}
+          {meta?.descanso ? <> · descanso <span className="num">{formatarDescanso(meta)}</span></> : null}
           {serie.feita && <> · <b>já feita</b></>}
         </p>
         {ultima && <p className="foco-ultima suave">Última vez: <span className="num">{num(ultima.carga)} kg × {ultima.reps}</span></p>}
       </div>
 
       {descanso ? (
-        <div className="lousa contador descansando" role="timer" aria-live="off" aria-label={`Descanso: faltam ${descanso.restante} segundos`}>
+        <div className="lousa contador descansando" role="timer" aria-live="off" aria-label={descanso.fase.fase === "descansando" ? `Descanso: faltam ${mmss(descanso.fase.restanteMs)}` : "Descanso mínimo cumprido: pode começar"}>
           <div className="contador-descanso">
             <svg viewBox="0 0 120 120" className="anel-giz" aria-hidden="true">
               <circle cx="60" cy="60" r="52" className="anel-fundo" />
-              <circle cx="60" cy="60" r="52" className="anel-giro" style={{ strokeDasharray: 326.7, strokeDashoffset: 326.7 * (1 - descanso.fracao) }} />
+              <circle cx="60" cy="60" r="52" className="anel-giro" style={{ strokeDasharray: 326.7, strokeDashoffset: 326.7 * (1 - Math.max(0, Math.min(1, descanso.fase.fase === "fim" ? 0 : descanso.fase.fracao))) }} />
             </svg>
             <div className="contador-centro">
-              <span className="contador-rotulo">Descanso</span>
-              <span className="contador-tempo num">{Math.floor(descanso.restante / 60)}:{String(descanso.restante % 60).padStart(2, "0")}</span>
+              {descanso.fase.fase === "pode" ? (
+                <>
+                  <span className="contador-rotulo">Pode ir</span>
+                  <span className="contador-tempo num">+{mmss(descanso.fase.passouMs)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="contador-rotulo">Descanso</span>
+                  <span className="contador-tempo num">{descanso.fase.fase === "descansando" ? mmss(descanso.fase.restanteMs) : "0:00"}</span>
+                </>
+              )}
             </div>
           </div>
-          <p className="contador-proxima">Próxima: série {pos.si + 1} · {num(carga)} kg</p>
+          <p className="contador-proxima">
+            {descanso.maxMs > descanso.minMs && <>Faixa {mmss(descanso.minMs)}–{mmss(descanso.maxMs)} · </>}
+            Próxima: {ex.nome} · série {pos.si + 1} · {num(carga)} kg
+          </p>
           <div className="contador-botoes">
             <button className="botao giz" onClick={() => aoMudarDescanso(-15000)}><Minus size={16} strokeWidth={2} aria-hidden="true" /> 15 s</button>
             <button className="botao giz" onClick={() => aoMudarDescanso(15000)}><Plus size={16} strokeWidth={2} aria-hidden="true" /> 15 s</button>
-            <button className="botao giz" onClick={aoPularDescanso}><SkipForward size={16} strokeWidth={2} aria-hidden="true" /> Pular</button>
+            <button className="botao giz" aria-pressed={descanso.fase.fase === "pode"} onClick={aoPularDescanso}><SkipForward size={16} strokeWidth={2} aria-hidden="true" /> {descanso.fase.fase === "pode" ? "Começar série" : "Pular"}</button>
           </div>
         </div>
       ) : (
@@ -258,11 +283,14 @@ function Foco({ sessao, sessoes, pos, meta, descanso, aoMudarDescanso, aoPularDe
         <button className="botao texto" onClick={aoAdicionarSerie}><Plus size={16} strokeWidth={1.8} aria-hidden="true" /> Série extra</button>
         <button className="botao texto" disabled={!seguinte} onClick={() => seguinte && aoIr(seguinte)}>Próximo <ChevronRight size={16} strokeWidth={1.8} aria-hidden="true" /></button>
       </nav>
+      {!terminouAtual && pos.ei < sessao.exercicios.length - 1 && (
+        <p className="suave foco-trava">Termine as séries de {ex.nome} para passar ao próximo exercício.</p>
+      )}
 
       <ol className="foco-mapa" aria-label="Progresso por exercício">
         {sessao.exercicios.map((e, ei) => (
           <li key={e.exercicioId}>
-            <button className={ei === pos.ei ? "atual" : ""} onClick={() => aoIr(serieDoExercicio(sessao, ei))} aria-current={ei === pos.ei ? "step" : undefined}>
+            <button className={ei === pos.ei ? "atual" : ""} disabled={ei > pos.ei && !terminouAtual} onClick={() => aoIr(serieDoExercicio(sessao, ei))} aria-current={ei === pos.ei ? "step" : undefined}>
               <span className="foco-mapa-nome">{e.nome}</span>
               <span className="foco-mapa-pontos" aria-label={`${e.series.filter((s) => s.feita).length} de ${e.series.length} séries`}>
                 {e.series.map((s, si) => <i key={si} className={s.feita ? "feita" : ei === pos.ei && si === pos.si ? "agora" : ""} />)}
@@ -303,11 +331,11 @@ function Resumo({ sessao, agora, concluida, aoFinalizar }: { sessao: Sessao; ago
 }
 
 /** Lista com todas as séries (o modo antigo): bom para corrigir carga ou reps depois. */
-function Lista({ sessao, metaDe, gravar, aoConcluirSerie }: { sessao: Sessao; metaDe: (ei: number) => Exercicio | undefined; gravar: (s: Sessao) => void; aoConcluirSerie: () => void }) {
+function Lista({ sessao, metaDe, gravar, comDescanso }: { sessao: Sessao; metaDe: (ei: number) => Exercicio | undefined; gravar: (s: Sessao) => void; comDescanso: (s: Sessao, ei: number) => Sessao }) {
   const mudarSerie = (ei: number, si: number, p: Partial<Sessao["exercicios"][0]["series"][0]>) => {
     const exercicios = sessao.exercicios.map((e, i) => (i !== ei ? e : { ...e, series: e.series.map((s, j) => (j === si ? { ...s, ...p } : s)) }));
-    gravar({ ...sessao, exercicios });
-    if (p.feita) aoConcluirSerie();
+    const nova = { ...sessao, exercicios };
+    gravar(p.feita ? comDescanso(nova, ei) : nova); // série e descanso numa gravação só
   };
   return (
     <>

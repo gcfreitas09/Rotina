@@ -895,6 +895,8 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .item[data-urg="media"] { --urg: var(--urg-media); }
 .item[data-urg="tranquila"] { --urg: var(--urg-tranquila); }
 .item[data-urg] .check:not(:checked) { border-color: var(--urg); border-width: 2px; }
+/* respiro à direita: "seg, ter, qua…" da repetição encostava na borda da faixa */
+.item[data-urg] .item-corpo:not(.com-sub) { padding-right: 14px; }
 @media (hover: hover) { .lista > li > .item[data-urg]:hover { background: color-mix(in srgb, var(--urg) 14%, transparent); } }
 .legenda-urg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; margin: 0 0 6px; }
 .legenda-urg .suave { margin-right: 4px; }
@@ -1164,3 +1166,8 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .contador-reps { display: grid; justify-items: center; gap: 6px; padding: 22px 16px 10px; }
 .contador-ajuste { display: grid; grid-template-columns: 64px minmax(110px, auto) 64px; align-items: center; justify-items: center; gap: 12px; }
 .botao.giz.contador-passo { width: 64px; height: 64px; min-width: 0; padding: 0; border-radius: 50%; justify-content: center; }
+.ex-descanso { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: -2px 0 8px; }
+.ex-descanso span { font-size: 12px; color: var(--grafite-suave); white-space: nowrap; }
+.ex-descanso .entrada { flex: 1; min-width: 0; }
+.ficha-descanso { display: block; font-size: 12px; color: var(--grafite-suave); }
+.foco-trava { font-size: 13px; text-align: center; margin: -4px 0 10px; }

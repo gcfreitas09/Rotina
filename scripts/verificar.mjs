@@ -763,6 +763,7 @@ async function foco() {
   checar((await texto()).includes("Supino inclinado halter") && (await texto()).includes("Série 1 de 2"), "Abre na primeira série do primeiro exercício");
   checar((await ls("sessoes")).some((s) => s.fichaId === "fA" && typeof s.inicio === "number"), "Sessão salva com a hora de início");
   checar((await contador()) === "8" && !(await page.$eval(".concluir-serie", (b) => b.disabled)), `Repetições já vêm com a meta (8) e dá para concluir direto (${await contador()})`);
+  checar(await page.$eval("::-p-text(Próximo)", (b) => b.closest("button").disabled), "Próximo exercício bloqueado até terminar as séries do atual");
   await clicar('button[aria-label="Uma repetição a mais"]');
   await clicar('button[aria-label="Uma repetição a mais"]');
   await clicar('button[aria-label="Uma repetição a menos"]');
@@ -777,7 +778,13 @@ async function foco() {
   checar(!!(await page.$(".contador.descansando")) && (await texto()).includes("Série 2 de 2"), "Concluir série abre o descanso e já mostra a próxima série");
   checar((await peso()) === "22,5", "A próxima série começa com o peso que você acabou de usar");
   await page.screenshot({ path: path.join(SHOTS, "foco-descanso.png") });
-  let s = (await ls("sessoes")).find((x) => x.fichaId === "fA");
+  const restoAntes = await page.$eval(".contador-tempo", (e) => e.textContent).catch(() => "");
+  await espera(2200);
+  await page.reload({ waitUntil: "networkidle0" });
+  await espera(900);
+  const restoDepois = await page.$eval(".contador-tempo", (e) => e.textContent).catch(() => "");
+  checar(!!(await page.$(".contador.descansando")) && restoDepois !== "" && restoDepois < restoAntes, `Sair e voltar não zera o descanso (${restoAntes} → ${restoDepois})`);
+  let s =(await ls("sessoes")).find((x) => x.fichaId === "fA");
   checar(s.exercicios[0].series[0].feita && s.exercicios[0].series[0].reps === 10 && s.exercicios[0].series[0].carga === 22.5, "Série 1 salva com 10 reps e 22,5 kg");
   await clicar("button::-p-text(Pular)");
   checar(!(await page.$(".contador.descansando")) && (await contador()) === "8", `Pular descanso: a próxima série já vem com a meta (${await contador()})`);

@@ -133,6 +133,10 @@ export interface Exercicio {
   /** Fim da faixa de repetições, quando é faixa. */
   repsMax?: number;
   carga: number;
+  /** Descanso depois de cada série deste exercício, em segundos (ou o mínimo da faixa, em "120–190"). Sem: o padrão. */
+  descanso?: number;
+  /** Máximo da faixa de descanso. */
+  descansoMax?: number;
 }
 
 export interface Ficha extends Base {
@@ -153,6 +157,8 @@ export interface Sessao extends Base {
   fichaNome: string;
   exercicios: { exercicioId: string; nome: string; series: SerieFeita[] }[];
   concluida: boolean;
+  /** Descanso em andamento (salvo: sair do app, voltar ou trocar de exercício não zera). Ver treino/descanso.ts. */
+  descanso?: { inicio: number; minMs: number; maxMs: number } | null;
   /** Início e fim do treino (ms), para a duração. Sessões antigas não têm. */
   inicio?: number;
   fim?: number;
