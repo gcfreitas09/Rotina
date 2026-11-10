@@ -14,6 +14,25 @@ const semZoom = (e: Event) => e.preventDefault();
 document.addEventListener("gesturestart", semZoom, { passive: false });
 document.addEventListener("gesturechange", semZoom, { passive: false });
 document.addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// Campo de número: tocar seleciona o valor inteiro, então é só digitar o novo (pedido do Guilherme, 09/11/2026).
+// Vale para inputMode numeric/decimal, type=number e campos com a classe "num". O iPhone posiciona o cursor depois do foco,
+// por isso a seleção é refeita no fim do toque; o mouseup do desktop é anulado uma vez para não desfazer a seleção.
+const campoNumero = (el: EventTarget | null): el is HTMLInputElement =>
+  el instanceof HTMLInputElement && !el.readOnly && !el.disabled &&
+  (el.inputMode === "numeric" || el.inputMode === "decimal" || el.type === "number" || el.classList.contains("num"));
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!campoNumero(el) || !el.value) return;
+  const selecionar = () => { if (document.activeElement === el) { try { el.setSelectionRange(0, el.value.length); } catch { el.select(); } } };
+  selecionar();
+  setTimeout(selecionar, 0);
+  const segurar = (ev: Event) => { ev.preventDefault(); selecionar(); };
+  el.addEventListener("mouseup", segurar, { once: true });
+  const toque = () => setTimeout(selecionar, 0);
+  el.addEventListener("touchend", toque, { once: true });
+  el.addEventListener("blur", () => { el.removeEventListener("mouseup", segurar); el.removeEventListener("touchend", toque); }, { once: true });
+});
+
 // Volta ao app instalado no iPhone (saiu e entrou): às vezes a tela fica preta até um toque, porque o WebKit não repinta as
 // camadas da página. Força uma pintura nova ao voltar.
 const repintar = () => {

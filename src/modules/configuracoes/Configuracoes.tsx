@@ -73,7 +73,9 @@ function NumeroConfig({ rotulo, chave, cfg, min, max, formatar, dica, inteiro }:
 }) {
   const [t, setT] = useState(formatar(cfg[chave]));
   const [erro, setErro] = useState<string | null>(null);
-  useEffect(() => setT(formatar(cfg[chave])), [cfg, chave, formatar]);
+  const valorSalvo = cfg[chave];
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando o valor salvo muda (senão um re-render apagaria o que se digita)
+  useEffect(() => setT(formatar(valorSalvo)), [valorSalvo]);
   const salvarSe = () => {
     const v = lerNumero(t);
     if (v === null || Number.isNaN(v) || v < min || v > max || (inteiro && !Number.isInteger(v))) {

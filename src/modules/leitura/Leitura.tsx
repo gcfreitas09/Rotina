@@ -154,7 +154,8 @@ function MetaNumero({ rotulo, chave, max }: { rotulo: string; chave: "metaPagina
   const cfg = useConfig();
   const [t, setT] = useState(String(cfg[chave]));
   const [erro, setErro] = useState<string | null>(null);
-  useEffect(() => setT(String(cfg[chave])), [cfg, chave]);
+  const valorSalvo = cfg[chave];
+  useEffect(() => setT(String(valorSalvo)), [valorSalvo]);
   const salvarSe = () => {
     const v = lerNumero(t);
     if (v === null || Number.isNaN(v) || !Number.isInteger(v) || v < 0 || v > max) return setErro(`Um número inteiro de 0 a ${max}.`);
@@ -405,7 +406,9 @@ function LendoAgora() {
     salvar("leituras", { ...ativa, planejadoMin: ativa.planejadoMin + 5 });
     avisou.current = false;
   };
-  useEffect(() => { if (ativa && !pagina) setPagina(String(ativa.paginaInicio)); }, [ativa, pagina]);
+  // Preenche só uma vez, com a página de início. Antes o efeito reagia ao campo vazio e devolvia o número a cada apagada.
+  const preencheu = useRef(false);
+  useEffect(() => { if (ativa && !preencheu.current) { preencheu.current = true; setPagina(String(ativa.paginaInicio)); } }, [ativa]);
 
   const voltar = <a href="#/mais/leitura" className="botao texto voltar"><ArrowLeft size={18} strokeWidth={1.6} aria-hidden="true" /> Leitura</a>;
   if (!ativa || !livro) {

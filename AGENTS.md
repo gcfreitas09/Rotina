@@ -208,6 +208,11 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   letras → `.col-fixa` com `overflow-x: hidden`, respiro de 10 px e linha com `padding-right: 6px`. Regra: todo
   container com `overflow-y: auto` precisa de `overflow-x: hidden`, e nenhum filho pode passar da borda no hover. Gate `hover`.
 - Dias da repetição ("seg, ter, qua…") encostavam na borda direita da faixa de urgência da tarefa → `.item[data-urg] .item-corpo:not(.com-sub) { padding-right: 14px }` (com subtarefa já tem 32 px pela seta).
+- "Em que página você parou?" não deixava apagar (apagava e o número voltava) → um `useEffect` recolocava a página de início
+  sempre que o campo ficava vazio. Regra: efeito que preenche campo roda **uma vez** (ref) ou depende só do valor salvo,
+  nunca do texto digitado nem de objeto inteiro (`cfg`), senão qualquer re-render apaga o que a pessoa digita.
+- Campo de número seleciona tudo ao tocar (pedido de 09/11/2026: "clicar no número já seleciona, eu só escrevo"): listener global
+  em `main.tsx` (`focusin`) para `inputMode` numeric/decimal, `type=number` e classe `num`. Campo novo de número: usar um desses.
 - Barra inferior flutua sobre o fim da tela → `scroll-padding-bottom: 110px` no html (foco não some atrás dela).
   No teste, centralizar o elemento antes de clicar.
 - `<dl>` com links dentro derrubou acessibilidade no Lighthouse → faixa de números é `div` + `span`.
