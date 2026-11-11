@@ -158,28 +158,28 @@ ABANDON: G7 O teste de ponta a ponta exige entrar com a conta do Guilherme (e co
   EXPECT: LIVROS OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=011fbc266bf935c1715107234720deda3bd8a52c332e37934c2c3f7c41839201; exit=0; EXPECT=matched; output-sha256=2da91ede48c8b332dffe6cc8c9712811e14766ca43d69bdcfb789eb20467f447; output-bytes=657; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
-- [ ] G30: Finanças — cálculos: saldo de cada carteira (dinheiro, VA, VT, VR) = soma de tudo dela até hoje; vale que entra nunca cai no dinheiro; cenário do Guilherme (sobrou 174 em outubro, salário e gastos em novembro, VA recebido e gasto) bate centavo a centavo
+- [x] G30: Finanças — cálculos: saldo de cada carteira (dinheiro, VA, VT, VR) = soma de tudo dela até hoje; vale que entra nunca cai no dinheiro; cenário do Guilherme (sobrou 174 em outubro, salário e gastos em novembro, VA recebido e gasto) bate centavo a centavo
   CHECK: node --test tests/financas.test.ts tests/financas-cenario.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=e64210f32da998a9b225b658a6ec45ce13fd5ea1aea863067c52552846f0eb01; exit=0; EXPECT=matched; output-sha256=503c8835978291430c044e1861a45714d80e2854986fcd8735445de48adaaeb0; output-bytes=1091; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
-- [ ] G31: Finanças — anotar rápido entende carteira, tipo, data e categoria ("va salgado 15 06/11", "vale alimentação 600" = entrada no VA, "+600 vale" pede qual vale, "salário 174 31/10", "uber 18 ontem") e recusa linha sem valor ou com data impossível
+- [x] G31: Finanças — anotar rápido entende carteira, tipo, data e categoria ("va salgado 15 06/11", "vale alimentação 600" = entrada no VA, "+600 vale" pede qual vale, "salário 174 31/10", "uber 18 ontem") e recusa linha sem valor ou com data impossível
   CHECK: node --test tests/financas-rapido.test.ts
   EXPECT: ℹ fail 0
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=24f5dd16f7939400605f50b2b0dd97e0ce989ad5b3a60151efc0393fd9aab4d5; exit=0; EXPECT=matched; output-sha256=b5953fc449f9fdbf7500dbce6e2b4f6a179b9d2aecee2221fd348daf8916895a; output-bytes=613; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
-- [ ] G32: Finanças no navegador (390 e 1440): primeiro uso com saldo de cada carteira; anotar rápido muda o saldo do cartão certo na hora; trocar a carteira na prévia antes de lançar; editar e excluir com desfazer; "Recebi" do fixo de vale vai para o vale; aviso de lançamento suspeito move para o vale com um toque; extrato da carteira com saldo linha a linha; Hoje mostra o mesmo dinheiro; sem rolagem lateral e sem erro de console
+- [x] G32: Finanças no navegador (390 e 1440): primeiro uso com saldo de cada carteira; anotar rápido muda o saldo do cartão certo na hora; trocar a carteira na prévia antes de lançar; editar e excluir com desfazer; "Recebi" do fixo de vale vai para o vale; aviso de lançamento suspeito move para o vale com um toque; extrato da carteira com saldo linha a linha; Hoje mostra o mesmo dinheiro; sem rolagem lateral e sem erro de console
   CHECK: node scripts/verificar.mjs financas
   EXPECT: FINANCAS OK
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=b8a37ac55ad20fe92494e2279c4c0f3fdc23c555838d6f8ddd53cd0ba37a64e0; exit=0; EXPECT=matched; output-sha256=11ba7ef8b040854a8eaa4ce21f368cb0f32eacd6cd984c15ddd002da47864a9b; output-bytes=1706; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
-- [ ] G33: Tipagem, testes de todo o app e build passam depois da reescrita
+- [x] G33: Tipagem, testes de todo o app e build passam depois da reescrita
   CHECK: npm run build
   EXPECT: built in
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=46d72eccd628b28a4b0e974e69890ad856bb5d28a16876531804fc540a571513; exit=0; EXPECT=matched; output-sha256=ca5e32011727150e41d5e6196e6ff57485223d650f630817395b839b1e6b81a9; output-bytes=1433; shell=/bin/sh; cwd=/Applications/MAMP/htdocs/rotina; path=d8381a8b3eef/16 entries
 
-- [ ] G34: Olhei os screenshots de Finanças e do cartão Dinheiro do Hoje (390 claro/escuro, 1440) e não há texto cortado, colado na borda ou sobreposto
-  EVIDENCE: pending
+- [x] G34: Olhei os screenshots de Finanças e do cartão Dinheiro do Hoje (390 claro/escuro, 1440) e não há texto cortado, colado na borda ou sobreposto
+  EVIDENCE: manual 11/11/2026 — financas-390-escuro, financas-390-claro, financas-1440-mes e hoje-dinheiro-390 olhados; achado e corrigido o botão "Lançar" cortado (largura fixa de .rapida .botao); depois disso nada cortado nem sobreposto.
 
 - [ ] G27: Foco do iPhone de verdade (atalho "Iniciar leitura" liga o Foco e volta ao Rotina; encerrar antes desliga)
   EVIDENCE: pending

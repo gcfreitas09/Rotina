@@ -124,41 +124,28 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Mais para a barra de baixo seguir com 5 itens (pedido do Guilherme, 08/11/2026).
   Também no desktop (≥ 900 px) a aba "Leitura" some das abas de Mais, e a barra de abas inteira some quando se está na Leitura
   (CSS `.mais-abas` em `styles.css`; `Abas` marca cada aba com `data-aba` e reposiciona o traço ao redimensionar).
-- `src/modules/financas/` — aba Finanças em Mais (`#/mais/financas`; no desktop tem item próprio no menu lateral, como a Leitura).
-  Pedido de 10/11/2026 ("salário, vales, gastos, ganhos"). Coleções `lancamentos` (entrada/saída) e `fixos` (repetem todo mês: salário,
-  VR, aluguel, assinatura; `dia`, `desde` = aaaa-mm). Dia aceita faixa "05-10" (`diaMax`, `lerDias`; campo de texto, não numérico): mostra "05–10" e ordena pelo primeiro dia. **Dinheiro sempre em centavos inteiros** (`lerValor` aceita "1.234,56", "12.50",
-  "R$ 30"; "1,234" é inválido). Vales (VR/VA/VT) são carteiras à parte: não entram no saldo da conta e têm saldo próprio.
-  "Recebi/Paguei" num fixo cria o lançamento com `fixoId` (no mês atual, com a data de hoje); editar o lançamento corrige o valor do mês.
-  **Acumulado** (pedido de 10/11/2026: "ganhei 800 mês passado e não gastei tudo, deixe acumulativo"): "Na conta" = tudo que entrou
-  menos tudo que saiu até o fim do mês (`saldoAte`); vales também acumulam. "Ajustar saldo" informa quanto tem de verdade e lança a
-  diferença com a categoria `AJUSTE`, que mexe só no acumulado (fora de entrou/saiu, categorias, ritmo e gráficos de gasto).
-  Linha "Dá para gastar R$ X por dia" = (acumulado + a receber − a pagar) / dias que faltam, só no mês atual (`ritmoDoMes`).
-  **Panorama** (`#/mais/financas/panorama`, `Graficos.tsx`, SVG puro, sem biblioteca): ritmo do mês (gasto acumulado por dia,
-  projeção tracejada, mês anterior pontilhado), "Na conta, mês a mês" (linha) e "Entrou e saiu" (barras). Cores `--graf-entrou`
-  (musgo) e `--graf-saiu` (mostarda) passaram no validador de daltonismo da skill dataviz; verde × laranja/marrom NÃO passa.
-  Dica ao tocar/passar, "Ver em tabela", linha desenha uma vez (GSAP). Grade do panorama com `minmax(0, 1fr)`: sem isso o svg
-  alarga a coluna e o cartão passa da tela no celular.
-  Ideias aprovadas pelo Guilherme (10/11/2026: 2, 4, 6, 7, 9):
-  **Limites por categoria** (`Config.limitesGasto`, centavos; botão "Limites" em "Para onde foi"): barra fica amarela aos 80%,
-  vermelha ao passar; `salvarLancamento` (`acoes.tsx`) avisa só ao CRUZAR 80% ou 100% (`cruzouLimite`). Todo lançamento novo passa por ela.
-  **Contas do dia no Hoje** (`HojeDinheiro.tsx`, cartão "Dinheiro"): fixos não lançados cuja data chegou (`contasDoDia`; atrasado =
-  passou do último dia da faixa), com Recebi/Paguei, + "dá para gastar hoje" e lançar rápido.
-  **Resumo do mês** (`fechamento`): cartão no topo de Finanças do dia 1 ao 7 do mês seguinte até "Fechar resumo" (`Config.resumoVisto`);
-  no Panorama de um mês passado aparece sempre.
-  **50/30/20** no Panorama (`regra503020`): base = tudo que entrou; Alimentação conta como necessidade. Barra de uma cor + marca da meta.
-  **Lançar rápido** (`rapido.ts`, testado): "lanche 12,50", "uber 18 ontem", "+800 salário", "almoço 32,50 vr". Categoria: primeiro a da
-  mesma descrição já lançada (aprende), depois palavras. Só aparece no mês atual (lança com a data de hoje).
-  Vale: sigla ("va", "vt", "vr") ou por extenso ("vale alimentação", "vale-transporte") em qualquer lugar da linha; o extenso é tirado
-  ANTES de procurar sinais de entrada (senão "vale" virava entrada na conta — bug de 10/11/2026). Preposição solta nas pontas ("no va") sai.
-  Data na linha (`lerData`): "06/11", "6/11/2026", "06/11/26", "dia 6"; tirada ANTES do valor (senão "06/11" vira dinheiro). Sem ano e no
-  futuro = ano anterior; "dia N" que ainda não chegou = mês anterior; data que não existe (31/02) recusa a linha.
-  **Números do topo** (pedido de 10/11/2026, refeito no mesmo dia: o Guilherme quer o que TEM, não o que gastou; não voltar a
-  "usou X", "salário do mês" nem Entrou/Saiu): **Dinheiro** = `acumulado` da conta (sobra dos meses anteriores + o que entrar no mês;
-  vale NÃO é dinheiro, não soma aqui), **Vale-alimentação** e **Vale-transporte** = saldo acumulado (`valeNoMes().saldo`), e **Saldo do
-  mês** (entrou − saiu da conta no mês). Cada cartão de dinheiro/vale tem "Ajustar" (abre `AjusteForm` já na carteira certa) para
-  dizer quanto tem de verdade: vale que só teve gasto lançado fica negativo até alguém lançar a entrada ou ajustar. O VR, se usado,
-  fica na seção "Vale-refeição" da lateral.
-  Contas em `financas/logica.ts` (testado em `tests/financas.test.ts`). Aba "Configurações" de Mais virou "Ajustes" (4 abas não cabiam em 390 px).
+- `src/modules/financas/` — **refeito do zero em 10–11/11/2026** (pedido do Guilherme: "refaça do zero… deixe funcional 100%").
+  Aba Finanças em Mais (`#/mais/financas` extrato, `/fixos`, `/mes`; no desktop tem item próprio no menu lateral).
+  **Modelo:** carteiras `conta` (Dinheiro), `va`, `vt`, `vr` (só aparece se usado). Saldo de cada uma = soma de TUDO dela até hoje
+  (`saldoAgora`); dinheiro sempre em centavos inteiros. Vale NÃO é dinheiro: `validarLancamento` recusa categoria Vale no dinheiro.
+  **O bug que motivou a reescrita:** o vale recebido caía no dinheiro (o "Onde" dos formulários começava em Conta; `vale 600` e
+  `+600 vale` iam para a conta; `vale alimentação 600` virava gasto) → VA negativo e dinheiro alto. Regras para não voltar:
+  carteira é escolhida com botões grandes (`EscolherCarteira`), nunca select escondido; fixo infere a carteira pelo nome
+  (`carteiraPeloTexto`); "vale" sem dizer qual deixa a carteira em aberto e o Lançar travado até escolher.
+  **Telas:** topo "Você tem" (um cartão por carteira; tocar abre o extrato dela) · `Conferir` (lançamento/fixo no dinheiro que fala de
+  vale → "Mover para VA" com um toque, `suspeitos`/`moverParaCarteira`; "Está certo" grava em `Config.financasIgnorados`) ·
+  **Anotar** (`acoes.tsx`): uma linha + prévia editável (Gasto/Entrada, carteira, categoria, data) com o saldo antes → depois ·
+  extrato = **caderneta** (assinatura da tela): com uma carteira escolhida, cada linha mostra o saldo que ficou ("Fica", `saldoDepois`,
+  ordem das datas), com o saldo do começo e do fim do mês e "Corrigir" (ajuste só da diferença, categoria `AJUSTE`) ·
+  Fixos (Recebi/Paguei lança na carteira do fixo) · Mês (tabela "Cada carteira": começou + entrou − saiu ± ajuste = terminou,
+  ritmo, para onde foi + limites, 50/30/20, gráficos de `Graficos.tsx`). Primeiro uso pergunta o saldo de cada carteira (`Config.financasIniciado`).
+  **Anotar** (`rapido.ts`): "lanche 12,50", "va salgado 15 06/11", "vale alimentação 600" / "va 600" (= recebeu o vale), "+128 vale"
+  (pergunta qual), "salário 174 31/10", "uber 18 ontem", "dia 6". Data é lida ANTES do valor. Categoria/carteira aprendem com a mesma
+  descrição já anotada, mas o que a linha diz manda.
+  Limites por categoria (`Config.limitesGasto`; aviso só ao cruzar 80%/100%, em `salvarLancamento`), resumo do mês (dia 1–7,
+  `Config.resumoVisto`), cartão Dinheiro no Hoje (`HojeDinheiro.tsx`, mesmo `saldoAgora`, contas do dia com Recebi/Paguei).
+  Testes: `tests/financas.test.ts`, `tests/financas-rapido.test.ts`, `tests/financas-cenario.test.ts` (o cenário real, centavo a
+  centavo); navegador: `node scripts/verificar.mjs financas` (G32).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 
@@ -260,7 +247,7 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
 - Importar backup: registros com `_m` antigo não subiam → importar chama `sincronizarTudo()`.
 
 ## Definição de pronto
-`npm test` · `npm run build` · `node scripts/verificar.mjs navegador` · `node scripts/verificar.mjs lighthouse`
+`npm test` · `npm run build` · `node scripts/verificar.mjs navegador` · `node scripts/verificar.mjs lighthouse` · `node scripts/verificar.mjs financas` (se mexer em Finanças)
 · `node ~/.claude/tools/peso.mjs . --entregavel dist` — e olhar os screenshots (1440/900/390, claro e escuro).
 
 ## Pendências (dependem do Guilherme)

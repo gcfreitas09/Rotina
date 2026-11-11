@@ -1105,9 +1105,151 @@ async function lighthouse() {
   if (!(p >= 90 && a >= 95 && b >= 95)) falhas.push("lighthouse");
 }
 
+// Finanças refeitas (11/11/2026): primeiro uso, anotar rápido mexe na carteira certa, prévia editável, editar/excluir/desfazer,
+// fixo de vale cai no vale, "Conferir" move vale que caiu no dinheiro, caderneta com saldo linha a linha, Hoje igual, sem rolagem lateral.
+async function financas() {
+  const puppeteer = qa("puppeteer");
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const ctx = await browser.createBrowserContext();
+  const page = await ctx.newPage();
+  await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }, { name: "prefers-color-scheme", value: "dark" }]);
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const erros = [];
+  page.on("pageerror", (e) => erros.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
+  const espera = (ms = 350) => new Promise((r) => setTimeout(r, ms));
+  const saldo = (c) => page.$eval(`.carteira.c-${c} .carteira-saldo`, (e) => e.innerText.replace(/[^\d,−-]/g, "")).catch(() => null);
+  const botao = async (txt, raiz = "") => {
+    await page.evaluate((t, r) => {
+      const base = (r && document.querySelector(r)) || document.querySelector(".dialogo") || document;
+      const b = [...base.querySelectorAll("button")].find((x) => x.textContent.trim() === t || x.getAttribute("aria-label") === t);
+      if (!b) throw new Error("sem botão: " + t);
+      b.scrollIntoView({ block: "center" }); b.click();
+    }, txt, raiz);
+    await espera();
+  };
+  const anotar = async (t) => {
+    await page.$eval(".anotar.folha input.entrada", (e) => { e.focus(); e.select(); });
+    await page.type(".anotar.folha input.entrada", t);
+    await espera(200);
+  };
+  const previa = () => page.$eval(".anotar.folha", (e) => e.innerText.replace(/\s+/g, " ")).catch(() => "");
+  const lancar = async () => { await page.keyboard.press("Enter"); await espera(450); };
+  const lancs = () => page.evaluate(() => JSON.parse(localStorage.getItem("rotina:lancamentos") || "[]").filter((l) => !l._x));
+  const sobra = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+  console.log("\nFinanças (390 px, escuro)");
+  await page.goto(BASE + "#/mais/financas", { waitUntil: "networkidle0" });
+  await page.evaluate(() => { localStorage.removeItem("rotina:lancamentos"); localStorage.removeItem("rotina:fixos"); });
+  await page.reload({ waitUntil: "networkidle0" });
+  await espera(800);
+  checar(!!(await page.$(".primeiro-uso")), "Primeiro uso pergunta quanto tem em cada carteira");
+  await page.type(".primeiro-uso input", "174");
+  await botao("Começar");
+  checar((await saldo("conta")) === "174,00" && (await saldo("va")) === "0,00" && (await saldo("vt")) === "0,00", `Saldo inicial: Dinheiro 174, VA 0, VT 0 (${await saldo("conta")})`);
+
+  await anotar("+128 salário"); await lancar();
+  checar((await saldo("conta")) === "302,00", `"+128 salário" soma no Dinheiro na hora (${await saldo("conta")})`);
+
+  await anotar("vale alimentação 600");
+  const p1 = await previa();
+  checar(/Entrada/.test(p1) && (await page.$eval('.anotar.folha .chip[aria-pressed="true"].chip-entrada', () => true).catch(() => false)) && /Vale-alimentação R\$ 0,00 → R\$ 600,00/.test(p1),
+    `"vale alimentação 600" é ENTRADA no VA, com o saldo antes → depois na prévia`);
+  await lancar();
+  checar((await saldo("va")) === "600,00" && (await saldo("conta")) === "302,00", `Vale recebido vai para o VA, não para o Dinheiro (VA ${await saldo("va")}, Dinheiro ${await saldo("conta")})`);
+
+  await anotar("va salgado 15 06/11"); await lancar();
+  const salg = (await lancs()).find((l) => l.descricao === "Salgado");
+  checar((await saldo("va")) === "585,00" && salg?.data.endsWith("-11-06") && salg?.carteira === "va" && salg?.categoria === "Alimentação", `"va salgado 15 06/11": gasto de 15 no VA, dia 06/11 (VA ${await saldo("va")})`);
+
+  await anotar("+128 vale");
+  const travado = await page.$eval(".anotar.folha button.primario", (b) => b.disabled);
+  checar(travado && /Em qual vale/.test(await previa()), `"+128 vale" pede para escolher o vale antes de lançar`);
+  await botao("VT", ".anotar.folha"); await lancar();
+  checar((await saldo("vt")) === "128,00", `Escolhido o VT na prévia, entra no VT (${await saldo("vt")})`);
+
+  await anotar("uber 31");
+  await botao("VT", ".anotar.folha"); await lancar();
+  checar((await saldo("vt")) === "97,00" && (await saldo("conta")) === "302,00", `Trocar a carteira na prévia (uber pago com VT) mexe só no VT (VT ${await saldo("vt")})`);
+
+  // caderneta do VA: saldo linha a linha
+  await page.evaluate(() => document.querySelector(".carteira.c-va").click()); await espera(500);
+  const linhas = await page.$$eval(".caderneta.com-saldo .lanc", (ls) => ls.map((l) => [l.querySelector(".lanc-desc").textContent, l.querySelector(".lanc-fica").textContent.replace(/\s/g, " ")]));
+  // ordem da caderneta é a das datas: o salgado (06/11) veio antes do vale (hoje), então o VA ficou −15 e depois 585
+  checar(JSON.stringify(linhas) === JSON.stringify([["Vale-alimentação", "R$ 585,00"], ["Salgado", "−R$ 15,00"]]) && linhas[0][1].endsWith(await saldo("va")),
+    `Extrato do VA mostra o saldo que ficou depois de cada lançamento, na ordem das datas (${JSON.stringify(linhas)})`);
+  await page.screenshot({ path: path.join(SHOTS, "financas-390-escuro.png"), fullPage: true });
+
+  // editar: o salgado foi no dinheiro, não no VA
+  await page.evaluate(() => [...document.querySelectorAll(".lanc")].find((l) => l.textContent.includes("Salgado")).click()); await espera(500);
+  await botao("Dinheiro"); await botao("Salvar");
+  checar((await saldo("va")) === "600,00" && (await saldo("conta")) === "287,00", `Editar e trocar a carteira devolve ao VA e tira do Dinheiro (VA ${await saldo("va")}, Dinheiro ${await saldo("conta")})`);
+
+  // excluir com desfazer
+  await page.evaluate(() => document.querySelector(".carteira.c-conta").click()); await espera(400);
+  await page.evaluate(() => [...document.querySelectorAll(".lanc")].find((l) => l.textContent.includes("Salgado")).click()); await espera(400);
+  await botao("Excluir");
+  await page.evaluate(() => document.querySelector("button.botao.perigo").click()); await espera(450);
+  const depoisExcluir = await saldo("conta");
+  await page.evaluate(() => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Desfazer")?.click()); await espera(400);
+  checar(depoisExcluir === "302,00" && (await saldo("conta")) === "287,00", `Excluir devolve o valor e "Desfazer" traz de volta (${depoisExcluir} → ${await saldo("conta")})`);
+
+  // fixo de vale: o nome escolhe o VT e o Recebi cai no VT
+  await page.evaluate(() => (location.hash = "/mais/financas/fixos")); await espera(600);
+  await botao("Fixo");
+  await page.type('.dialogo input[placeholder^="Ex.: Salário"]', "Vale transporte");
+  const vtAuto = await page.evaluate(() => [...document.querySelectorAll('.dialogo .chips-grandes .chip')].find((c) => c.getAttribute("aria-pressed") === "true")?.textContent);
+  await page.type(".dialogo .campo-valor", "50");
+  await page.$eval('.dialogo input[placeholder="05-10"]', (e) => e.select()); await page.type('.dialogo input[placeholder="05-10"]', "1");
+  await botao("Cadastrar fixo");
+  await botao("Recebi");
+  checar(vtAuto === "VT" && (await saldo("vt")) === "147,00", `Fixo "Vale transporte" já escolhe o VT e o Recebi cai no VT (${vtAuto}, VT ${await saldo("vt")})`);
+
+  // lançamento antigo errado: vale no dinheiro → Conferir → mover
+  await page.evaluate(() => {
+    const l = JSON.parse(localStorage.getItem("rotina:lancamentos"));
+    l.push({ id: "errado", _m: Date.now(), tipo: "entrada", valor: 10000, data: l[0].data, descricao: "Vale alimentação", categoria: "Salário", carteira: "conta", fixoId: null });
+    localStorage.setItem("rotina:lancamentos", JSON.stringify(l));
+  });
+  await page.reload({ waitUntil: "networkidle0" }); await espera(800);
+  const comErro = await saldo("conta");
+  checar(!!(await page.$(".conferir")) && comErro === "387,00", `"Conferir" acha vale que caiu no dinheiro (Dinheiro inflado: ${comErro})`);
+  await botao("Mover para VA", ".conferir");
+  checar(!(await page.$(".conferir")) && (await saldo("conta")) === "287,00" && (await saldo("va")) === "700,00", `Mover para VA corrige os dois saldos (Dinheiro ${await saldo("conta")}, VA ${await saldo("va")})`);
+
+  // abas e larguras
+  for (const v of ["mais/financas", "mais/financas/fixos", "mais/financas/mes"]) {
+    await page.evaluate((h) => (location.hash = "/" + h), v); await espera(600);
+    checar((await sobra()) === 0, `Sem rolagem lateral em #/${v} (390)`);
+  }
+  await page.screenshot({ path: path.join(SHOTS, "financas-mes-390.png"), fullPage: true });
+  const dinheiroFin = await saldo("conta");
+  await page.evaluate(() => (location.hash = "/hoje")); await espera(900);
+  const dinheiroHoje = await page.$eval(".painel-dinheiro .grande", (e) => e.innerText.replace(/[^\d,−-]/g, ""));
+  checar(dinheiroHoje === dinheiroFin, `Hoje mostra o mesmo dinheiro das Finanças (${dinheiroHoje} = ${dinheiroFin})`);
+  await (await page.$(".painel-dinheiro")).screenshot({ path: path.join(SHOTS, "hoje-dinheiro-390.png") });
+
+  await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }, { name: "prefers-color-scheme", value: "light" }]);
+  await page.evaluate(() => { const c = JSON.parse(localStorage.getItem("rotina:config") || "[]"); if (c[0]) { c[0].tema = "claro"; c[0]._m = Date.now(); localStorage.setItem("rotina:config", JSON.stringify(c)); } });
+  await page.setViewport({ width: 1440, height: 900 });
+  for (const v of ["mais/financas", "mais/financas/fixos", "mais/financas/mes"]) {
+    await page.goto(BASE + "#/" + v, { waitUntil: "networkidle0" }); await espera(700);
+    checar((await sobra()) === 0, `Sem rolagem lateral em #/${v} (1440)`);
+    await page.screenshot({ path: path.join(SHOTS, `financas-1440-${v.split("/").pop()}.png`), fullPage: true });
+  }
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  await page.goto(BASE + "#/mais/financas", { waitUntil: "networkidle0" }); await espera(700);
+  await page.screenshot({ path: path.join(SHOTS, "financas-390-claro.png"), fullPage: true });
+  checar(erros.length === 0, `sem erro no console${erros.length ? ": " + erros.slice(0, 2).join(" | ") : ""}`);
+  console.log("  screenshots em " + SHOTS);
+  await browser.close();
+  console.log(falhas.length ? `FINANCAS FALHOU (${falhas.length})` : "FINANCAS OK");
+}
+
 try {
   await esperarServidor();
   if (modo === "navegador") await navegador();
+  else if (modo === "financas") await financas();
   else if (modo === "lighthouse") await lighthouse();
   else if (modo === "movimento") await movimento();
   else if (modo === "flashcards") await flashcards();
