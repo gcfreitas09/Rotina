@@ -1275,3 +1275,52 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .graf-tabela table { width: 100%; border-collapse: collapse; }
 .graf-tabela th, .graf-tabela td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--linha); white-space: nowrap; }
 .graf-tabela th:first-child, .graf-tabela td:first-child { text-align: left; }
+
+/* finanças: lançar rápido, limites, fechamento, 50/30/20 e o cartão Dinheiro do Hoje */
+.lancar-rapido { margin: 0 0 18px; }
+.lancar-rapido .rapida { display: flex; gap: 8px; }
+.lancar-rapido .rapida .entrada { flex: 1; min-width: 0; }
+.lancar-previa { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 22px; margin: 6px 2px 0; font-size: 13px; }
+.lancar-rapido.compacto { margin: 10px 0 0; }
+.selo-tipo { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; background: var(--papel-2); }
+.selo-tipo.entrada { background: var(--musgo-fundo); color: var(--musgo); }
+.limites li { padding: 10px 0; border-bottom: 1px solid var(--linha); display: grid; gap: 2px; }
+.limite-regua { max-width: none; margin-top: 6px; }
+.limites .perto .limite-regua > i { background: var(--graf-saiu); }
+.limites .passou .limite-regua > i { background: var(--atraso); }
+.limite-status { font-size: 12.5px; color: var(--grafite-suave); margin-top: 4px; }
+.limites .passou .limite-status { color: var(--atraso); font-weight: 600; }
+.limites + .categorias-gasto { margin-top: 6px; }
+.limites-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+.fechamento { padding: 16px 18px; margin: 0 0 18px; border-left: 4px solid var(--musgo); }
+.fechamento > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.fechamento .sobretitulo { margin: 0; }
+.fechamento-frase { margin: 6px 0 10px; font: 650 clamp(18px, 5vw, 22px)/1.35 var(--f-titulo); letter-spacing: -0.01em; }
+.fechamento-frase .dinheiro { color: var(--musgo); }
+.fechamento-frase .suave { font: 400 14px var(--f-texto); }
+.fechamento-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; font-size: 14px; }
+.fechamento-lista li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--linha); padding: 4px 0; }
+.fechamento-frases { margin: 10px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.5; }
+@media (min-width: 900px) { .fechamento-lista { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.regra-base { font-size: 13.5px; margin: 0 0 6px; }
+.regra li { padding: 11px 0; border-bottom: 1px solid var(--linha); display: grid; gap: 4px; }
+.regra .cat-linha small { font-size: 12px; }
+.regra-trilho { position: relative; display: block; height: 8px; border-radius: 4px; background: var(--papel-2); margin-top: 4px; }
+.regra-trilho > i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--musgo-vivo); }
+.regra .fora .regra-trilho > i { background: var(--graf-saiu); }
+.regra-meta { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--grafite); border-radius: 1px; }
+.regra .fora b { color: var(--atraso); }
+.painel-dinheiro { padding: 16px; display: grid; gap: 6px; }
+.painel-dinheiro > header { display: flex; justify-content: space-between; align-items: center; }
+.dinheiro-hoje { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.dinheiro-hoje .grande { margin: 0; font: 700 clamp(32px, 9vw, 40px)/1 var(--f-numero); letter-spacing: -0.05em; }
+.dinheiro-hoje .grande.negativo { color: var(--atraso); }
+.dinheiro-hoje .pequeno-texto { margin: 0 0 3px; line-height: 1.4; }
+.contas-hoje { list-style: none; margin: 6px 0 0; padding: 0; }
+.contas-hoje li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--linha); }
+.conta-corpo { flex: 1; min-width: 0; display: grid; }
+.conta-nome { font-weight: 600; overflow-wrap: anywhere; }
+.conta-quando { font-size: 12.5px; color: var(--grafite-suave); }
+.contas-hoje .atrasada .conta-quando { color: var(--atraso); font-weight: 600; }
+.contas-hoje .dinheiro { font-size: 15px; font-weight: 600; }
+.resumo-pronto { font-size: 14px; font-weight: 600; color: var(--musgo); margin-top: 4px; }

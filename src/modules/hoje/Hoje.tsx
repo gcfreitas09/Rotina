@@ -16,6 +16,7 @@ import { alternarRefeicao, refeicoesDoDia, registroDoDia, somarAgua } from "../d
 import { estadoRefeicao } from "../dieta/diario.ts";
 import { fichaDoDia } from "../treino/Treino.tsx";
 import { TIPOS } from "../horarios/Horarios.tsx";
+import HojeDinheiro from "../financas/HojeDinheiro.tsx";
 
 function saudacao(h: number) {
   return h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
@@ -239,6 +240,8 @@ export default function Hoje() {
             </span>
             <span className="botao pequeno">{revisar ? "Revisar" : "Abrir"}</span>
           </a>
+
+          <HojeDinheiro />
         </div>
 
         <section className="folha painel-refeicoes">

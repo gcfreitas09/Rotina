@@ -218,6 +218,10 @@ export interface Config extends Base {
   atalhoLeitura: string;
   /** Liga o Foco sem sair do app: o Rotina copia os minutos e a pessoa aciona o atalho (Toque Duplo, Botão de Ação…). */
   focoSemSair: boolean;
+  /** Finanças: limite de gasto por mês, por categoria (centavos). */
+  limitesGasto?: Record<string, number>;
+  /** Último mês (aaaa-mm) cujo resumo de fechamento foi fechado pela pessoa. */
+  resumoVisto?: string;
 }
 
 /** Livro na estante de leitura. */

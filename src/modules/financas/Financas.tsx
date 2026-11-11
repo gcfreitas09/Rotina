@@ -1,30 +1,21 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Repeat, Trash2 } from "../../components/icones.tsx";
 import type { Carteira, Fixo, Lancamento } from "../../data/types.ts";
-import { excluir, salvar, useColecao } from "../../data/store.ts";
+import { excluir, salvar, salvarConfig, useColecao, useConfig } from "../../data/store.ts";
 import { brCurta, hoje } from "../../data/datas.ts";
 import { novoId } from "../../data/formato.ts";
 import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import Segmentos from "../../components/Segmentos.tsx";
 import { navegar } from "../../rota.ts";
+import { Dinheiro, LancarRapido, lancarFixo, salvarLancamento } from "./acoes.tsx";
 import { GraficoAcumulado, GraficoEntrouSaiu, GraficoRitmo } from "./Graficos.tsx";
 import {
-  ajusteDeSaldo, gastoPorDia, ritmoDoMes, serieMeses,
+  ajusteDeSaldo, fechamento, gastoPorDia, limitesDoMes, regra503020, type Fechamento, ritmoDoMes, serieMeses,
   CARTEIRAS, CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, comparaMesAnterior, curtoCarteira, formatarDias, lerDias, fixosDoMes, lerValor, mesDe, nomeCarteira,
   nomeMes, nomeMesAno, porCategoria, porDia, reais, resumoMes, somarMes, valorCampo,
 } from "./logica.ts";
 
 type Tipo = Lancamento["tipo"];
-
-/** "R$" pequeno, reais grandes, centavos menores: o número que importa salta primeiro. */
-function Dinheiro({ c, sinal = false }: { c: number; sinal?: boolean }) {
-  const [r, cent] = reais(Math.abs(c)).replace("R$", "").trim().split(",");
-  return (
-    <span className="dinheiro num">
-      {c < 0 ? "−" : sinal && c > 0 ? "+" : ""}<span className="unidade">R$</span>{r}<span className="centavos">,{cent}</span>
-    </span>
-  );
-}
 
 /** Finanças: mês a mês, entradas, gastos, fixos (salário, vales, contas) e vales em carteira à parte.
  * Rotas: #/mais/financas (o mês) e #/mais/financas/panorama (gráficos). O que sobra passa para o mês seguinte (acumulado). */
@@ -37,6 +28,11 @@ export default function Financas({ sub }: { sub?: string }) {
   const [editando, setEditando] = useState<{ l: Lancamento | null; tipo: Tipo } | null>(null);
   const [editFixo, setEditFixo] = useState<Fixo | "novo" | null>(null);
   const [ajustando, setAjustando] = useState(false);
+  const [limitando, setLimitando] = useState(false);
+  const cfg = useConfig();
+  const limites = limitesDoMes(lancs, mes, cfg.limitesGasto);
+  const mesAnt = somarMes(atual, -1);
+  const fechAnt = mes === atual && Number(hoje().slice(8)) <= 7 && cfg.resumoVisto !== mesAnt ? fechamento(lancs, fixos, mesAnt) : null;
 
   const r = resumoMes(lancs, fixos, mes);
   const fm = fixosDoMes(fixos, lancs, mes);
@@ -45,13 +41,6 @@ export default function Financas({ sub }: { sub?: string }) {
   const comp = comparaMesAnterior(lancs, mes);
   const vazio = !lancs.length && !fixos.length;
   const ritmo = ritmoDoMes(lancs, fixos, mes, hoje());
-
-  const lancarFixo = (f: Fixo, data: string) => {
-    const id = novoId("fn");
-    // no mês corrente, a data é hoje (o dia em que caiu de verdade); em outro mês, o dia do fixo
-    salvar("lancamentos", { id, tipo: f.tipo, valor: f.valor, descricao: f.descricao, categoria: f.categoria, carteira: f.carteira, data: mes === atual ? hoje() : data, fixoId: f.id });
-    mostrarAviso(`${f.descricao}: ${reais(f.valor)} ${f.tipo === "entrada" ? "recebido" : "pago"}.`, () => excluir("lancamentos", id)());
-  };
 
   return (
     <>
@@ -105,6 +94,10 @@ export default function Financas({ sub }: { sub?: string }) {
           <span className="suave"> · fecha com <span className="num">{reais(r.previstoAcumulado)}</span> na conta</span>
         </p>
       )}
+
+      {fechAnt && <CartaoFechamento f={fechAnt} aoFechar={() => salvarConfig({ resumoVisto: mesAnt })} />}
+
+      {!vazio && mes === atual && <LancarRapido />}
 
       <div className="financas-ver"><Segmentos
         itens={[{ id: "mes", nome: "Lançamentos" }, { id: "panorama", nome: "Panorama" }]}
@@ -198,12 +191,34 @@ export default function Financas({ sub }: { sub?: string }) {
             )}
 
             <section className="secao">
-              <header><h2>Para onde foi</h2></header>
-              {cats.length === 0 ? (
-                <p className="suave">Sem gastos em {nomeMes(mes)}.</p>
+              <header>
+                <h2>Para onde foi</h2>
+                <button className="botao texto pequeno" onClick={() => setLimitando(true)}>Limites</button>
+              </header>
+              {limites.length > 0 && (
+                <ul className="lista limites">
+                  {limites.map((l) => {
+                    const passou = l.fracao >= 1, perto = !passou && l.fracao >= 0.8;
+                    return (
+                      <li key={l.categoria} className={passou ? "passou" : perto ? "perto" : ""}>
+                        <span className="cat-linha">
+                          <span>{l.categoria}</span>
+                          <span className="num">{reais(l.gasto)} <small className="suave">de {reais(l.limite)}</small></span>
+                        </span>
+                        <span className="mini-regua limite-regua" role="meter" aria-valuemin={0} aria-valuemax={l.limite} aria-valuenow={l.gasto} aria-label={`${l.categoria}: ${Math.round(l.fracao * 100)}% do limite`}>
+                          <i style={{ width: `${Math.min(100, Math.max(1.5, l.fracao * 100))}%` }} />
+                        </span>
+                        <small className="limite-status">{passou ? `Passou ${reais(l.gasto - l.limite)} do limite` : `Sobram ${reais(l.limite - l.gasto)}`}{perto ? " · cuidado, já foi 80%" : ""}</small>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {cats.filter((c) => !cfg.limitesGasto?.[c.categoria]).length === 0 ? (
+                cats.length === 0 && <p className="suave">Sem gastos em {nomeMes(mes)}.</p>
               ) : (
                 <ul className="lista categorias-gasto">
-                  {cats.map((c) => (
+                  {cats.filter((c) => !cfg.limitesGasto?.[c.categoria]).map((c) => (
                     <li key={c.categoria}>
                       <span className="cat-linha"><span>{c.categoria}</span><span className="num">{reais(c.total)} <small className="suave">{Math.round(c.fracao * 100)}%</small></span></span>
                       <span className="mini-regua" aria-hidden="true"><i style={{ width: `${Math.max(2, c.fracao * 100)}%` }} /></span>
@@ -217,6 +232,7 @@ export default function Financas({ sub }: { sub?: string }) {
       )}
 
       {editando && <LancamentoForm l={editando.l} tipoInicial={editando.tipo} mes={mes} aoFechar={() => setEditando(null)} />}
+      {limitando && <LimitesForm aoFechar={() => setLimitando(false)} />}
       {ajustando && <AjusteForm aoFechar={() => setAjustando(false)} />}
       {editFixo && <FixoForm f={editFixo === "novo" ? null : editFixo} mes={mes} aoFechar={() => setEditFixo(null)} />}
     </>
@@ -276,8 +292,8 @@ function LancamentoForm({ l, tipoInicial, mes, aoFechar }: { l: Lancamento | nul
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) er.data = "Escolha a data.";
     setErros(er);
     if (Object.keys(er).length) return;
-    salvar("lancamentos", { id: l?.id ?? novoId("fn"), tipo, valor: v as number, descricao: descricao.trim(), categoria, carteira, data, fixoId: l?.fixoId ?? null });
-    mostrarAviso(l ? "Lançamento salvo." : `${tipo === "entrada" ? "Entrada" : "Gasto"} de ${reais(v as number)} lançado${mesDe(data) !== mes ? ` em ${nomeMesAno(mesDe(data))}` : ""}.`);
+    const aviso = salvarLancamento({ id: l?.id ?? novoId("fn"), tipo, valor: v as number, descricao: descricao.trim(), categoria, carteira, data, fixoId: l?.fixoId ?? null });
+    mostrarAviso(aviso ?? (l ? "Lançamento salvo." : `${tipo === "entrada" ? "Entrada" : "Gasto"} de ${reais(v as number)} lançado${mesDe(data) !== mes ? ` em ${nomeMesAno(mesDe(data))}` : ""}.`));
     aoFechar();
   };
   const apagar = async () => {
@@ -380,6 +396,7 @@ function Panorama({ mes }: { mes: string }) {
   const fixos = useColecao("fixos");
   const h = hoje();
   const ritmo = ritmoDoMes(lancs, fixos, mes, h);
+  const fech = mes < mesDe(h) ? fechamento(lancs, fixos, mes) : null;
   const serie12 = serieMeses(lancs, mes, 12);
   const primeiro = serie12.findIndex((p) => p.entrou || p.saiu || p.acumulado);
   const acumulado = serie12.slice(Math.max(0, Math.min(primeiro === -1 ? 11 : primeiro, 12 - 3))); // pelo menos 3 meses, sem meses vazios antes de começar
@@ -403,7 +420,12 @@ function Panorama({ mes }: { mes: string }) {
           <p className="graf-nota suave">Todos os gastos (conta e vales), somados dia a dia. Pode gastar por dia = o que tem na conta, mais o que falta receber, menos o que falta pagar, dividido pelos dias que faltam.</p>
         </section>
       )}
-      {!ritmo && <p className="suave">Ritmo e "pode gastar por dia" aparecem no mês atual ({nomeMesAno(mesDe(h))}).</p>}
+      {!ritmo && fech && <CartaoFechamento f={fech} />}
+      {!ritmo && !fech && <p className="suave">Nada lançado em {nomeMesAno(mes)}.</p>}
+      <section className="secao">
+        <header><h2>50/30/20 em {nomeMes(mes)}</h2></header>
+        <Regra503020 mes={mes} />
+      </section>
       <div className="panorama-grade">
         <section className="secao">
           <header><h2>Na conta, mês a mês</h2></header>
@@ -459,3 +481,106 @@ function AjusteForm({ aoFechar }: { aoFechar: () => void }) {
   );
 }
 const saldoAteHoje = (lancs: Lancamento[], c: Carteira, h: string) => lancs.filter((l) => l.carteira === c && l.data <= h).reduce((t, l) => t + (l.tipo === "entrada" ? l.valor : -l.valor), 0);
+
+/** Fechamento de um mês que acabou: aparece sozinho nos primeiros dias do mês seguinte (até a pessoa fechar) e no Panorama. */
+function CartaoFechamento({ f, aoFechar }: { f: Fechamento; aoFechar?: () => void }) {
+  const frases: string[] = [];
+  if (f.mudou) {
+    const d = f.mudou.agora - f.mudou.antes;
+    frases.push(`${f.mudou.categoria}: ${reais(Math.abs(d))} ${d > 0 ? "a mais" : "a menos"} que em ${nomeMes(somarMes(f.mes, -1))}`);
+  }
+  if (f.maior) frases.push(`Maior gasto: ${f.maior.categoria} (${reais(f.maior.total)})`);
+  if (f.diaMaisCaro) frases.push(`Dia mais caro: ${brCurta(f.diaMaisCaro.data)}, ${reais(f.diaMaisCaro.total)}`);
+  return (
+    <section className="folha fechamento" aria-label={`Resumo de ${nomeMesAno(f.mes)}`}>
+      <header>
+        <p className="sobretitulo">Fechou {nomeMes(f.mes)}</p>
+        {aoFechar && <button className="botao texto pequeno" onClick={aoFechar}>Fechar resumo</button>}
+      </header>
+      <p className="fechamento-frase">
+        {f.sobrou >= 0 ? <>Você guardou <Dinheiro c={f.sobrou} /></> : <>Gastou <Dinheiro c={-f.sobrou} /> a mais do que entrou</>}
+        <span className="suave"> · ficou com {reais(f.acumulado)} na conta</span>
+      </p>
+      <ul className="fechamento-lista">
+        <li><span className="suave">Entrou</span><span className="num">{reais(f.entrou)}</span></li>
+        <li><span className="suave">Saiu</span><span className="num">{reais(f.saiu)}</span></li>
+        <li><span className="suave">Lançamentos</span><span className="num">{f.lancamentos}</span></li>
+        {f.regra && <li><span className="suave">Guardado</span><span className="num">{Math.round(f.regra.fracoes.guardou * 100)}%</span></li>}
+      </ul>
+      {frases.length > 0 && <ul className="fechamento-frases">{frases.map((x) => <li key={x}>{x}.</li>)}</ul>}
+    </section>
+  );
+}
+
+/** Regra 50/30/20: cada faixa com a barra do que foi e a marca da meta. Uma cor só: a meta é a marca, não a cor. */
+function Regra503020({ mes }: { mes: string }) {
+  const lancs = useColecao("lancamentos");
+  const r = regra503020(lancs, mes);
+  if (!r) return <p className="suave">Aparece quando houver entrada no mês (salário, vale, freela).</p>;
+  const linhas = [
+    { id: "necessidades", nome: "Necessidades", meta: 0.5, valor: r.necessidades, f: r.fracoes.necessidades, dica: "comida, mercado, transporte, casa, escola, saúde", bom: (x: number) => x <= 0.5 },
+    { id: "desejos", nome: "Desejos", meta: 0.3, valor: r.desejos, f: r.fracoes.desejos, dica: "lazer, roupas, assinaturas, outros", bom: (x: number) => x <= 0.3 },
+    { id: "guardou", nome: "Guardou", meta: 0.2, valor: r.guardou, f: r.fracoes.guardou, dica: "o que sobrou do que entrou", bom: (x: number) => x >= 0.2 },
+  ];
+  return (
+    <>
+      <p className="suave regra-base">Do que entrou em {nomeMes(mes)} (<span className="num">{reais(r.base)}</span>), o ideal é 50% para o necessário, 30% para desejos e 20% guardado.</p>
+      <ul className="lista regra">
+        {linhas.map((l) => (
+          <li key={l.id} className={l.bom(l.f) ? "" : "fora"}>
+            <span className="cat-linha">
+              <span>{l.nome} <small className="suave">{l.dica}</small></span>
+              <span className="num"><b>{Math.round(l.f * 100)}%</b> <small className="suave">meta {Math.round(l.meta * 100)}%</small></span>
+            </span>
+            <span className="regra-trilho" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(l.f * 100)} aria-label={`${l.nome}: ${Math.round(l.f * 100)}% (meta ${Math.round(l.meta * 100)}%)`}>
+              <i style={{ width: `${Math.min(100, Math.max(1, l.f * 100))}%` }} />
+              <span className="regra-meta" style={{ left: `${l.meta * 100}%` }} />
+            </span>
+            <small className="suave num">{reais(l.valor)}{l.bom(l.f) ? "" : l.id === "guardou" ? ` · faltou ${reais(Math.round(r.base * l.meta) - l.valor)} para a meta` : ` · ${reais(l.valor - Math.round(r.base * l.meta))} acima da meta`}</small>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Limite de gasto por mês em cada categoria. Vazio = sem limite. */
+function LimitesForm({ aoFechar }: { aoFechar: () => void }) {
+  const cfg = useConfig();
+  const [v, setV] = useState<Record<string, string>>(() => Object.fromEntries(CATEGORIAS_SAIDA.map((c) => [c, cfg.limitesGasto?.[c] ? valorCampo(cfg.limitesGasto[c]) : ""])));
+  const [erros, setErros] = useState<Record<string, string>>({});
+  const enviar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const er: Record<string, string> = {}, novo: Record<string, number> = {};
+    for (const c of CATEGORIAS_SAIDA) {
+      const x = lerValor(v[c] ?? "");
+      if (x === null) continue;
+      if (Number.isNaN(x)) er[c] = "Valor em reais, como 150,00.";
+      else novo[c] = x;
+    }
+    setErros(er);
+    if (Object.keys(er).length) return;
+    salvarConfig({ limitesGasto: novo });
+    const n = Object.keys(novo).length;
+    mostrarAviso(n ? `${n} ${n === 1 ? "limite salvo" : "limites salvos"}. O app avisa ao chegar em 80% e ao passar.` : "Sem limites de gasto.");
+    aoFechar();
+  };
+  return (
+    <Dialogo titulo="Limites do mês" aoFechar={aoFechar}>
+      <form className="form" onSubmit={enviar} noValidate>
+        <p className="suave" style={{ margin: 0 }}>Quanto pode gastar por mês em cada categoria (conta e vales juntos). Deixe vazio para não ter limite.</p>
+        <div className="limites-grade">
+          {CATEGORIAS_SAIDA.map((c) => (
+            <Campo key={c} rotulo={c} erro={erros[c]}>
+              <input className="num" inputMode="decimal" value={v[c]} onChange={(e) => setV({ ...v, [c]: e.target.value })} placeholder="sem limite" aria-invalid={!!erros[c]} />
+            </Campo>
+          ))}
+        </div>
+        <div className="acoes">
+          <button type="button" className="botao" onClick={aoFechar}>Cancelar</button>
+          <button className="botao primario">Salvar limites</button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}

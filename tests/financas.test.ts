@@ -110,3 +110,61 @@ test("ajustar saldo mexe só no acumulado", () => {
   assert.equal(reaisCurto(123456), "R$ 1,2 mil");
   assert.equal(reaisCurto(85000), "R$ 850");
 });
+
+import { cruzouLimite, contasDoDia, fechamento, limitesDoMes, regra503020 } from "../src/modules/financas/logica.ts";
+import { lerRapido } from "../src/modules/financas/rapido.ts";
+
+test("limites por categoria e aviso só ao cruzar 80% e 100%", () => {
+  const lancs = [L("a", "saida", 12000, "2026-11-02", { categoria: "Lazer" }), L("b", "saida", 3000, "2026-11-03", { categoria: "Lazer", carteira: "vr" })];
+  const est = limitesDoMes(lancs, "2026-11", { Lazer: 15000, Roupas: 10000, Casa: 0 });
+  assert.deepEqual(est.map((e) => [e.categoria, e.gasto, e.fracao]), [["Lazer", 15000, 1], ["Roupas", 0, 0]]);
+  assert.equal(cruzouLimite(10000, 12500, 15000), 80);
+  assert.equal(cruzouLimite(12500, 15000, 15000), 100);
+  assert.equal(cruzouLimite(10000, 16000, 15000), 100);
+  assert.equal(cruzouLimite(12500, 13000, 15000), null);
+  assert.equal(cruzouLimite(0, 99999, 0), null);
+});
+
+test("contas do dia: fixo cuja data chegou e ainda não foi lançado", () => {
+  const fixos = [F("cel", "saida", 5990, 10), F("sal", "entrada", 80000, 5, { diaMax: 12 }), F("alug", "saida", 50000, 20), F("luz", "saida", 9000, 3)];
+  const lancs = [L("x", "saida", 9000, "2026-11-03", { fixoId: "luz" })];
+  const c = contasDoDia(fixos, lancs, "2026-11-10");
+  assert.deepEqual(c.map((x) => [x.fixo.id, x.atrasado]), [["sal", false], ["cel", false]]);
+  assert.deepEqual(contasDoDia(fixos, lancs, "2026-11-13").map((x) => [x.fixo.id, x.atrasado]), [["sal", true], ["cel", true]]);
+});
+
+test("50/30/20 e fechamento do mês", () => {
+  const lancs = [
+    L("s", "entrada", 100000, "2026-10-05"),
+    L("m", "saida", 30000, "2026-10-06", { categoria: "Mercado" }),
+    L("l", "saida", 20000, "2026-10-06", { categoria: "Lazer" }),
+    L("r", "saida", 10000, "2026-10-20", { categoria: "Roupas" }),
+    L("lset", "saida", 5000, "2026-09-20", { categoria: "Lazer" }),
+  ];
+  const r = regra503020(lancs, "2026-10")!;
+  assert.deepEqual([r.necessidades, r.desejos, r.guardou], [30000, 30000, 40000]);
+  assert.equal(regra503020(lancs, "2026-08"), null);
+  const f = fechamento(lancs, [], "2026-10")!;
+  assert.equal(f.sobrou, 40000);
+  assert.deepEqual(f.maior, { categoria: "Mercado", total: 30000 });
+  assert.deepEqual(f.mudou, { categoria: "Lazer", antes: 5000, agora: 20000 });
+  assert.deepEqual(f.diaMaisCaro, { data: "2026-10-06", total: 50000 });
+  assert.equal(fechamento(lancs, [], "2026-07"), null);
+});
+
+test("lançar rápido: valor, tipo, carteira, data e categoria", () => {
+  const h = "2026-11-10";
+  const r = (t: string, hist: Lancamento[] = []) => { const x = lerRapido(t, hist, h); return x && [x.tipo, x.valor, x.descricao, x.categoria, x.carteira, x.data]; };
+  assert.deepEqual(r("lanche 12,50"), ["saida", 1250, "Lanche", "Alimentação", "conta", h]);
+  assert.deepEqual(r("uber 18 ontem"), ["saida", 1800, "Uber", "Transporte", "conta", "2026-11-09"]);
+  assert.deepEqual(r("+800 salário"), ["entrada", 80000, "Salário", "Salário", "conta", h]);
+  assert.deepEqual(r("recebi 150 freela"), ["entrada", 15000, "Freela", "Freela", "conta", h]);
+  assert.deepEqual(r("almoço 32,50 vr"), ["saida", 3250, "Almoço", "Alimentação", "vr", h]);
+  assert.deepEqual(r("2 coxinhas 9,50"), ["saida", 950, "2 coxinhas", "Outros", "conta", h]);
+  assert.deepEqual(r("tênis 1.299,90"), ["saida", 129990, "Tênis", "Roupas", "conta", h]);
+  // aprende: "coxinha" já foi lançada como Alimentação no VR
+  const hist = [L("h", "saida", 500, "2026-11-01", { descricao: "Coxinha da cantina", categoria: "Alimentação", carteira: "vr" })];
+  assert.deepEqual(r("coxinha 6", hist), ["saida", 600, "Coxinha", "Alimentação", "vr", h]);
+  assert.equal(lerRapido("lanche", [], h), null);
+  assert.equal(lerRapido("", [], h), null);
+});

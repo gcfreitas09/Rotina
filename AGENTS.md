@@ -138,6 +138,16 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (musgo) e `--graf-saiu` (mostarda) passaram no validador de daltonismo da skill dataviz; verde × laranja/marrom NÃO passa.
   Dica ao tocar/passar, "Ver em tabela", linha desenha uma vez (GSAP). Grade do panorama com `minmax(0, 1fr)`: sem isso o svg
   alarga a coluna e o cartão passa da tela no celular.
+  Ideias aprovadas pelo Guilherme (10/11/2026: 2, 4, 6, 7, 9):
+  **Limites por categoria** (`Config.limitesGasto`, centavos; botão "Limites" em "Para onde foi"): barra fica amarela aos 80%,
+  vermelha ao passar; `salvarLancamento` (`acoes.tsx`) avisa só ao CRUZAR 80% ou 100% (`cruzouLimite`). Todo lançamento novo passa por ela.
+  **Contas do dia no Hoje** (`HojeDinheiro.tsx`, cartão "Dinheiro"): fixos não lançados cuja data chegou (`contasDoDia`; atrasado =
+  passou do último dia da faixa), com Recebi/Paguei, + "dá para gastar hoje" e lançar rápido.
+  **Resumo do mês** (`fechamento`): cartão no topo de Finanças do dia 1 ao 7 do mês seguinte até "Fechar resumo" (`Config.resumoVisto`);
+  no Panorama de um mês passado aparece sempre.
+  **50/30/20** no Panorama (`regra503020`): base = tudo que entrou; Alimentação conta como necessidade. Barra de uma cor + marca da meta.
+  **Lançar rápido** (`rapido.ts`, testado): "lanche 12,50", "uber 18 ontem", "+800 salário", "almoço 32,50 vr". Categoria: primeiro a da
+  mesma descrição já lançada (aprende), depois palavras. Só aparece no mês atual (lança com a data de hoje).
   Contas em `financas/logica.ts` (testado em `tests/financas.test.ts`). Aba "Configurações" de Mais virou "Ajustes" (4 abas não cabiam em 390 px).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.

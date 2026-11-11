@@ -226,3 +226,98 @@ export function reaisCurto(c: number): string {
   return `${c < 0 ? "−" : ""}R$ ${t}`;
 }
 export const mesCurto = (mes: string) => nomeMes(mes).slice(0, 3);
+
+// ------------------------------------------------------------------ limites por categoria
+
+export interface EstadoLimite { categoria: string; gasto: number; limite: number; fracao: number }
+
+/** Categorias com limite no mês: quanto já foi (todas as carteiras), do mais apertado para o mais folgado. */
+export function limitesDoMes(lancs: Lancamento[], mes: string, limites: Record<string, number> = {}): EstadoLimite[] {
+  const gastos = new Map(porCategoria(lancs, mes).map((c) => [c.categoria, c.total]));
+  return Object.entries(limites)
+    .filter(([, v]) => v > 0)
+    .map(([categoria, limite]) => { const gasto = gastos.get(categoria) ?? 0; return { categoria, gasto, limite, fracao: gasto / limite }; })
+    .sort((a, b) => b.fracao - a.fracao || a.categoria.localeCompare(b.categoria));
+}
+
+/** O lançamento fez a categoria passar de 80% ou de 100% do limite? (só avisa ao cruzar, não toda vez). */
+export function cruzouLimite(antes: number, depois: number, limite: number): 80 | 100 | null {
+  if (!limite) return null;
+  if (antes < limite && depois >= limite) return 100;
+  if (antes < limite * 0.8 && depois >= limite * 0.8) return 80;
+  return null;
+}
+
+// ------------------------------------------------------------------ contas do dia
+
+/** Fixos do mês de `hoje` ainda não lançados cuja data já chegou (o dia, ou o começo da faixa). `atrasado` = passou do último dia. */
+export function contasDoDia(fixos: Fixo[], lancs: Lancamento[], hoje: string): (FixoNoMes & { atrasado: boolean })[] {
+  return fixosDoMes(fixos, lancs, mesDe(hoje))
+    .filter((x) => !x.lancamento && x.data <= hoje)
+    .map((x) => ({ ...x, atrasado: x.ate < hoje }));
+}
+
+// ------------------------------------------------------------------ 50/30/20
+
+export const GRUPOS = {
+  necessidades: ["Alimentação", "Mercado", "Transporte", "Casa", "Escola", "Saúde"],
+  desejos: ["Lazer", "Roupas", "Assinaturas", "Outros"],
+} as const;
+export const grupoDe = (categoria: string): "necessidades" | "desejos" =>
+  (GRUPOS.necessidades as readonly string[]).includes(categoria) ? "necessidades" : "desejos";
+
+export interface Regra { base: number; necessidades: number; desejos: number; guardou: number; fracoes: { necessidades: number; desejos: number; guardou: number } }
+
+/** Regra 50/30/20 do mês: base = tudo que entrou (conta e vales); gastos de todas as carteiras; guardou = o que sobrou (mínimo 0). */
+export function regra503020(lancs: Lancamento[], mes: string): Regra | null {
+  let base = 0, necessidades = 0, desejos = 0;
+  for (const l of lancs) {
+    if (mesDe(l.data) !== mes || !real(l)) continue;
+    if (l.tipo === "entrada") base += l.valor;
+    else if (grupoDe(l.categoria) === "necessidades") necessidades += l.valor;
+    else desejos += l.valor;
+  }
+  if (!base) return null;
+  const guardou = Math.max(0, base - necessidades - desejos);
+  return { base, necessidades, desejos, guardou, fracoes: { necessidades: necessidades / base, desejos: desejos / base, guardou: guardou / base } };
+}
+
+// ------------------------------------------------------------------ resumo de fechamento do mês
+
+export interface Fechamento {
+  mes: string;
+  entrou: number;
+  saiu: number;
+  /** entrou − saiu na conta (pode ser negativo). */
+  sobrou: number;
+  acumulado: number;
+  maior: { categoria: string; total: number } | null;
+  /** Categoria que mais mudou contra o mês anterior (só com gasto no anterior). */
+  mudou: { categoria: string; antes: number; agora: number } | null;
+  diaMaisCaro: { data: string; total: number } | null;
+  lancamentos: number;
+  regra: Regra | null;
+}
+
+export function fechamento(lancs: Lancamento[], fixos: Fixo[], mes: string): Fechamento | null {
+  const doMes = lancs.filter((l) => mesDe(l.data) === mes && real(l));
+  if (!doMes.length) return null;
+  const r = resumoMes(lancs, fixos, mes);
+  const cats = porCategoria(lancs, mes);
+  const antes = new Map(porCategoria(lancs, somarMes(mes, -1)).map((c) => [c.categoria, c.total]));
+  let mudou: Fechamento["mudou"] = null;
+  for (const c of new Set([...cats.map((c) => c.categoria), ...antes.keys()])) {
+    const a = antes.get(c) ?? 0, d = cats.find((x) => x.categoria === c)?.total ?? 0;
+    if (!a) continue;
+    if (!mudou || Math.abs(d - a) > Math.abs(mudou.agora - mudou.antes)) mudou = { categoria: c, antes: a, agora: d };
+  }
+  if (mudou && mudou.agora === mudou.antes) mudou = null;
+  const porData = new Map<string, number>();
+  for (const l of doMes) if (l.tipo === "saida") porData.set(l.data, (porData.get(l.data) ?? 0) + l.valor);
+  const caro = [...porData].sort((a, b) => b[1] - a[1])[0];
+  return {
+    mes, entrou: r.entrou, saiu: r.saiu, sobrou: r.saldo, acumulado: r.acumulado,
+    maior: cats[0] ? { categoria: cats[0].categoria, total: cats[0].total } : null,
+    mudou, diaMaisCaro: caro ? { data: caro[0], total: caro[1] } : null, lancamentos: doMes.length, regra: regra503020(lancs, mes),
+  };
+}
