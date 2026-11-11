@@ -318,7 +318,7 @@ function FixoForm({ f, mes, aoFechar }: { f: Fixo | null; mes: string; aoFechar:
           <Campo rotulo="Valor (R$)" erro={erros.valor}>
             <input className="num campo-valor" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" aria-invalid={!!erros.valor} />
           </Campo>
-          <Campo rotulo="Todo dia" erro={erros.dia}>
+          <Campo rotulo="Dia do mês" erro={erros.dia} dica="Em que dia cai todo mês (1 a 31).">
             <input className="num" inputMode="numeric" value={dia} onChange={(e) => setDia(e.target.value)} aria-invalid={!!erros.dia} />
           </Campo>
         </div>
