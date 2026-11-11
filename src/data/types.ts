@@ -246,6 +246,34 @@ export interface Leitura extends Base {
   focoIphone?: boolean;
 }
 
+/** Onde o dinheiro está: conta/dinheiro ou um dos vales (que só servem para aquilo). */
+export type Carteira = "conta" | "vr" | "va" | "vt";
+
+/** Entrada ou gasto. Valor em centavos (> 0). */
+export interface Lancamento extends Base {
+  tipo: "entrada" | "saida";
+  valor: number;
+  descricao: string;
+  categoria: string;
+  carteira: Carteira;
+  data: string;
+  /** Lançado a partir de um fixo do mês ("Recebi"/"Paguei"). */
+  fixoId?: string | null;
+}
+
+/** Entrada ou gasto que se repete todo mês (salário, vale, aluguel, assinatura). */
+export interface Fixo extends Base {
+  tipo: "entrada" | "saida";
+  valor: number;
+  descricao: string;
+  categoria: string;
+  carteira: Carteira;
+  /** Dia do mês (1 a 31; no mês mais curto vira o último dia). */
+  dia: number;
+  /** Primeiro mês em que vale (aaaa-mm). */
+  desde: string;
+}
+
 export interface Colecoes {
   config: Config;
   tarefas: Tarefa;
@@ -261,6 +289,8 @@ export interface Colecoes {
   cartoes: Cartao;
   livros: Livro;
   leituras: Leitura;
+  lancamentos: Lancamento;
+  fixos: Fixo;
 }
 
 export type NomeColecao = keyof Colecoes;
@@ -280,4 +310,6 @@ export const COLECOES: NomeColecao[] = [
   "cartoes",
   "livros",
   "leituras",
+  "lancamentos",
+  "fixos",
 ];

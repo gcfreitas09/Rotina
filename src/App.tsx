@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Cena, gsap, reduzido, useGSAP } from "./components/movimento.tsx";
-import { BookOpen, GraduationCap, HeartPulse, LayoutGrid, ListChecks, Sunrise, type Icone } from "./components/icones.tsx";
+import { BookOpen, Wallet, GraduationCap, HeartPulse, LayoutGrid, ListChecks, Sunrise, type Icone } from "./components/icones.tsx";
 import { useRota } from "./rota.ts";
 import { useConfig } from "./data/store.ts";
 import { useSync } from "./data/sync.ts";
@@ -69,8 +69,8 @@ export default function App() {
       <span>{nome}</span>
     </a>
   ));
-  // No desktop a Leitura tem item próprio no menu lateral (no celular ela fica em Mais, para a barra continuar com 5 itens).
-  const naLeitura = secao === "mais" && rota[1] === "leitura";
+  // No desktop a Leitura e as Finanças têm item próprio no menu lateral (no celular ela fica em Mais, para a barra continuar com 5 itens).
+  const naLeitura = secao === "mais" && (rota[1] === "leitura" || rota[1] === "financas");
   const navLateral = ITENS.flatMap(({ id, nome, Icone }) => {
     const item = (
       <a key={id} href={`#/${id}`} aria-current={secao === id && !naLeitura ? "page" : undefined}>
@@ -80,9 +80,13 @@ export default function App() {
     );
     if (id !== "mais") return [item];
     return [
-      <a key="leitura" href="#/mais/leitura" aria-current={naLeitura ? "page" : undefined}>
+      <a key="leitura" href="#/mais/leitura" aria-current={secao === "mais" && rota[1] === "leitura" ? "page" : undefined}>
         <BookOpen size={21} strokeWidth={1.7} aria-hidden="true" />
         <span>Leitura</span>
+      </a>,
+      <a key="financas" href="#/mais/financas" aria-current={secao === "mais" && rota[1] === "financas" ? "page" : undefined}>
+        <Wallet size={21} strokeWidth={1.7} aria-hidden="true" />
+        <span>Finanças</span>
       </a>,
       item,
     ];

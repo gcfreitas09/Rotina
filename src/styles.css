@@ -381,13 +381,15 @@ p { margin: 0; }
 
 .notas-tabela { margin-top: 18px; }
 .nota-linha {
-  display: grid; grid-template-columns: 1fr 76px minmax(0, 150px); gap: 8px; align-items: center;
+  display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 168px); gap: 8px; align-items: center;
   padding: 6px 0; border-top: 1px solid var(--linha);
 }
 .nota-rotulo { display: grid; font-weight: 550; }
 .nota-rotulo .num { font-size: 12px; font-weight: 400; }
 .nota-entrada { text-align: right; font-size: 17px; padding: 8px 10px; }
-.nota-data { font-size: 13.5px; padding: 8px; }
+/* data fora de .campo: no iPhone o campo de data tem largura mínima própria e passava da borda da tela */
+.nota-data { font-size: 13.5px; padding: 8px 10px; -webkit-appearance: none; appearance: none; min-width: 0; width: 100%; max-width: 100%; display: block; }
+.nota-data::-webkit-date-and-time-value { text-align: left; }
 .nota-erro { grid-column: 1 / -1; }
 .calculo { font-size: 13.5px; color: var(--grafite-suave); margin-top: 10px; }
 .calculo strong, .calculo .num { color: var(--grafite); }
@@ -1133,8 +1135,8 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 
 /* Mais: no desktop a Leitura tem item próprio no menu lateral, então some das abas de Mais (e a barra some quando se está nela) */
 @media (min-width: 900px) {
-  .mais-abas [data-aba="leitura"] { display: none; }
-  .mais-abas[data-atual="leitura"] { display: none; }
+  .mais-abas [data-aba="leitura"], .mais-abas [data-aba="financas"] { display: none; }
+  .mais-abas[data-atual="leitura"], .mais-abas[data-atual="financas"] { display: none; }
 }
 .travar-app { display: grid; gap: 8px; justify-items: start; padding: 16px 18px; margin-top: 12px; font-size: 14.5px; line-height: 1.5; } .travar-app p { margin: 0; }
 
@@ -1171,3 +1173,49 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .ex-descanso .entrada { flex: 1; min-width: 0; }
 .ficha-descanso { display: block; font-size: 12px; color: var(--grafite-suave); }
 .foco-trava { font-size: 13px; text-align: center; margin: -4px 0 10px; }
+
+/* ------------------------------------------------------------ finanças */
+.topo-financas { align-items: flex-end; flex-wrap: wrap; }
+.mes-nav { display: flex; align-items: center; gap: 2px; margin-left: -10px; }
+.mes-nav h1 { text-transform: capitalize; min-width: 0; }
+.mes-nav h1 small { font-size: 0.42em; color: var(--grafite-suave); letter-spacing: 0; font-weight: 600; }
+.topo-acoes { display: flex; gap: 8px; }
+.dinheiro { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dinheiro .unidade { margin: 0 2px 0 0; }
+.dinheiro .centavos { font-size: 0.6em; color: var(--grafite-suave); }
+.numeros-dinheiro > div { display: grid; align-content: start; gap: 2px; padding: 14px 14px 12px; background: var(--folha); min-width: 0; }
+.numeros-dinheiro .n-val { font-size: clamp(24px, 7vw, 34px); overflow: hidden; text-overflow: ellipsis; }
+.numeros-dinheiro .negativo .n-val { color: var(--atraso); }
+.numeros-dinheiro small { white-space: normal; }
+@media (min-width: 640px) { .numeros-dinheiro .n-val { font-size: clamp(26px, 2.6vw, 38px); } }
+/* extrato: um dia por bloco, valor alinhado à direita em mono */
+.extrato-dia + .extrato-dia { margin-top: 18px; }
+.extrato-dia h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--linha-forte); font: 650 13px var(--f-texto); letter-spacing: 0.05em; text-transform: uppercase; color: var(--grafite-suave); }
+.extrato-dia h3 .dinheiro { font-size: 13px; letter-spacing: 0; text-transform: none; }
+.lanc { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 6px 8px 0; background: none; border: 0; border-bottom: 1px solid var(--linha); text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.lanc-corpo { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.lanc-desc { font-weight: 600; overflow-wrap: anywhere; }
+.lanc-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--grafite-suave); }
+.lanc > .dinheiro { font-size: 17px; font-weight: 600; }
+.lanc-entrada > .dinheiro { color: var(--musgo); }
+.selo-carteira { font: 700 10.5px var(--f-numero); letter-spacing: 0.04em; padding: 1px 6px; border-radius: 4px; background: var(--papel-2); color: var(--grafite); }
+@media (hover: hover) { .lanc:hover { background: color-mix(in srgb, var(--papel-2) 60%, transparent); } }
+.fixos .fixo { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 6px 0; border-bottom: 1px solid var(--linha); }
+.fixo-dia { width: 30px; flex: none; font-size: 18px; font-weight: 700; color: var(--grafite-suave); }
+.fixo-corpo { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.fixo-desc { font-weight: 600; overflow-wrap: anywhere; }
+.fixo-meta { font-size: 12.5px; color: var(--grafite-suave); }
+.fixo > .dinheiro { font-size: 15px; font-weight: 600; }
+.fixo.feito .fixo-desc, .fixo.feito > .dinheiro { color: var(--grafite-suave); }
+.fixo-status { font-size: 12.5px; font-weight: 650; color: var(--musgo); min-width: 64px; text-align: center; }
+.fixo .botao.pequeno { min-width: 64px; }
+.vales li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.vales li > span:first-child { display: grid; font-weight: 600; }
+.vales small { font-weight: 400; font-size: 12.5px; }
+.vales .dinheiro { font-size: 18px; font-weight: 700; }
+.vales .negativo .dinheiro { color: var(--atraso); }
+.categorias-gasto li { padding: 9px 0; border-bottom: 1px solid var(--linha); }
+.cat-linha { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; }
+.categorias-gasto .mini-regua { max-width: none; margin-top: 6px; }
+.campo-valor { font-size: 20px !important; font-weight: 650; }
+.dica-fixo { font-size: 13px; margin: 0; }

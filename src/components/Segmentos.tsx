@@ -40,7 +40,7 @@ export default function Segmentos<T extends string>({ itens, atual, aoMudar, rot
     <div className="segmentos" role="group" aria-label={rotulo} ref={ref} style={{ ["--n" as string]: itens.length }}>
       <span className="seg-marca" aria-hidden="true" />
       {itens.map((i) => (
-        <button key={i.id} className="seg" aria-pressed={atual === i.id} onClick={() => aoMudar(i.id)}>
+        <button type="button" key={i.id} className="seg" aria-pressed={atual === i.id} onClick={() => aoMudar(i.id)}>
           {i.n !== undefined && <span className="num seg-n">{i.n}</span>}
           <span className="seg-t">{i.nome}</span>
         </button>

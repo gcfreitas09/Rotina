@@ -124,6 +124,12 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   Mais para a barra de baixo seguir com 5 itens (pedido do Guilherme, 08/11/2026).
   Também no desktop (≥ 900 px) a aba "Leitura" some das abas de Mais, e a barra de abas inteira some quando se está na Leitura
   (CSS `.mais-abas` em `styles.css`; `Abas` marca cada aba com `data-aba` e reposiciona o traço ao redimensionar).
+- `src/modules/financas/` — aba Finanças em Mais (`#/mais/financas`; no desktop tem item próprio no menu lateral, como a Leitura).
+  Pedido de 10/11/2026 ("salário, vales, gastos, ganhos"). Coleções `lancamentos` (entrada/saída) e `fixos` (repetem todo mês: salário,
+  VR, aluguel, assinatura; `dia`, `desde` = aaaa-mm). **Dinheiro sempre em centavos inteiros** (`lerValor` aceita "1.234,56", "12.50",
+  "R$ 30"; "1,234" é inválido). Vales (VR/VA/VT) são carteiras à parte: não entram no saldo da conta e têm saldo próprio.
+  "Recebi/Paguei" num fixo cria o lançamento com `fixoId` (no mês atual, com a data de hoje); editar o lançamento corrige o valor do mês.
+  Contas em `financas/logica.ts` (testado em `tests/financas.test.ts`). Aba "Configurações" de Mais virou "Ajustes" (4 abas não cabiam em 390 px).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.
 
@@ -213,6 +219,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   nunca do texto digitado nem de objeto inteiro (`cfg`), senão qualquer re-render apaga o que a pessoa digita.
 - Campo de número seleciona tudo ao tocar (pedido de 09/11/2026: "clicar no número já seleciona, eu só escrevo"): listener global
   em `main.tsx` (`focusin`) para `inputMode` numeric/decimal, `type=number` e classe `num`. Campo novo de número: usar um desses.
+- Data das notas (Escola) passava da borda direita no iPhone: o campo de data fica fora de `.campo` e tem largura mínima própria →
+  `.nota-data` com `appearance: none; min-width: 0; width: 100%`. Regra: todo `input[type=date]` fora de `.campo` leva isso.
 - Barra inferior flutua sobre o fim da tela → `scroll-padding-bottom: 110px` no html (foco não some atrás dela).
   No teste, centralizar o elemento antes de clicar.
 - `<dl>` com links dentro derrubou acessibilidade no Lighthouse → faixa de números é `div` + `span`.

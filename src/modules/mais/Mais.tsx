@@ -1,18 +1,19 @@
 import Horarios from "../horarios/Horarios.tsx";
 import Configuracoes from "../configuracoes/Configuracoes.tsx";
 import Leitura from "../leitura/Leitura.tsx";
+import Financas from "../financas/Financas.tsx";
 import Abas from "../../components/Abas.tsx";
 
-/** Mais agrupa Horários, Leitura e Configurações. */
+/** Mais agrupa Horários, Leitura, Finanças e Configurações. */
 export default function Mais({ aba, sub }: { aba?: string; sub?: string }) {
-  const atual = aba === "configuracoes" ? "configuracoes" : aba === "leitura" ? "leitura" : "horarios";
+  const atual = aba === "configuracoes" || aba === "leitura" || aba === "financas" ? aba : "horarios";
   if (atual === "leitura" && sub === "agora") return <Leitura sub="agora" />;
   return (
     <>
       <div style={{ marginBottom: 22 }} className="mais-abas" data-atual={atual}>
-        <Abas itens={[["horarios", "Horários"], ["leitura", "Leitura"], ["configuracoes", "Configurações"]]} atual={atual} rotulo="Mais" base="mais" />
+        <Abas itens={[["horarios", "Horários"], ["leitura", "Leitura"], ["financas", "Finanças"], ["configuracoes", "Ajustes"]]} atual={atual} rotulo="Mais" base="mais" />
       </div>
-      <div role="tabpanel">{atual === "horarios" ? <Horarios /> : atual === "leitura" ? <Leitura /> : <Configuracoes />}</div>
+      <div role="tabpanel">{atual === "horarios" ? <Horarios /> : atual === "leitura" ? <Leitura /> : atual === "financas" ? <Financas /> : <Configuracoes />}</div>
     </>
   );
 }
