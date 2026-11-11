@@ -184,3 +184,15 @@ test("topo: salário do mês (e o que falta) e saldo de cada vale", () => {
   assert.deepEqual(valeNoMes(lancs, "va", "2026-11"), { saldo: 43000, entrou: 40000, usou: 12000 });
   assert.deepEqual(valeNoMes(lancs, "vt", "2026-11"), { saldo: 0, entrou: 0, usou: 0 });
 });
+
+test("lançar rápido: vale por sigla ou por extenso, em qualquer lugar da linha", () => {
+  const h = "2026-11-10";
+  const r = (t: string) => { const x = lerRapido(t, [], h); return x && [x.tipo, x.valor, x.descricao, x.categoria, x.carteira]; };
+  assert.deepEqual(r("va salgado 15"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
+  assert.deepEqual(r("salgado 15 no va"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
+  assert.deepEqual(r("vale alimentação salgado 15"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
+  assert.deepEqual(r("salgado 15 no vale-alimentação"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
+  assert.deepEqual(r("ônibus 4,40 vale transporte"), ["saida", 440, "Ônibus", "Transporte", "vt"]);
+  assert.deepEqual(r("almoço 30 vale refeição"), ["saida", 3000, "Almoço", "Alimentação", "vr"]);
+  assert.deepEqual(r("recebi 600 vale alimentação"), ["entrada", 60000, "Vale-alimentação", "Vale", "va"]);
+});

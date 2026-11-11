@@ -148,6 +148,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   **50/30/20** no Panorama (`regra503020`): base = tudo que entrou; Alimentação conta como necessidade. Barra de uma cor + marca da meta.
   **Lançar rápido** (`rapido.ts`, testado): "lanche 12,50", "uber 18 ontem", "+800 salário", "almoço 32,50 vr". Categoria: primeiro a da
   mesma descrição já lançada (aprende), depois palavras. Só aparece no mês atual (lança com a data de hoje).
+  Vale: sigla ("va", "vt", "vr") ou por extenso ("vale alimentação", "vale-transporte") em qualquer lugar da linha; o extenso é tirado
+  ANTES de procurar sinais de entrada (senão "vale" virava entrada na conta — bug de 10/11/2026). Preposição solta nas pontas ("no va") sai.
   **Números do topo** (pedido de 10/11/2026, não voltar aos antigos Entrou/Saiu/Saldo/Na conta): Salário (categoria Salário no mês
   + "falta receber" dos fixos de salário, `salarioDoMes`), Vale-alimentação e Vale-transporte (saldo acumulado + "usou X de Y",
   `valeNoMes`) e Saldo do mês (entrou − saiu da conta, com "na conta" acumulado embaixo e "Ajustar saldo"). O VR, se usado,

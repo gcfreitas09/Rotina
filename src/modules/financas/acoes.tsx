@@ -76,7 +76,7 @@ export function LancarRapido({ compacto = false }: { compacto?: boolean }) {
         <button className="botao primario" aria-label="Lançar" disabled={!r}><Plus size={18} strokeWidth={2} /></button>
       </div>
       <p className="lancar-previa" id="lancar-rapido-previa" aria-live="polite">
-        {!t.trim() ? (compacto ? null : <span className="suave">Escreva o que foi e o valor. "+" ou "recebi" = entrada; "ontem" muda a data; "vr", "va", "vt" usam o vale.</span>)
+        {!t.trim() ? (compacto ? null : <span className="suave">Escreva o que foi e o valor. "+" ou "recebi" = entrada; "ontem" muda a data; "va" ou "vale alimentação" (e "vt", "vr") tira do vale.</span>)
           : r ? (
             <>
               <span className={`selo-tipo ${r.tipo}`}>{r.tipo === "entrada" ? "Entrada" : "Gasto"}</span>
