@@ -51,6 +51,21 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 export const nomeMes = (mes: string) => MESES[Number(mes.slice(5, 7)) - 1] ?? mes;
 export const nomeMesAno = (mes: string) => `${nomeMes(mes)} de ${mes.slice(0, 4)}`;
 
+/** Lê o dia do fixo: "5", "05", "05-10", "5 a 10" (faixa: cai entre um e outro). Dias de 1 a 31. null se não entender. */
+export function lerDias(texto: string): { dia: number; diaMax?: number } | null {
+  const m = texto.trim().toLowerCase().match(/^(\d{1,2})(?:\s*(?:-|–|—|a|até|ate)\s*(\d{1,2}))?$/);
+  if (!m) return null;
+  let a = Number(m[1]), b = m[2] !== undefined ? Number(m[2]) : a;
+  if (a > b) [a, b] = [b, a];
+  if (a < 1 || b > 31) return null;
+  return b > a ? { dia: a, diaMax: b } : { dia: a };
+}
+/** "05" ou "05–10". */
+export const formatarDias = (f: Pick<Fixo, "dia" | "diaMax">) => {
+  const d = (n: number) => String(n).padStart(2, "0");
+  return f.diaMax && f.diaMax > f.dia ? `${d(f.dia)}–${d(f.diaMax)}` : d(f.dia);
+};
+
 /** Data do fixo naquele mês; dia 31 em mês de 30 dias vira o último dia. */
 export function dataDoFixo(f: Pick<Fixo, "dia">, mes: string): string {
   const [a, m] = mes.split("-").map(Number);
@@ -58,13 +73,13 @@ export function dataDoFixo(f: Pick<Fixo, "dia">, mes: string): string {
   return `${mes}-${String(Math.min(Math.max(1, f.dia), ultimo)).padStart(2, "0")}`;
 }
 
-export interface FixoNoMes { fixo: Fixo; data: string; lancamento: Lancamento | null }
+export interface FixoNoMes { fixo: Fixo; data: string; /** Último dia da faixa (igual a `data` sem faixa). */ ate: string; lancamento: Lancamento | null }
 
 /** Fixos que valem no mês (desde o mês em que foram criados), com o lançamento feito a partir deles, se houver. */
 export function fixosDoMes(fixos: Fixo[], lancs: Lancamento[], mes: string): FixoNoMes[] {
   return fixos
     .filter((f) => f.desde <= mes)
-    .map((f) => ({ fixo: f, data: dataDoFixo(f, mes), lancamento: lancs.find((l) => l.fixoId === f.id && mesDe(l.data) === mes) ?? null }))
+    .map((f) => ({ fixo: f, data: dataDoFixo(f, mes), ate: dataDoFixo({ dia: f.diaMax ?? f.dia }, mes), lancamento: lancs.find((l) => l.fixoId === f.id && mesDe(l.data) === mes) ?? null }))
     .sort((a, b) => a.data.localeCompare(b.data) || a.fixo.descricao.localeCompare(b.fixo.descricao));
 }
 

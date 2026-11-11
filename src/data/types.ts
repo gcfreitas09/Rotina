@@ -270,6 +270,8 @@ export interface Fixo extends Base {
   carteira: Carteira;
   /** Dia do mês (1 a 31; no mês mais curto vira o último dia). */
   dia: number;
+  /** Faixa de dias ("05-10" = cai entre o dia 5 e o 10). Ausente = dia exato. */
+  diaMax?: number;
   /** Primeiro mês em que vale (aaaa-mm). */
   desde: string;
 }

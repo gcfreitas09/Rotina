@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Fixo, Lancamento } from "../src/data/types.ts";
-import { comparaMesAnterior, dataDoFixo, fixosDoMes, lerValor, porCategoria, porDia, reais, resumoMes, somarMes } from "../src/modules/financas/logica.ts";
+import { formatarDias, lerDias, comparaMesAnterior, dataDoFixo, fixosDoMes, lerValor, porCategoria, porDia, reais, resumoMes, somarMes } from "../src/modules/financas/logica.ts";
 
 test("lê valores em reais e devolve centavos", () => {
   assert.equal(lerValor("1.234,56"), 123456);
@@ -52,4 +52,17 @@ test("resumo do mês: conta separada dos vales, previsto com os fixos que faltam
   assert.deepEqual(dias.map((d) => [d.data, d.itens.length, d.saldo]), [["2026-11-06", 2, -2500], ["2026-11-05", 1, 200000]]);
   assert.ok(Math.abs((comparaMesAnterior(lancs, "2026-11") as number) - (6000 / 9999 - 1)) < 1e-9);
   assert.equal(comparaMesAnterior(lancs, "2026-10"), null);
+});
+
+test("dia do fixo: dia certo ou faixa 05-10", () => {
+  assert.deepEqual(lerDias("5"), { dia: 5 });
+  assert.deepEqual(lerDias("05-10"), { dia: 5, diaMax: 10 });
+  assert.deepEqual(lerDias("5 a 10"), { dia: 5, diaMax: 10 });
+  assert.deepEqual(lerDias("10-5"), { dia: 5, diaMax: 10 });
+  assert.deepEqual(lerDias("7-7"), { dia: 7 });
+  for (const t of ["", "0", "32", "5-", "abc", "5-40"]) assert.equal(lerDias(t), null, t);
+  assert.equal(formatarDias({ dia: 5, diaMax: 10 }), "05–10");
+  assert.equal(formatarDias({ dia: 5 }), "05");
+  const [x] = fixosDoMes([F("sal", "entrada", 1000, 25, { diaMax: 31 })], [], "2026-11");
+  assert.deepEqual([x.data, x.ate], ["2026-11-25", "2026-11-30"]);
 });

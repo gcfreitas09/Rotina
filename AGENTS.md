@@ -126,7 +126,7 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   (CSS `.mais-abas` em `styles.css`; `Abas` marca cada aba com `data-aba` e reposiciona o traço ao redimensionar).
 - `src/modules/financas/` — aba Finanças em Mais (`#/mais/financas`; no desktop tem item próprio no menu lateral, como a Leitura).
   Pedido de 10/11/2026 ("salário, vales, gastos, ganhos"). Coleções `lancamentos` (entrada/saída) e `fixos` (repetem todo mês: salário,
-  VR, aluguel, assinatura; `dia`, `desde` = aaaa-mm). **Dinheiro sempre em centavos inteiros** (`lerValor` aceita "1.234,56", "12.50",
+  VR, aluguel, assinatura; `dia`, `desde` = aaaa-mm). Dia aceita faixa "05-10" (`diaMax`, `lerDias`; campo de texto, não numérico): mostra "05–10" e ordena pelo primeiro dia. **Dinheiro sempre em centavos inteiros** (`lerValor` aceita "1.234,56", "12.50",
   "R$ 30"; "1,234" é inválido). Vales (VR/VA/VT) são carteiras à parte: não entram no saldo da conta e têm saldo próprio.
   "Recebi/Paguei" num fixo cria o lançamento com `fixoId` (no mês atual, com a data de hoje); editar o lançamento corrige o valor do mês.
   Contas em `financas/logica.ts` (testado em `tests/financas.test.ts`). Aba "Configurações" de Mais virou "Ajustes" (4 abas não cabiam em 390 px).

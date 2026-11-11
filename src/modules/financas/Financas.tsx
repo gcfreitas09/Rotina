@@ -3,11 +3,11 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Repeat, Trash2 } from "../../c
 import type { Carteira, Fixo, Lancamento } from "../../data/types.ts";
 import { excluir, salvar, useColecao } from "../../data/store.ts";
 import { brCurta, hoje } from "../../data/datas.ts";
-import { lerNumero, novoId } from "../../data/formato.ts";
+import { novoId } from "../../data/formato.ts";
 import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import Segmentos from "../../components/Segmentos.tsx";
 import {
-  CARTEIRAS, CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, comparaMesAnterior, curtoCarteira, fixosDoMes, lerValor, mesDe, nomeCarteira,
+  CARTEIRAS, CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, comparaMesAnterior, curtoCarteira, formatarDias, lerDias, fixosDoMes, lerValor, mesDe, nomeCarteira,
   nomeMes, nomeMesAno, porCategoria, porDia, reais, resumoMes, somarMes, valorCampo,
 } from "./logica.ts";
 
@@ -137,7 +137,7 @@ export default function Financas() {
                 <ul className="lista fixos">
                   {fm.map(({ fixo: f, data, lancamento }) => (
                     <li key={f.id} className={`fixo ${lancamento ? "feito" : ""}`}>
-                      <span className="fixo-dia num">{data.slice(8)}</span>
+                      <span className={`fixo-dia num ${f.diaMax ? "faixa" : ""}`} aria-label={f.diaMax ? `entre os dias ${f.dia} e ${f.diaMax}` : `dia ${f.dia}`}>{formatarDias(f)}</span>
                       <span className="fixo-corpo">
                         <span className="fixo-desc">{f.descricao}</span>
                         {(() => { const m = f.carteira !== "conta" ? nomeCarteira(f.carteira) : f.categoria; return m !== f.descricao && <span className="fixo-meta">{m}</span>; })()}
@@ -282,7 +282,7 @@ function FixoForm({ f, mes, aoFechar }: { f: Fixo | null; mes: string; aoFechar:
   const [descricao, setDescricao] = useState(f?.descricao ?? "");
   const [categoria, setCategoria] = useState(f?.categoria ?? "Salário");
   const [carteira, setCarteira] = useState<Carteira>(f?.carteira ?? "conta");
-  const [dia, setDia] = useState(f ? String(f.dia) : "5");
+  const [dia, setDia] = useState(f ? formatarDias(f).replace("–", "-") : "5");
   const [erros, setErros] = useState<Record<string, string>>({});
   const setTipo = (t: Tipo) => {
     setTipoBruto(t);
@@ -292,15 +292,15 @@ function FixoForm({ f, mes, aoFechar }: { f: Fixo | null; mes: string; aoFechar:
   const mudarCarteira = (c: Carteira) => { setCarteira(c); if (c !== "conta" && tipo === "entrada") setCategoria("Vale"); };
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
-    const v = lerValor(valor), d = lerNumero(dia);
+    const v = lerValor(valor), d = lerDias(dia);
     const er: Record<string, string> = {};
     if (!descricao.trim()) er.descricao = "Dê um nome, como Salário ou Aluguel.";
     if (v === null || Number.isNaN(v)) er.valor = "Valor em reais, como 1.500,00.";
-    if (d === null || Number.isNaN(d) || !Number.isInteger(d) || d < 1 || d > 31) er.dia = "Dia do mês, de 1 a 31.";
+    if (!d) er.dia = "Um dia (5) ou uma faixa (05-10), de 1 a 31.";
     setErros(er);
     if (Object.keys(er).length) return;
-    salvar("fixos", { id: f?.id ?? novoId("fx"), tipo, valor: v as number, descricao: descricao.trim(), categoria, carteira, dia: d as number, desde: f?.desde ?? mes });
-    mostrarAviso(f ? "Fixo salvo. Vale para os próximos lançamentos." : `${descricao.trim()} entra todo mês, dia ${d}.`);
+    salvar("fixos", { id: f?.id ?? novoId("fx"), tipo, valor: v as number, descricao: descricao.trim(), categoria, carteira, dia: d!.dia, diaMax: d!.diaMax, desde: f?.desde ?? mes });
+    mostrarAviso(f ? "Fixo salvo. Vale para os próximos lançamentos." : `${descricao.trim()} todo mês, ${d!.diaMax ? `entre o dia ${d!.dia} e o ${d!.diaMax}` : `dia ${d!.dia}`}.`);
     aoFechar();
   };
   const apagar = async () => {
@@ -318,8 +318,8 @@ function FixoForm({ f, mes, aoFechar }: { f: Fixo | null; mes: string; aoFechar:
           <Campo rotulo="Valor (R$)" erro={erros.valor}>
             <input className="num campo-valor" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" aria-invalid={!!erros.valor} />
           </Campo>
-          <Campo rotulo="Dia do mês" erro={erros.dia} dica="Em que dia cai todo mês (1 a 31).">
-            <input className="num" inputMode="numeric" value={dia} onChange={(e) => setDia(e.target.value)} aria-invalid={!!erros.dia} />
+          <Campo rotulo="Dia do mês" erro={erros.dia} dica="Dia certo (5) ou entre dois dias (05-10).">
+            <input className="num" value={dia} placeholder="05-10" onChange={(e) => setDia(e.target.value)} aria-invalid={!!erros.dia} />
           </Campo>
         </div>
         <Campo rotulo="Onde">

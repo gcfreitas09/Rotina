@@ -1202,6 +1202,7 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 @media (hover: hover) { .lanc:hover { background: color-mix(in srgb, var(--papel-2) 60%, transparent); } }
 .fixos .fixo { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 6px 0; border-bottom: 1px solid var(--linha); }
 .fixo-dia { width: 30px; flex: none; font-size: 18px; font-weight: 700; color: var(--grafite-suave); }
+.fixo-dia.faixa { width: 30px; font-size: 13px; line-height: 1.05; white-space: normal; text-align: center; } /* "05–10" quebra em duas linhas: 05– / 10 */
 .fixo-corpo { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .fixo-desc { font-weight: 600; overflow-wrap: anywhere; }
 .fixo-meta { font-size: 12.5px; color: var(--grafite-suave); }
