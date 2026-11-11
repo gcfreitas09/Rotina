@@ -1,6 +1,12 @@
 /**
- * "Lançar rápido": uma linha vira lançamento. "lanche 12,50", "uber 18 ontem", "+800 salário", "almoço 32,50 vr".
- * Categoria: primeiro o que a pessoa já usou para a mesma descrição (aprende com o histórico), depois palavras conhecidas.
+ * Anotar rápido: uma linha vira lançamento. A prévia na tela deixa trocar tudo antes de lançar; aqui é só o primeiro palpite.
+ *   "lanche 12,50"            gasto, Alimentação, dinheiro, hoje
+ *   "va salgado 15 06/11"     gasto, Alimentação, VA, 06/11
+ *   "vale alimentação 600"    ENTRADA no VA (cita o vale e nada mais = recebeu o vale)
+ *   "+600 vale"               entrada de vale, mas qual? carteira = null (a tela pede para escolher)
+ *   "salário 174 31/10"       entrada, Salário, dinheiro, 31/10
+ *   "uber 18 ontem"           gasto, Transporte, ontem
+ * Categoria: primeiro a da mesma descrição já anotada (aprende), depois palavras conhecidas.
  */
 import type { Carteira, Lancamento } from "../../data/types.ts";
 import { somarDias } from "../../data/datas.ts";
@@ -9,10 +15,10 @@ import { AJUSTE, lerValor } from "./logica.ts";
 export const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 const PALAVRAS: Record<string, string[]> = {
-  "Alimentação": ["lanche", "almoco", "janta", "jantar", "ifood", "pizza", "hamburguer", "burger", "acai", "cafe", "padaria", "restaurante", "sorvete", "salgado", "refri", "cantina", "marmita", "mc", "comida", "pastel", "esfiha", "sushi", "doce", "chocolate", "bolo"],
-  "Mercado": ["mercado", "supermercado", "feira", "atacadao", "hortifruti", "acougue"],
-  "Transporte": ["uber", "99", "onibus", "metro", "gasolina", "combustivel", "passagem", "estacionamento", "bilhete", "moto", "taxi", "brt", "trem"],
-  "Casa": ["aluguel", "luz", "energia", "agua", "internet", "gas", "condominio", "limpeza"],
+  "Alimentação": ["lanche", "almoco", "janta", "jantar", "ifood", "pizza", "hamburguer", "burger", "acai", "cafe", "padaria", "restaurante", "sorvete", "salgado", "refri", "cantina", "marmita", "mc", "comida", "pastel", "esfiha", "sushi", "doce", "chocolate", "bolo", "coxinha", "suco", "agua", "lanchonete"],
+  "Mercado": ["mercado", "supermercado", "feira", "atacadao", "hortifruti", "acougue", "compras"],
+  "Transporte": ["uber", "99", "onibus", "metro", "gasolina", "combustivel", "passagem", "estacionamento", "bilhete", "moto", "taxi", "brt", "trem", "recarga"],
+  "Casa": ["aluguel", "luz", "energia", "internet", "gas", "condominio", "limpeza"],
   "Escola": ["escola", "livro", "apostila", "caderno", "material", "xerox", "curso", "faculdade", "mensalidade", "caneta", "impressao"],
   "Saúde": ["farmacia", "remedio", "medico", "consulta", "academia", "dentista", "suplemento", "whey", "creatina", "exame"],
   "Lazer": ["cinema", "show", "jogo", "bar", "festa", "role", "balada", "futevolei", "ingresso", "viagem", "steam", "parque", "praia"],
@@ -24,65 +30,104 @@ const ENTRADAS: Record<string, string[]> = {
   "Freela": ["freela", "freelance", "bico", "servico"],
   "Presente": ["presente", "mesada"],
   "Venda": ["venda", "vendi"],
-  "Vale": ["vale"],
 };
-const SINAL_ENTRADA = ["recebi", "ganhei", "entrou", "caiu", ...Object.values(ENTRADAS).flat()];
-const CARTEIRA: Record<string, Carteira> = { vr: "vr", va: "va", vt: "vt" };
-const NOME_VALE: Record<string, string> = { vr: "Vale-refeição", va: "Vale-alimentação", vt: "Vale-transporte" };
+/** Palavras que só dizem "entrou dinheiro" (somem da descrição). */
+const VERBOS_ENTRADA = ["recebi", "ganhei", "entrou", "caiu"];
+const SINAL_ENTRADA = [...VERBOS_ENTRADA, ...Object.values(ENTRADAS).flat()];
+const SIGLA: Record<string, Carteira> = { va: "va", vt: "vt", vr: "vr" };
+export const NOME_VALE: Record<string, string> = { va: "Vale-alimentação", vt: "Vale-transporte", vr: "Vale-refeição" };
+const PREP = ["no", "na", "do", "da", "de", "pelo", "pela", "com", "em", "o", "a"];
 
-export interface Rapido { tipo: Lancamento["tipo"]; valor: number; descricao: string; categoria: string; carteira: Carteira; data: string; aprendeu: boolean }
+export interface Rapido {
+  tipo: Lancamento["tipo"];
+  valor: number;
+  descricao: string;
+  categoria: string;
+  /** null = é vale, mas a linha não diz qual: a tela pede para escolher antes de lançar. */
+  carteira: Carteira | null;
+  data: string;
+  /** A categoria (ou a carteira) veio de um lançamento anterior com a mesma descrição. */
+  aprendeu: boolean;
+}
 
 export function lerRapido(texto: string, historico: Lancamento[], hoje: string): Rapido | null {
   let t = texto.trim();
   if (!t) return null;
-  let tipo: Lancamento["tipo"] = "saida";
-  if (/^\+/.test(t)) { tipo = "entrada"; t = t.slice(1); }
-  else if (/^-/.test(t)) t = t.slice(1);
-  // data: "06/11", "6/11/2026", "06/11/26" ou "dia 6" (tirada antes do valor, senão "06/11" viraria dinheiro)
+  let sinal: "+" | "-" | null = null;
+  if (t.startsWith("+")) { sinal = "+"; t = t.slice(1); }
+  else if (t.startsWith("-")) { sinal = "-"; t = t.slice(1); }
+
+  // 1) data (antes do valor, senão "06/11" viraria dinheiro)
   let data = hoje;
   const dt = lerData(t, hoje);
   if (dt === "invalida") return null;
-  if (dt) { data = dt.data; t = (t.slice(0, dt.inicio) + " " + t.slice(dt.fim)).replace(/\s+/g, " ").trim(); }
-  // valor: o último número da linha ("2 coxinhas 9,50" → 9,50)
-  const nums = [...t.matchAll(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\S*[a-z])/gi)];
-  const m = nums.at(-1);
-  if (!m) return null;
-  const valor = lerValor(m[1]);
-  if (valor === null || Number.isNaN(valor)) return null;
-  t = (t.slice(0, m.index) + t.slice((m.index ?? 0) + m[0].length)).replace(/\s+/g, " ").trim();
-  // vale por extenso ("vale alimentação", "vale-transporte", "VR") vira a carteira e sai do texto, antes de "vale" virar entrada
-  let carteira = "conta" as Carteira;
-  t = t.replace(/\b(?:no|na|do|da|pelo|pela|com|de)?\s*vale[\s-]*(alimenta[cç][aã]o|refei[cç][aã]o|transporte)\b/giu, (_m, tipoVale: string) => {
+  if (dt) { data = dt.data; t = corta(t, dt.inicio, dt.fim); }
+
+  // 2) vale por extenso ("vale alimentação", "vale-transporte") vira carteira e sai do texto
+  let carteira = null as Carteira | null;
+  let valeSemNome = false;
+  t = t.replace(/(?:\b(?:no|na|do|da|pelo|pela|com|de)\s+)?\bvale[\s-]*(alimenta[cç][aã]o|refei[cç][aã]o|transporte)\b/giu, (_m, tipoVale: string) => {
     const v = semAcento(tipoVale);
     carteira = v.startsWith("alimenta") ? "va" : v.startsWith("refei") ? "vr" : "vt";
     return " ";
   }).replace(/\s+/g, " ").trim();
-  const palavras = t.split(" ").filter((p) => {
+
+  // 3) valor: o último número da linha ("2 coxinhas 9,50" → 9,50)
+  const nums = [...t.matchAll(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\d.,]*[a-zà-ú])/gi)];
+  const m = nums.at(-1);
+  if (!m) return null;
+  const valor = lerValor(m[1]);
+  if (valor === null || Number.isNaN(valor)) return null;
+  t = corta(t, m.index ?? 0, (m.index ?? 0) + m[0].length);
+
+  // 4) palavras: ontem/anteontem, siglas de vale, "vale" sem dizer qual
+  const palavras = t.split(" ").filter(Boolean).filter((p) => {
     const s = semAcento(p);
     if (s === "ontem") { data = somarDias(hoje, -1); return false; }
     if (s === "anteontem") { data = somarDias(hoje, -2); return false; }
-    if (CARTEIRA[s]) { carteira = CARTEIRA[s]; return false; }
+    if (SIGLA[s]) { carteira = SIGLA[s]; return false; }
+    if (s === "vale") { valeSemNome = true; return false; }
     return true;
   });
-  // "salgado 15 no va" → tira a preposição que sobrou nas pontas
-  const PREP = ["no", "na", "do", "da", "de", "pelo", "pela", "com", "em"];
-  while (palavras.length && PREP.includes(semAcento(palavras[palavras.length - 1]))) palavras.pop();
-  while (palavras.length > 1 && PREP.includes(semAcento(palavras[0]))) palavras.shift();
-  const chave = palavras.map(semAcento);
-  if (tipo === "saida" && chave.some((p) => SINAL_ENTRADA.includes(p))) tipo = "entrada";
-  const descricao = palavras.filter((_p, i) => !(tipo === "entrada" && ["recebi", "ganhei", "entrou", "caiu"].includes(chave[i]))).join(" ");
-  const desc = descricao ? descricao[0].toUpperCase() + descricao.slice(1) : tipo === "entrada" && carteira !== "conta" ? NOME_VALE[carteira] : "";
-  // 1) histórico: mesma descrição (ou mesma primeira palavra), mesmo tipo, mais recente
+  const chaves = palavras.map(semAcento);
+  // tira verbos de entrada e preposições soltas nas pontas ("salgado no va" → "salgado")
+  const desc = palavras.filter((_p, i) => !VERBOS_ENTRADA.includes(chaves[i]));
+  while (desc.length && PREP.includes(semAcento(desc[desc.length - 1]))) desc.pop();
+  while (desc.length && PREP.includes(semAcento(desc[0]))) desc.shift();
+  const descricao = desc.join(" ");
+  const cita = carteira !== null || valeSemNome;
+
+  // 5) tipo
+  let tipo: Lancamento["tipo"] = "saida";
+  if (sinal === "+") tipo = "entrada";
+  else if (sinal === "-") tipo = "saida";
+  else if (chaves.some((p) => SINAL_ENTRADA.includes(p))) tipo = "entrada";
+  else if (cita && !descricao) tipo = "entrada"; // "va 600", "vale alimentação 600": recebeu o vale
+
+  // 6) entrada de vale: categoria Vale, sempre num vale (nunca no dinheiro)
+  if (tipo === "entrada" && cita && !chaves.some((p) => Object.values(ENTRADAS).flat().includes(p))) {
+    return { tipo, valor, descricao: maiuscula(descricao) || (carteira ? NOME_VALE[carteira] : "Vale"), categoria: "Vale", carteira, data, aprendeu: false };
+  }
+
+  // 7) categoria e carteira: histórico (mesma descrição ou mesma primeira palavra) → palavras conhecidas
   const d = semAcento(descricao), primeira = d.split(" ")[0];
-  const doTipo = historico.filter((l) => l.tipo === tipo && l.categoria !== AJUSTE && l.descricao).sort((a, b) => b._m - a._m);
-  const igual = doTipo.find((l) => semAcento(l.descricao) === d) ?? (primeira ? doTipo.find((l) => semAcento(l.descricao).split(" ")[0] === primeira) : undefined);
-  if (igual && d) return { tipo, valor, descricao: desc, categoria: igual.categoria, carteira: carteira === "conta" ? igual.carteira : carteira, data, aprendeu: true };
-  // 2) palavras conhecidas
+  const doTipo = historico.filter((l) => l.tipo === tipo && l.categoria !== AJUSTE && l.categoria !== "Vale" && l.descricao).sort((a, b) => b._m - a._m);
+  const igual = d ? doTipo.find((l) => semAcento(l.descricao) === d) ?? doTipo.find((l) => semAcento(l.descricao).split(" ")[0] === primeira) : undefined;
+  const qualVale: Carteira | null = carteira; // TS: carteira é atribuída dentro de callbacks
+  if (igual) {
+    return {
+      tipo, valor, descricao: maiuscula(descricao), categoria: igual.categoria,
+      carteira: qualVale ?? (valeSemNome ? null : igual.carteira), data, aprendeu: true,
+    };
+  }
   const tabela = tipo === "entrada" ? ENTRADAS : PALAVRAS;
-  const categoria = Object.entries(tabela).find(([, ps]) => chave.some((p) => ps.includes(p)))?.[0]
-    ?? (tipo === "entrada" && carteira !== "conta" ? "Vale" : carteira === "vr" || carteira === "va" ? "Alimentação" : carteira === "vt" ? "Transporte" : "Outros");
-  return { tipo, valor, descricao: desc, categoria, carteira, data, aprendeu: false };
+  const categoria = Object.entries(tabela).find(([, ps]) => chaves.some((p) => ps.includes(p)))?.[0]
+    ?? (tipo === "saida" && (qualVale === "va" || qualVale === "vr") ? "Alimentação" : tipo === "saida" && qualVale === "vt" ? "Transporte" : "Outros");
+  return { tipo, valor, descricao: maiuscula(descricao), categoria, carteira: qualVale ?? (valeSemNome ? null : "conta"), data, aprendeu: false };
 }
+
+const corta = (t: string, i: number, f: number) => (t.slice(0, i) + " " + t.slice(f)).replace(/\s+/g, " ").trim();
+const maiuscula = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : "");
 
 /**
  * Acha uma data na linha. Sem ano: o ano de hoje, e se cair no futuro, o ano anterior (em janeiro, "28/12" é do ano passado).

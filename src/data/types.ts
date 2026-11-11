@@ -222,6 +222,10 @@ export interface Config extends Base {
   limitesGasto?: Record<string, number>;
   /** Último mês (aaaa-mm) cujo resumo de fechamento foi fechado pela pessoa. */
   resumoVisto?: string;
+  /** Finanças: ids de lançamentos/fixos que a pessoa confirmou que estão certos (não aparecem em "Conferir"). */
+  financasIgnorados?: string[];
+  /** Finanças: passou do primeiro uso (informou os saldos ou escolheu começar do zero). */
+  financasIniciado?: boolean;
 }
 
 /** Livro na estante de leitura. */

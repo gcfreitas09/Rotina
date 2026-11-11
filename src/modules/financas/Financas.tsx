@@ -7,7 +7,7 @@ import { novoId } from "../../data/formato.ts";
 import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import Segmentos from "../../components/Segmentos.tsx";
 import { navegar } from "../../rota.ts";
-import { Dinheiro, LancarRapido, lancarFixo, salvarLancamento } from "./acoes.tsx";
+import { Dinheiro, Anotar, lancarFixo, salvarLancamento } from "./acoes.tsx";
 import { GraficoAcumulado, GraficoEntrouSaiu, GraficoRitmo } from "./Graficos.tsx";
 import {
   ajusteDeSaldo, salarioDoMes, valeNoMes, fechamento, gastoPorDia, limitesDoMes, regra503020, type Fechamento, ritmoDoMes, serieMeses,
@@ -102,7 +102,7 @@ export default function Financas({ sub }: { sub?: string }) {
 
       {fechAnt && <CartaoFechamento f={fechAnt} aoFechar={() => salvarConfig({ resumoVisto: mesAnt })} />}
 
-      {!vazio && mes === atual && <LancarRapido />}
+      {!vazio && mes === atual && <Anotar />}
 
       <div className="financas-ver"><Segmentos
         itens={[{ id: "mes", nome: "Lançamentos" }, { id: "panorama", nome: "Panorama" }]}
@@ -297,8 +297,9 @@ function LancamentoForm({ l, tipoInicial, mes, aoFechar }: { l: Lancamento | nul
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) er.data = "Escolha a data.";
     setErros(er);
     if (Object.keys(er).length) return;
-    const aviso = salvarLancamento({ id: l?.id ?? novoId("fn"), tipo, valor: v as number, descricao: descricao.trim(), categoria, carteira, data, fixoId: l?.fixoId ?? null });
-    mostrarAviso(aviso ?? (l ? "Lançamento salvo." : `${tipo === "entrada" ? "Entrada" : "Gasto"} de ${reais(v as number)} lançado${mesDe(data) !== mes ? ` em ${nomeMesAno(mesDe(data))}` : ""}.`));
+    const res = salvarLancamento({ id: l?.id ?? novoId("fn"), tipo, valor: v as number, descricao: descricao.trim(), categoria, carteira, data, fixoId: l?.fixoId ?? null });
+    if ("erro" in res) return setErros({ valor: res.erro });
+    mostrarAviso(res.aviso ?? (l ? "Lançamento salvo." : `${tipo === "entrada" ? "Entrada" : "Gasto"} de ${reais(v as number)} lançado${mesDe(data) !== mes ? ` em ${nomeMesAno(mesDe(data))}` : ""}.`));
     aoFechar();
   };
   const apagar = async () => {

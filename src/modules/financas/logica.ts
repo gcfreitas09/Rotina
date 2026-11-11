@@ -337,3 +337,128 @@ export function valeNoMes(lancs: Lancamento[], carteira: Carteira, mes: string):
   for (const l of lancs) if (l.carteira === carteira && mesDe(l.data) === mes && real(l)) l.tipo === "entrada" ? (entrou += l.valor) : (usou += l.valor);
   return { saldo: saldoAte(lancs, carteira, mes), entrou, usou };
 }
+
+// ------------------------------------------------------------------ carteiras (refeito em 10/11/2026)
+// Regra de ouro: o saldo de cada carteira é a soma de TUDO dela (entradas − saídas, ajustes inclusos) até hoje.
+// Vale nunca é dinheiro: entrada de vale só pode ir para VA/VT/VR (validarLancamento recusa vale no dinheiro).
+
+const sa = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Que carteira o texto cita: "vale alimentação"/"VA" → va, "vale-transporte"/"VT" → vt, "vale refeição"/"VR" → vr, "vale" sozinho → "vale" (qual?). */
+export function carteiraPeloTexto(texto: string): Carteira | "vale" | null {
+  const t = sa(texto);
+  if (/\bvale[\s-]*alimenta|\bva\b/.test(t)) return "va";
+  if (/\bvale[\s-]*refei|\bvr\b/.test(t)) return "vr";
+  if (/\bvale[\s-]*transporte|\bvt\b/.test(t)) return "vt";
+  if (/\bvale\b/.test(t)) return "vale";
+  return null;
+}
+
+/** Saldo da carteira hoje: tudo com data até hoje (lançamento com data futura entra no dia). */
+export function saldoAgora(lancs: Lancamento[], carteira: Carteira, hoje: string): number {
+  let t = 0;
+  for (const l of lancs) if (l.carteira === carteira && l.data <= hoje) t += l.tipo === "entrada" ? l.valor : -l.valor;
+  return t;
+}
+
+/** Carteiras na tela: dinheiro, VA e VT sempre; VR só se tiver sido usado. */
+export function carteirasEmUso(lancs: Lancamento[], fixos: Fixo[]): Carteira[] {
+  const vr = lancs.some((l) => l.carteira === "vr") || fixos.some((f) => f.carteira === "vr");
+  return vr ? ["conta", "va", "vt", "vr"] : ["conta", "va", "vt"];
+}
+
+/** Ordem do extrato (do mais antigo ao mais novo): data, depois a hora em que foi anotado. */
+const cronologica = (a: Lancamento, b: Lancamento) => a.data.localeCompare(b.data) || a._m - b._m || a.id.localeCompare(b.id);
+
+/** Saldo da carteira logo depois de cada lançamento dela (a coluna "fica" da caderneta). */
+export function saldoDepois(lancs: Lancamento[], carteira: Carteira): Map<string, number> {
+  const m = new Map<string, number>();
+  let t = 0;
+  for (const l of lancs.filter((x) => x.carteira === carteira).sort(cronologica)) {
+    t += l.tipo === "entrada" ? l.valor : -l.valor;
+    m.set(l.id, t);
+  }
+  return m;
+}
+
+export interface Extrato {
+  /** Saldo no começo do mês (fim do mês anterior); null quando o extrato mistura carteiras. */
+  inicio: number | null;
+  fim: number | null;
+  entrou: number;
+  saiu: number;
+  dias: { data: string; itens: (Lancamento & { fica: number | null })[] }[];
+}
+
+/** Extrato do mês: de uma carteira (com saldo linha a linha) ou de todas. Dias e itens do mais novo para o mais antigo. */
+export function extrato(lancs: Lancamento[], carteira: Carteira | null, mes: string): Extrato {
+  const doMes = lancs.filter((l) => mesDe(l.data) === mes && (!carteira || l.carteira === carteira));
+  const fica = carteira ? saldoDepois(lancs, carteira) : null;
+  const porData = new Map<string, Lancamento[]>();
+  for (const l of doMes) porData.set(l.data, [...(porData.get(l.data) ?? []), l]);
+  const dias = [...porData].sort((a, b) => b[0].localeCompare(a[0])).map(([data, itens]) => ({
+    data,
+    itens: itens.sort((a, b) => cronologica(b, a)).map((l) => ({ ...l, fica: fica?.get(l.id) ?? null })),
+  }));
+  let entrou = 0, saiu = 0;
+  for (const l of doMes) if (l.categoria !== AJUSTE) l.tipo === "entrada" ? (entrou += l.valor) : (saiu += l.valor);
+  return {
+    inicio: carteira ? saldoAte(lancs, carteira, somarMes(mes, -1)) : null,
+    fim: carteira ? saldoAte(lancs, carteira, mes) : null,
+    entrou, saiu, dias,
+  };
+}
+
+/** Recusa o que deixaria a conta errada. null = pode salvar. */
+export function validarLancamento(l: Pick<Lancamento, "tipo" | "valor" | "categoria" | "carteira" | "data">): string | null {
+  if (!Number.isInteger(l.valor) || l.valor <= 0) return "Valor em reais, como 25,90.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(l.data)) return "Escolha a data.";
+  if (l.categoria === "Vale" && l.carteira === "conta") return "Vale não é dinheiro: escolha em qual vale ele entrou (VA, VT ou VR).";
+  return null;
+}
+
+export interface Suspeito {
+  tipo: "lancamento" | "fixo";
+  id: string;
+  texto: string;
+  /** Vale sugerido; null = é vale, mas não diz qual (a pessoa escolhe). */
+  sugestao: Carteira | null;
+}
+
+/**
+ * Lançamentos e fixos que estão no dinheiro mas falam de vale (o erro que fez o VA ficar negativo e o dinheiro alto:
+ * vale recebido caindo no dinheiro). `ignorados` = ids que a pessoa disse que estão certos.
+ */
+export function suspeitos(lancs: Lancamento[], fixos: Fixo[], ignorados: string[] = []): Suspeito[] {
+  const out: Suspeito[] = [];
+  const fixosVale = new Set<string>();
+  for (const f of fixos) {
+    if (f.carteira !== "conta" || ignorados.includes(f.id)) continue;
+    const c = carteiraPeloTexto(f.descricao);
+    if (c || f.categoria === "Vale") {
+      fixosVale.add(f.id);
+      out.push({ tipo: "fixo", id: f.id, texto: `Fixo "${f.descricao}" (${reais(f.valor)}) cai no dinheiro`, sugestao: c && c !== "vale" ? c : null });
+    }
+  }
+  for (const l of lancs) {
+    if (l.carteira !== "conta" || l.categoria === AJUSTE || ignorados.includes(l.id) || (l.fixoId && (fixosVale.has(l.fixoId) || ignorados.includes(l.fixoId)))) continue;
+    const c = carteiraPeloTexto(`${l.descricao} ${l.categoria === "Vale" ? "vale" : ""}`);
+    if (c) out.push({ tipo: "lancamento", id: l.id, texto: `${l.tipo === "entrada" ? "Entrada" : "Gasto"} "${l.descricao || l.categoria}" de ${reais(l.valor)} em ${l.data.slice(8)}/${l.data.slice(5, 7)} está no dinheiro`, sugestao: c !== "vale" ? c : null });
+  }
+  return out;
+}
+
+/** Muda de carteira um lançamento (ou um fixo e tudo que já foi lançado por ele). Entrada de vale passa a ter categoria Vale. */
+export function moverParaCarteira(lancs: Lancamento[], fixos: Fixo[], s: Pick<Suspeito, "tipo" | "id">, destino: Carteira): { lancamentos: Lancamento[]; fixos: Fixo[] } {
+  const cat = <T extends { tipo: Lancamento["tipo"]; categoria: string }>(x: T) => (destino !== "conta" && x.tipo === "entrada" ? "Vale" : x.categoria);
+  if (s.tipo === "fixo") {
+    const f = fixos.find((x) => x.id === s.id);
+    if (!f) return { lancamentos: [], fixos: [] };
+    return {
+      fixos: [{ ...f, carteira: destino, categoria: cat(f) }],
+      lancamentos: lancs.filter((l) => l.fixoId === f.id && l.carteira !== destino).map((l) => ({ ...l, carteira: destino, categoria: cat(l) })),
+    };
+  }
+  const l = lancs.find((x) => x.id === s.id);
+  return { fixos: [], lancamentos: l ? [{ ...l, carteira: destino, categoria: cat(l) }] : [] };
+}

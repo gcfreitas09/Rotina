@@ -1,7 +1,7 @@
 /** Cartão "Dinheiro" no Hoje: quanto dá para gastar hoje, contas que caem hoje (com Recebi/Paguei) e lançar rápido. */
 import { useColecao, useConfig } from "../../data/store.ts";
 import { brCurta, hoje } from "../../data/datas.ts";
-import { Dinheiro, LancarRapido, lancarFixo } from "./acoes.tsx";
+import { Anotar, Dinheiro, lancarFixo } from "./acoes.tsx";
 import { contasDoDia, fechamento, mesDe, nomeMes, reais, resumoMes, ritmoDoMes, somarMes } from "./logica.ts";
 
 export default function HojeDinheiro() {
@@ -46,7 +46,7 @@ export default function HojeDinheiro() {
         </ul>
       )}
       {resumoPronto && <a className="resumo-pronto" href="#/mais/financas">O resumo de {nomeMes(ant)} está pronto</a>}
-      <LancarRapido compacto />
+      <Anotar compacto />
     </section>
   );
 }

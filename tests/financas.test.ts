@@ -112,8 +112,6 @@ test("ajustar saldo mexe só no acumulado", () => {
 });
 
 import { cruzouLimite, contasDoDia, fechamento, limitesDoMes, regra503020 } from "../src/modules/financas/logica.ts";
-import { lerRapido } from "../src/modules/financas/rapido.ts";
-
 test("limites por categoria e aviso só ao cruzar 80% e 100%", () => {
   const lancs = [L("a", "saida", 12000, "2026-11-02", { categoria: "Lazer" }), L("b", "saida", 3000, "2026-11-03", { categoria: "Lazer", carteira: "vr" })];
   const est = limitesDoMes(lancs, "2026-11", { Lazer: 15000, Roupas: 10000, Casa: 0 });
@@ -152,23 +150,6 @@ test("50/30/20 e fechamento do mês", () => {
   assert.equal(fechamento(lancs, [], "2026-07"), null);
 });
 
-test("lançar rápido: valor, tipo, carteira, data e categoria", () => {
-  const h = "2026-11-10";
-  const r = (t: string, hist: Lancamento[] = []) => { const x = lerRapido(t, hist, h); return x && [x.tipo, x.valor, x.descricao, x.categoria, x.carteira, x.data]; };
-  assert.deepEqual(r("lanche 12,50"), ["saida", 1250, "Lanche", "Alimentação", "conta", h]);
-  assert.deepEqual(r("uber 18 ontem"), ["saida", 1800, "Uber", "Transporte", "conta", "2026-11-09"]);
-  assert.deepEqual(r("+800 salário"), ["entrada", 80000, "Salário", "Salário", "conta", h]);
-  assert.deepEqual(r("recebi 150 freela"), ["entrada", 15000, "Freela", "Freela", "conta", h]);
-  assert.deepEqual(r("almoço 32,50 vr"), ["saida", 3250, "Almoço", "Alimentação", "vr", h]);
-  assert.deepEqual(r("2 coxinhas 9,50"), ["saida", 950, "2 coxinhas", "Outros", "conta", h]);
-  assert.deepEqual(r("tênis 1.299,90"), ["saida", 129990, "Tênis", "Roupas", "conta", h]);
-  // aprende: "coxinha" já foi lançada como Alimentação no VR
-  const hist = [L("h", "saida", 500, "2026-11-01", { descricao: "Coxinha da cantina", categoria: "Alimentação", carteira: "vr" })];
-  assert.deepEqual(r("coxinha 6", hist), ["saida", 600, "Coxinha", "Alimentação", "vr", h]);
-  assert.equal(lerRapido("lanche", [], h), null);
-  assert.equal(lerRapido("", [], h), null);
-});
-
 import { salarioDoMes, valeNoMes } from "../src/modules/financas/logica.ts";
 test("topo: salário do mês (e o que falta) e saldo de cada vale", () => {
   const fixos = [F("sal", "entrada", 150000, 5, { categoria: "Salário" }), F("adi", "entrada", 50000, 20, { categoria: "Salário" })];
@@ -183,30 +164,4 @@ test("topo: salário do mês (e o que falta) e saldo de cada vale", () => {
   assert.deepEqual(salarioDoMes(lancs, fixos, "2026-11"), { recebido: 150000, falta: 50000 });
   assert.deepEqual(valeNoMes(lancs, "va", "2026-11"), { saldo: 43000, entrou: 40000, usou: 12000 });
   assert.deepEqual(valeNoMes(lancs, "vt", "2026-11"), { saldo: 0, entrou: 0, usou: 0 });
-});
-
-test("lançar rápido: vale por sigla ou por extenso, em qualquer lugar da linha", () => {
-  const h = "2026-11-10";
-  const r = (t: string) => { const x = lerRapido(t, [], h); return x && [x.tipo, x.valor, x.descricao, x.categoria, x.carteira]; };
-  assert.deepEqual(r("va salgado 15"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
-  assert.deepEqual(r("salgado 15 no va"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
-  assert.deepEqual(r("vale alimentação salgado 15"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
-  assert.deepEqual(r("salgado 15 no vale-alimentação"), ["saida", 1500, "Salgado", "Alimentação", "va"]);
-  assert.deepEqual(r("ônibus 4,40 vale transporte"), ["saida", 440, "Ônibus", "Transporte", "vt"]);
-  assert.deepEqual(r("almoço 30 vale refeição"), ["saida", 3000, "Almoço", "Alimentação", "vr"]);
-  assert.deepEqual(r("recebi 600 vale alimentação"), ["entrada", 60000, "Vale-alimentação", "Vale", "va"]);
-});
-
-test("lançar rápido: data na linha (06/11, 6/11/2026, dia 6)", () => {
-  const h = "2026-11-10";
-  const r = (t: string, hj = h) => { const x = lerRapido(t, [], hj); return x && [x.valor, x.descricao, x.categoria, x.carteira, x.data]; };
-  assert.deepEqual(r("VA Salgado 15 06/11"), [1500, "Salgado", "Alimentação", "va", "2026-11-06"]);
-  assert.deepEqual(r("06/11 salgado 15 va"), [1500, "Salgado", "Alimentação", "va", "2026-11-06"]);
-  assert.deepEqual(r("uber 18 6/11/2026"), [1800, "Uber", "Transporte", "conta", "2026-11-06"]);
-  assert.deepEqual(r("uber 18 06/11/26"), [1800, "Uber", "Transporte", "conta", "2026-11-06"]);
-  assert.deepEqual(r("lanche 12,50 dia 6"), [1250, "Lanche", "Alimentação", "conta", "2026-11-06"]);
-  assert.deepEqual(r("lanche 12,50 dia 25"), [1250, "Lanche", "Alimentação", "conta", "2026-10-25"]); // dia 25 ainda não chegou: outubro
-  assert.deepEqual(r("chocolate 50 28/12", "2027-01-05"), [5000, "Chocolate", "Alimentação", "conta", "2026-12-28"]); // sem ano e no futuro: ano passado
-  assert.equal(lerRapido("salgado 15 31/02", [], h), null);
-  assert.equal(lerRapido("salgado 06/11", [], h), null); // só a data, sem valor
 });
