@@ -1225,7 +1225,7 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 :root { --graf-entrou: #4f7f45; --graf-saiu: #c9a227; }
 :root[data-tema="escuro"] { --graf-entrou: #5f9a52; --graf-saiu: #d4ad3a; }
 .na-conta { position: relative; }
-.na-conta .ajustar { justify-self: start; min-height: 32px; padding: 2px 0; margin-top: 2px; font-size: 12.5px; }
+.numeros-dinheiro .ajustar { justify-self: start; min-height: 32px; padding: 2px 0; margin-top: 2px; font-size: 12.5px; }
 .folego { margin: -4px 0 16px; font-size: 15px; line-height: 1.45; }
 .folego strong { font-size: 1.15em; color: var(--musgo); }
 .folego.sem { color: var(--atraso); }

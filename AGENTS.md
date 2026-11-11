@@ -152,9 +152,11 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   ANTES de procurar sinais de entrada (senão "vale" virava entrada na conta — bug de 10/11/2026). Preposição solta nas pontas ("no va") sai.
   Data na linha (`lerData`): "06/11", "6/11/2026", "06/11/26", "dia 6"; tirada ANTES do valor (senão "06/11" vira dinheiro). Sem ano e no
   futuro = ano anterior; "dia N" que ainda não chegou = mês anterior; data que não existe (31/02) recusa a linha.
-  **Números do topo** (pedido de 10/11/2026, não voltar aos antigos Entrou/Saiu/Saldo/Na conta): Salário (categoria Salário no mês
-  + "falta receber" dos fixos de salário, `salarioDoMes`), Vale-alimentação e Vale-transporte (saldo acumulado + "usou X de Y",
-  `valeNoMes`) e Saldo do mês (entrou − saiu da conta, com "na conta" acumulado embaixo e "Ajustar saldo"). O VR, se usado,
+  **Números do topo** (pedido de 10/11/2026, refeito no mesmo dia: o Guilherme quer o que TEM, não o que gastou; não voltar a
+  "usou X", "salário do mês" nem Entrou/Saiu): **Dinheiro** = `acumulado` da conta (sobra dos meses anteriores + o que entrar no mês;
+  vale NÃO é dinheiro, não soma aqui), **Vale-alimentação** e **Vale-transporte** = saldo acumulado (`valeNoMes().saldo`), e **Saldo do
+  mês** (entrou − saiu da conta no mês). Cada cartão de dinheiro/vale tem "Ajustar" (abre `AjusteForm` já na carteira certa) para
+  dizer quanto tem de verdade: vale que só teve gasto lançado fica negativo até alguém lançar a entrada ou ajustar. O VR, se usado,
   fica na seção "Vale-refeição" da lateral.
   Contas em `financas/logica.ts` (testado em `tests/financas.test.ts`). Aba "Configurações" de Mais virou "Ajustes" (4 abas não cabiam em 390 px).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.

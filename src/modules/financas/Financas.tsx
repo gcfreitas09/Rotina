@@ -27,7 +27,7 @@ export default function Financas({ sub }: { sub?: string }) {
   const [mes, setMes] = useState(atual);
   const [editando, setEditando] = useState<{ l: Lancamento | null; tipo: Tipo } | null>(null);
   const [editFixo, setEditFixo] = useState<Fixo | "novo" | null>(null);
-  const [ajustando, setAjustando] = useState(false);
+  const [ajustando, setAjustando] = useState<Carteira | null>(null);
   const [limitando, setLimitando] = useState(false);
   const cfg = useConfig();
   const limites = limitesDoMes(lancs, mes, cfg.limitesGasto);
@@ -62,10 +62,14 @@ export default function Financas({ sub }: { sub?: string }) {
       </div>
 
       <div className="numeros numeros-dinheiro">
-        <div>
-          <span className="n-rot">Salário</span>
-          <span className="n-val"><Dinheiro c={sal.recebido} /></span>
-          <small>{sal.falta ? <>falta receber <span className="num">{reais(sal.falta)}</span></> : sal.recebido ? `recebido em ${nomeMes(mes)}` : "nenhum lançado"}</small>
+        <div className={r.acumulado < 0 ? "negativo" : ""}>
+          <span className="n-rot">Dinheiro</span>
+          <span className="n-val"><Dinheiro c={r.acumulado} /></span>
+          <small>
+            {r.anterior ? <><span className="num">{reais(r.anterior)}</span> veio de {nomeMes(somarMes(mes, -1))}</> : "o que você tem na conta"}
+            {sal.falta ? <><br />falta receber <span className="num">{reais(sal.falta)}</span></> : null}
+          </small>
+          <button className="botao texto pequeno ajustar" onClick={() => setAjustando("conta")}>Ajustar</button>
         </div>
         {(["va", "vt"] as const).map((c) => {
           const v = c === "va" ? va : vt;
@@ -73,15 +77,15 @@ export default function Financas({ sub }: { sub?: string }) {
             <div key={c} className={v.saldo < 0 ? "negativo" : ""}>
               <span className="n-rot">{nomeCarteira(c)}</span>
               <span className="n-val"><Dinheiro c={v.saldo} /></span>
-              <small>{v.entrou || v.usou ? <>usou <span className="num">{reais(v.usou)}</span>{v.entrou ? <> de <span className="num">{valorCampo(v.entrou)}</span></> : null}</> : "sobra no vale"}</small>
+              <small>{v.saldo < 0 ? "negativo: faltou lançar o vale" : v.entrou ? <>entrou <span className="num">{reais(v.entrou)}</span> em {nomeMes(mes)}</> : "o que sobra no vale"}</small>
+              <button className="botao texto pequeno ajustar" onClick={() => setAjustando(c)}>Ajustar</button>
             </div>
           );
         })}
-        <div className={`na-conta ${r.saldo < 0 ? "negativo" : ""}`}>
+        <div className={r.saldo < 0 ? "negativo" : ""}>
           <span className="n-rot">Saldo do mês</span>
           <span className="n-val"><Dinheiro c={r.saldo} /></span>
-          <small>na conta: <span className="num">{reais(r.acumulado)}</span>{r.anterior ? <><br /><span className="num">{reais(r.anterior)}</span> veio de {nomeMes(somarMes(mes, -1))}</> : null}</small>
-          <button className="botao texto pequeno ajustar" onClick={() => setAjustando(true)}>Ajustar saldo</button>
+          <small>entrou − saiu da conta em {nomeMes(mes)}</small>
         </div>
       </div>
 
@@ -234,7 +238,7 @@ export default function Financas({ sub }: { sub?: string }) {
 
       {editando && <LancamentoForm l={editando.l} tipoInicial={editando.tipo} mes={mes} aoFechar={() => setEditando(null)} />}
       {limitando && <LimitesForm aoFechar={() => setLimitando(false)} />}
-      {ajustando && <AjusteForm aoFechar={() => setAjustando(false)} />}
+      {ajustando && <AjusteForm carteiraInicial={ajustando} aoFechar={() => setAjustando(null)} />}
       {editFixo && <FixoForm f={editFixo === "novo" ? null : editFixo} mes={mes} aoFechar={() => setEditFixo(null)} />}
     </>
   );
@@ -443,9 +447,9 @@ function Panorama({ mes }: { mes: string }) {
 }
 
 /** Informa quanto tem de verdade; o app lança a diferença como "Ajuste de saldo" (não conta como entrada nem gasto do mês). */
-function AjusteForm({ aoFechar }: { aoFechar: () => void }) {
+function AjusteForm({ carteiraInicial, aoFechar }: { carteiraInicial: Carteira; aoFechar: () => void }) {
   const lancs = useColecao("lancamentos");
-  const [carteira, setCarteira] = useState<Carteira>("conta");
+  const [carteira, setCarteira] = useState<Carteira>(carteiraInicial);
   const [valor, setValor] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const h = hoje();
@@ -464,7 +468,7 @@ function AjusteForm({ aoFechar }: { aoFechar: () => void }) {
   return (
     <Dialogo titulo="Ajustar saldo" aoFechar={aoFechar}>
       <form className="form" onSubmit={enviar} noValidate>
-        <p className="suave" style={{ margin: 0 }}>Já tinha dinheiro antes de usar o app, ou a conta não bate? Diga quanto tem hoje. O app lança só a diferença, que não conta como entrada nem como gasto do mês.</p>
+        <p className="suave" style={{ margin: 0 }}>Já tinha dinheiro (ou vale) antes de usar o app, ou o saldo não bate? Diga quanto tem hoje. O app lança só a diferença, que não conta como entrada nem como gasto do mês.</p>
         <Campo rotulo="Onde">
           <select value={carteira} onChange={(e) => setCarteira(e.target.value as Carteira)}>
             {CARTEIRAS.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
