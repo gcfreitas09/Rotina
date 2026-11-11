@@ -10,8 +10,8 @@ import { navegar } from "../../rota.ts";
 import { Dinheiro, LancarRapido, lancarFixo, salvarLancamento } from "./acoes.tsx";
 import { GraficoAcumulado, GraficoEntrouSaiu, GraficoRitmo } from "./Graficos.tsx";
 import {
-  ajusteDeSaldo, fechamento, gastoPorDia, limitesDoMes, regra503020, type Fechamento, ritmoDoMes, serieMeses,
-  CARTEIRAS, CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, comparaMesAnterior, curtoCarteira, formatarDias, lerDias, fixosDoMes, lerValor, mesDe, nomeCarteira,
+  ajusteDeSaldo, salarioDoMes, valeNoMes, fechamento, gastoPorDia, limitesDoMes, regra503020, type Fechamento, ritmoDoMes, serieMeses,
+  CARTEIRAS, CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, curtoCarteira, formatarDias, lerDias, fixosDoMes, lerValor, mesDe, nomeCarteira,
   nomeMes, nomeMesAno, porCategoria, porDia, reais, resumoMes, somarMes, valorCampo,
 } from "./logica.ts";
 
@@ -38,9 +38,10 @@ export default function Financas({ sub }: { sub?: string }) {
   const fm = fixosDoMes(fixos, lancs, mes);
   const cats = porCategoria(lancs, mes);
   const dias = porDia(lancs, mes);
-  const comp = comparaMesAnterior(lancs, mes);
   const vazio = !lancs.length && !fixos.length;
   const ritmo = ritmoDoMes(lancs, fixos, mes, hoje());
+  const sal = salarioDoMes(lancs, fixos, mes);
+  const va = valeNoMes(lancs, "va", mes), vt = valeNoMes(lancs, "vt", mes);
 
   return (
     <>
@@ -62,24 +63,24 @@ export default function Financas({ sub }: { sub?: string }) {
 
       <div className="numeros numeros-dinheiro">
         <div>
-          <span className="n-rot">Entrou</span>
-          <span className="n-val"><Dinheiro c={r.entrou} /></span>
-          <small>{r.aReceber ? <>falta receber <span className="num">{reais(r.aReceber)}</span></> : "na conta"}</small>
+          <span className="n-rot">Salário</span>
+          <span className="n-val"><Dinheiro c={sal.recebido} /></span>
+          <small>{sal.falta ? <>falta receber <span className="num">{reais(sal.falta)}</span></> : sal.recebido ? `recebido em ${nomeMes(mes)}` : "nenhum lançado"}</small>
         </div>
-        <div>
-          <span className="n-rot">Saiu</span>
-          <span className="n-val"><Dinheiro c={r.saiu} /></span>
-          <small>{comp === null ? (r.aPagar ? <>falta pagar <span className="num">{reais(r.aPagar)}</span></> : "na conta") : <><span className="num">{Math.abs(Math.round(comp * 100))}%</span> {comp > 0 ? "a mais" : "a menos"} que {nomeMes(somarMes(mes, -1))}{mes === atual ? " inteiro" : ""}</>}</small>
-        </div>
-        <div className={r.saldo < 0 ? "negativo" : ""}>
+        {(["va", "vt"] as const).map((c) => {
+          const v = c === "va" ? va : vt;
+          return (
+            <div key={c} className={v.saldo < 0 ? "negativo" : ""}>
+              <span className="n-rot">{nomeCarteira(c)}</span>
+              <span className="n-val"><Dinheiro c={v.saldo} /></span>
+              <small>{v.entrou || v.usou ? <>usou <span className="num">{reais(v.usou)}</span>{v.entrou ? <> de <span className="num">{valorCampo(v.entrou)}</span></> : null}</> : "sobra no vale"}</small>
+            </div>
+          );
+        })}
+        <div className={`na-conta ${r.saldo < 0 ? "negativo" : ""}`}>
           <span className="n-rot">Saldo do mês</span>
           <span className="n-val"><Dinheiro c={r.saldo} /></span>
-          <small>entrou − saiu</small>
-        </div>
-        <div className={`na-conta ${r.acumulado < 0 ? "negativo" : ""}`}>
-          <span className="n-rot">Na conta</span>
-          <span className="n-val"><Dinheiro c={r.acumulado} /></span>
-          <small>{r.anterior ? <>veio de {nomeMes(somarMes(mes, -1))}: <span className="num">{reais(r.anterior)}</span></> : "somando todos os meses"}</small>
+          <small>na conta: <span className="num">{reais(r.acumulado)}</span>{r.anterior ? <><br /><span className="num">{reais(r.anterior)}</span> veio de {nomeMes(somarMes(mes, -1))}</> : null}</small>
           <button className="botao texto pequeno ajustar" onClick={() => setAjustando(true)}>Ajustar saldo</button>
         </div>
       </div>
@@ -176,11 +177,11 @@ export default function Financas({ sub }: { sub?: string }) {
               )}
             </section>
 
-            {r.vales.length > 0 && (
+            {r.vales.some((v) => v.carteira === "vr") && (
               <section className="secao">
-                <header><h2>Vales</h2></header>
+                <header><h2>Vale-refeição</h2></header>
                 <ul className="lista vales">
-                  {r.vales.map((v) => (
+                  {r.vales.filter((v) => v.carteira === "vr").map((v) => (
                     <li key={v.carteira} className={v.saldo < 0 ? "negativo" : ""}>
                       <span>{nomeCarteira(v.carteira)}<small className="suave num"> entrou {reais(v.entrou)} · usou {reais(v.saiu)}</small></span>
                       <Dinheiro c={v.saldo} />

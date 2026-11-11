@@ -168,3 +168,19 @@ test("lançar rápido: valor, tipo, carteira, data e categoria", () => {
   assert.equal(lerRapido("lanche", [], h), null);
   assert.equal(lerRapido("", [], h), null);
 });
+
+import { salarioDoMes, valeNoMes } from "../src/modules/financas/logica.ts";
+test("topo: salário do mês (e o que falta) e saldo de cada vale", () => {
+  const fixos = [F("sal", "entrada", 150000, 5, { categoria: "Salário" }), F("adi", "entrada", 50000, 20, { categoria: "Salário" })];
+  const lancs = [
+    L("s", "entrada", 150000, "2026-11-05", { categoria: "Salário", fixoId: "sal" }),
+    L("free", "entrada", 30000, "2026-11-06", { categoria: "Freela" }),
+    L("va-out", "entrada", 40000, "2026-10-01", { carteira: "va" }),
+    L("va-uso", "saida", 25000, "2026-10-15", { carteira: "va" }),
+    L("va-nov", "entrada", 40000, "2026-11-01", { carteira: "va" }),
+    L("va-mer", "saida", 12000, "2026-11-03", { carteira: "va", categoria: "Mercado" }),
+  ];
+  assert.deepEqual(salarioDoMes(lancs, fixos, "2026-11"), { recebido: 150000, falta: 50000 });
+  assert.deepEqual(valeNoMes(lancs, "va", "2026-11"), { saldo: 43000, entrou: 40000, usou: 12000 });
+  assert.deepEqual(valeNoMes(lancs, "vt", "2026-11"), { saldo: 0, entrou: 0, usou: 0 });
+});

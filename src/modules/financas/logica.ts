@@ -321,3 +321,19 @@ export function fechamento(lancs: Lancamento[], fixos: Fixo[], mes: string): Fec
     mudou, diaMaisCaro: caro ? { data: caro[0], total: caro[1] } : null, lancamentos: doMes.length, regra: regra503020(lancs, mes),
   };
 }
+
+// ------------------------------------------------------------------ números do topo (pedido de 10/11/2026: salário, VA, VT, saldo do mês)
+
+/** Salário que entrou no mês (categoria Salário) e o que ainda falta dos fixos de salário. */
+export function salarioDoMes(lancs: Lancamento[], fixos: Fixo[], mes: string): { recebido: number; falta: number } {
+  const recebido = lancs.filter((l) => l.tipo === "entrada" && l.categoria === "Salário" && mesDe(l.data) === mes).reduce((t, l) => t + l.valor, 0);
+  const falta = fixosDoMes(fixos, lancs, mes).filter((x) => !x.lancamento && x.fixo.tipo === "entrada" && x.fixo.categoria === "Salário").reduce((t, x) => t + x.fixo.valor, 0);
+  return { recebido, falta };
+}
+
+/** Um vale no mês: saldo acumulado (o que sobra passa de mês), quanto entrou e quanto foi usado no mês. */
+export function valeNoMes(lancs: Lancamento[], carteira: Carteira, mes: string): { saldo: number; entrou: number; usou: number } {
+  let entrou = 0, usou = 0;
+  for (const l of lancs) if (l.carteira === carteira && mesDe(l.data) === mes && real(l)) l.tipo === "entrada" ? (entrou += l.valor) : (usou += l.valor);
+  return { saldo: saldoAte(lancs, carteira, mes), entrou, usou };
+}
