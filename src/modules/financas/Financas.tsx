@@ -6,7 +6,10 @@ import { brCurta, hoje } from "../../data/datas.ts";
 import { novoId } from "../../data/formato.ts";
 import { Campo, Dialogo, Vazio, excluirComDesfazer, mostrarAviso } from "../../components/ui.tsx";
 import Segmentos from "../../components/Segmentos.tsx";
+import { navegar } from "../../rota.ts";
+import { GraficoAcumulado, GraficoEntrouSaiu, GraficoRitmo } from "./Graficos.tsx";
 import {
+  ajusteDeSaldo, gastoPorDia, ritmoDoMes, serieMeses,
   CARTEIRAS, CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, comparaMesAnterior, curtoCarteira, formatarDias, lerDias, fixosDoMes, lerValor, mesDe, nomeCarteira,
   nomeMes, nomeMesAno, porCategoria, porDia, reais, resumoMes, somarMes, valorCampo,
 } from "./logica.ts";
@@ -23,14 +26,17 @@ function Dinheiro({ c, sinal = false }: { c: number; sinal?: boolean }) {
   );
 }
 
-/** Finanças: mês a mês, entradas, gastos, fixos (salário, vales, contas) e vales em carteira à parte. Rota #/mais/financas. */
-export default function Financas() {
+/** Finanças: mês a mês, entradas, gastos, fixos (salário, vales, contas) e vales em carteira à parte.
+ * Rotas: #/mais/financas (o mês) e #/mais/financas/panorama (gráficos). O que sobra passa para o mês seguinte (acumulado). */
+export default function Financas({ sub }: { sub?: string }) {
+  const panorama = sub === "panorama";
   const lancs = useColecao("lancamentos");
   const fixos = useColecao("fixos");
   const atual = mesDe(hoje());
   const [mes, setMes] = useState(atual);
   const [editando, setEditando] = useState<{ l: Lancamento | null; tipo: Tipo } | null>(null);
   const [editFixo, setEditFixo] = useState<Fixo | "novo" | null>(null);
+  const [ajustando, setAjustando] = useState(false);
 
   const r = resumoMes(lancs, fixos, mes);
   const fm = fixosDoMes(fixos, lancs, mes);
@@ -38,6 +44,7 @@ export default function Financas() {
   const dias = porDia(lancs, mes);
   const comp = comparaMesAnterior(lancs, mes);
   const vazio = !lancs.length && !fixos.length;
+  const ritmo = ritmoDoMes(lancs, fixos, mes, hoje());
 
   const lancarFixo = (f: Fixo, data: string) => {
     const id = novoId("fn");
@@ -73,21 +80,42 @@ export default function Financas() {
         <div>
           <span className="n-rot">Saiu</span>
           <span className="n-val"><Dinheiro c={r.saiu} /></span>
-          <small>{comp === null ? (r.aPagar ? <>falta pagar <span className="num">{reais(r.aPagar)}</span></> : "na conta") : <>{comp > 0 ? "+" : "−"}<span className="num">{Math.abs(Math.round(comp * 100))}%</span> de gastos que {nomeMes(somarMes(mes, -1))}</>}</small>
+          <small>{comp === null ? (r.aPagar ? <>falta pagar <span className="num">{reais(r.aPagar)}</span></> : "na conta") : <><span className="num">{Math.abs(Math.round(comp * 100))}%</span> {comp > 0 ? "a mais" : "a menos"} que {nomeMes(somarMes(mes, -1))}{mes === atual ? " inteiro" : ""}</>}</small>
         </div>
         <div className={r.saldo < 0 ? "negativo" : ""}>
           <span className="n-rot">Saldo do mês</span>
           <span className="n-val"><Dinheiro c={r.saldo} /></span>
           <small>entrou − saiu</small>
         </div>
-        <div className={r.previsto < 0 ? "negativo" : ""}>
-          <span className="n-rot">Previsto</span>
-          <span className="n-val"><Dinheiro c={r.previsto} /></span>
-          <small>{r.aReceber || r.aPagar ? "com os fixos que faltam" : "fixos em dia"}</small>
+        <div className={`na-conta ${r.acumulado < 0 ? "negativo" : ""}`}>
+          <span className="n-rot">Na conta</span>
+          <span className="n-val"><Dinheiro c={r.acumulado} /></span>
+          <small>{r.anterior ? <>veio de {nomeMes(somarMes(mes, -1))}: <span className="num">{reais(r.anterior)}</span></> : "somando todos os meses"}</small>
+          <button className="botao texto pequeno ajustar" onClick={() => setAjustando(true)}>Ajustar saldo</button>
         </div>
       </div>
 
-      {vazio ? (
+      {ritmo && !vazio && (
+        <p className={`folego ${ritmo.porDia === 0 ? "sem" : ""}`}>
+          {ritmo.porDia > 0 ? (
+            <>Dá para gastar <strong className="num">{reais(ritmo.porDia)}</strong> por dia até o fim de {nomeMes(mes)}</>
+          ) : (
+            <>Com os fixos que faltam, {nomeMes(mes)} fecha no vermelho</>
+          )}
+          <span className="suave"> · fecha com <span className="num">{reais(r.previstoAcumulado)}</span> na conta</span>
+        </p>
+      )}
+
+      <div className="financas-ver"><Segmentos
+        itens={[{ id: "mes", nome: "Lançamentos" }, { id: "panorama", nome: "Panorama" }]}
+        atual={panorama ? "panorama" : "mes"}
+        aoMudar={(v) => navegar(v === "panorama" ? "mais/financas/panorama" : "mais/financas")}
+        rotulo="Ver"
+      /></div>
+
+      {panorama ? (
+        <Panorama mes={mes} />
+      ) : vazio ? (
         <Vazio texto="Comece pelos fixos do mês (salário, vale-refeição, aluguel, assinaturas). Depois é só lançar os gastos do dia a dia." acao="Cadastrar um fixo" aoAgir={() => setEditFixo("novo")} />
       ) : (
         <div className="grade-tela grade-financas">
@@ -189,6 +217,7 @@ export default function Financas() {
       )}
 
       {editando && <LancamentoForm l={editando.l} tipoInicial={editando.tipo} mes={mes} aoFechar={() => setEditando(null)} />}
+      {ajustando && <AjusteForm aoFechar={() => setAjustando(false)} />}
       {editFixo && <FixoForm f={editFixo === "novo" ? null : editFixo} mes={mes} aoFechar={() => setEditFixo(null)} />}
     </>
   );
@@ -344,3 +373,89 @@ function FixoForm({ f, mes, aoFechar }: { f: Fixo | null; mes: string; aoFechar:
     </Dialogo>
   );
 }
+
+/** Gráficos: ritmo do mês, o acumulado mês a mês e entrou × saiu. */
+function Panorama({ mes }: { mes: string }) {
+  const lancs = useColecao("lancamentos");
+  const fixos = useColecao("fixos");
+  const h = hoje();
+  const ritmo = ritmoDoMes(lancs, fixos, mes, h);
+  const serie12 = serieMeses(lancs, mes, 12);
+  const primeiro = serie12.findIndex((p) => p.entrou || p.saiu || p.acumulado);
+  const acumulado = serie12.slice(Math.max(0, Math.min(primeiro === -1 ? 11 : primeiro, 12 - 3))); // pelo menos 3 meses, sem meses vazios antes de começar
+  const serie6 = serieMeses(lancs, mes, 6);
+  const p6 = serie6.findIndex((p) => p.entrou || p.saiu);
+  const seis = serie6.slice(Math.max(0, Math.min(p6 === -1 ? 5 : p6, 6 - 3)));
+  const ant = somarMes(mes, -1);
+  if (!lancs.length) return <Vazio texto="Os gráficos aparecem quando houver lançamentos. Comece marcando o salário ou lançando um gasto." />;
+  return (
+    <div className="panorama">
+      {ritmo && (
+        <section className="secao folha painel-ritmo">
+          <header><h2>Ritmo de {nomeMes(mes)}</h2></header>
+          <div className="ritmo-numeros">
+            <p><span className="n-rot">Gasto até hoje</span><Dinheiro c={ritmo.ateHoje} />
+              {ritmo.mesmoDiaAntes !== null && <small className="suave">{nomeMes(ant)} no mesmo dia: <span className="num">{reais(ritmo.mesmoDiaAntes)}</span></small>}</p>
+            <p><span className="n-rot">No ritmo de agora</span><Dinheiro c={ritmo.projecao} /><small className="suave">de gasto no fim do mês</small></p>
+            <p className={ritmo.porDia ? "" : "negativo"}><span className="n-rot">Pode gastar por dia</span><Dinheiro c={ritmo.porDia} /><small className="suave">{ritmo.diasRestantes} {ritmo.diasRestantes === 1 ? "dia" : "dias"} até virar o mês</small></p>
+          </div>
+          <GraficoRitmo atual={gastoPorDia(lancs, mes)} antes={gastoPorDia(lancs, ant)} hoje={Number(h.slice(8))} nomeAtual={nomeMes(mes)} nomeAntes={nomeMes(ant)} />
+          <p className="graf-nota suave">Todos os gastos (conta e vales), somados dia a dia. Pode gastar por dia = o que tem na conta, mais o que falta receber, menos o que falta pagar, dividido pelos dias que faltam.</p>
+        </section>
+      )}
+      {!ritmo && <p className="suave">Ritmo e "pode gastar por dia" aparecem no mês atual ({nomeMesAno(mesDe(h))}).</p>}
+      <div className="panorama-grade">
+        <section className="secao">
+          <header><h2>Na conta, mês a mês</h2></header>
+          <GraficoAcumulado pontos={acumulado} />
+        </section>
+        <section className="secao">
+          <header><h2>Entrou e saiu</h2></header>
+          <GraficoEntrouSaiu pontos={seis} />
+        </section>
+      </div>
+      <p className="graf-nota suave">"Na conta" e "Entrou e saiu" mostram só a conta: os vales têm saldo próprio.</p>
+    </div>
+  );
+}
+
+/** Informa quanto tem de verdade; o app lança a diferença como "Ajuste de saldo" (não conta como entrada nem gasto do mês). */
+function AjusteForm({ aoFechar }: { aoFechar: () => void }) {
+  const lancs = useColecao("lancamentos");
+  const [carteira, setCarteira] = useState<Carteira>("conta");
+  const [valor, setValor] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const h = hoje();
+  const enviar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = valor.trim();
+    const v = t === "0" || t === "0,00" ? 0 : lerValor(t);
+    if (v === null || Number.isNaN(v)) return setErro("Quanto tem agora, em reais, como 850,00.");
+    const aj = ajusteDeSaldo(lancs, carteira, v, h);
+    if (!aj) { mostrarAviso("O saldo já está certo."); return aoFechar(); }
+    const id = novoId("fn");
+    salvar("lancamentos", { id, ...aj });
+    mostrarAviso(`${nomeCarteira(carteira)}: agora ${reais(v)}.`, () => excluir("lancamentos", id)());
+    aoFechar();
+  };
+  return (
+    <Dialogo titulo="Ajustar saldo" aoFechar={aoFechar}>
+      <form className="form" onSubmit={enviar} noValidate>
+        <p className="suave" style={{ margin: 0 }}>Já tinha dinheiro antes de usar o app, ou a conta não bate? Diga quanto tem hoje. O app lança só a diferença, que não conta como entrada nem como gasto do mês.</p>
+        <Campo rotulo="Onde">
+          <select value={carteira} onChange={(e) => setCarteira(e.target.value as Carteira)}>
+            {CARTEIRAS.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+        </Campo>
+        <Campo rotulo="Quanto tem hoje (R$)" erro={erro} dica={`O app calcula ${reais(saldoAteHoje(lancs, carteira, h))}.`}>
+          <input className="num campo-valor" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" autoFocus aria-invalid={!!erro} />
+        </Campo>
+        <div className="acoes">
+          <button type="button" className="botao" onClick={aoFechar}>Cancelar</button>
+          <button className="botao primario">Ajustar</button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}
+const saldoAteHoje = (lancs: Lancamento[], c: Carteira, h: string) => lancs.filter((l) => l.carteira === c && l.data <= h).reduce((t, l) => t + (l.tipo === "entrada" ? l.valor : -l.valor), 0);

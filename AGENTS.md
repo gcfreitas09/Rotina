@@ -129,6 +129,15 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   VR, aluguel, assinatura; `dia`, `desde` = aaaa-mm). Dia aceita faixa "05-10" (`diaMax`, `lerDias`; campo de texto, não numérico): mostra "05–10" e ordena pelo primeiro dia. **Dinheiro sempre em centavos inteiros** (`lerValor` aceita "1.234,56", "12.50",
   "R$ 30"; "1,234" é inválido). Vales (VR/VA/VT) são carteiras à parte: não entram no saldo da conta e têm saldo próprio.
   "Recebi/Paguei" num fixo cria o lançamento com `fixoId` (no mês atual, com a data de hoje); editar o lançamento corrige o valor do mês.
+  **Acumulado** (pedido de 10/11/2026: "ganhei 800 mês passado e não gastei tudo, deixe acumulativo"): "Na conta" = tudo que entrou
+  menos tudo que saiu até o fim do mês (`saldoAte`); vales também acumulam. "Ajustar saldo" informa quanto tem de verdade e lança a
+  diferença com a categoria `AJUSTE`, que mexe só no acumulado (fora de entrou/saiu, categorias, ritmo e gráficos de gasto).
+  Linha "Dá para gastar R$ X por dia" = (acumulado + a receber − a pagar) / dias que faltam, só no mês atual (`ritmoDoMes`).
+  **Panorama** (`#/mais/financas/panorama`, `Graficos.tsx`, SVG puro, sem biblioteca): ritmo do mês (gasto acumulado por dia,
+  projeção tracejada, mês anterior pontilhado), "Na conta, mês a mês" (linha) e "Entrou e saiu" (barras). Cores `--graf-entrou`
+  (musgo) e `--graf-saiu` (mostarda) passaram no validador de daltonismo da skill dataviz; verde × laranja/marrom NÃO passa.
+  Dica ao tocar/passar, "Ver em tabela", linha desenha uma vez (GSAP). Grade do panorama com `minmax(0, 1fr)`: sem isso o svg
+  alarga a coluna e o cartão passa da tela no celular.
   Contas em `financas/logica.ts` (testado em `tests/financas.test.ts`). Aba "Configurações" de Mais virou "Ajustes" (4 abas não cabiam em 390 px).
 - `src/modules/<modulo>/` — uma pasta por tela. `src/components/` — diálogo, aviso, Repetir, régua.
 - Gerado, não editar: `dist/`, `rotina-site.zip`, PNG/ICO em `web/public/`.

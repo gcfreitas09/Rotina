@@ -14,6 +14,10 @@ export const CARTEIRAS: { id: Carteira; nome: string; curto: string }[] = [
 export const nomeCarteira = (c: Carteira) => CARTEIRAS.find((x) => x.id === c)?.nome ?? c;
 export const curtoCarteira = (c: Carteira) => CARTEIRAS.find((x) => x.id === c)?.curto ?? c;
 
+/** Categoria do "Ajustar saldo": mexe no acumulado, mas não conta como entrada/gasto do mês nem nos gráficos de gasto. */
+export const AJUSTE = "Ajuste de saldo";
+const real = (l: Lancamento) => l.categoria !== AJUSTE;
+
 export const CATEGORIAS_SAIDA = ["Alimentação", "Mercado", "Transporte", "Casa", "Escola", "Saúde", "Lazer", "Roupas", "Assinaturas", "Outros"];
 export const CATEGORIAS_ENTRADA = ["Salário", "Vale", "Freela", "Presente", "Venda", "Outros"];
 
@@ -92,29 +96,43 @@ export interface ResumoMes {
   previsto: number;
   aReceber: number;
   aPagar: number;
-  /** Saldo de cada vale no mês (entrou − saiu), só os que tiveram movimento ou fixo. */
+  /** Quanto tem na conta no fim do mês: tudo o que entrou menos tudo o que saiu até ele (a sobra passa de mês para mês). */
+  acumulado: number;
+  /** O que veio do mês anterior (acumulado até o fim dele). */
+  anterior: number;
+  /** Acumulado no fim do mês contando os fixos da conta que faltam. */
+  previstoAcumulado: number;
+  /** Vales: entrou e usou no mês; saldo = acumulado (sobra de vale também passa de mês). */
   vales: { carteira: Carteira; entrou: number; saiu: number; saldo: number }[];
 }
 
+/** Saldo de uma carteira somando todos os meses até `mes` (inclusive). */
+export function saldoAte(lancs: Lancamento[], carteira: Carteira, mes: string): number {
+  let t = 0;
+  for (const l of lancs) if (l.carteira === carteira && mesDe(l.data) <= mes) t += l.tipo === "entrada" ? l.valor : -l.valor;
+  return t;
+}
+
 export function resumoMes(lancs: Lancamento[], fixos: Fixo[], mes: string): ResumoMes {
-  const doMes = lancs.filter((l) => mesDe(l.data) === mes);
+  const doMes = lancs.filter((l) => mesDe(l.data) === mes && real(l));
   const soma = (c: Carteira, tipo: Lancamento["tipo"]) => doMes.filter((l) => l.carteira === c && l.tipo === tipo).reduce((t, l) => t + l.valor, 0);
   const entrou = soma("conta", "entrada"), saiu = soma("conta", "saida");
   const pend = fixosDoMes(fixos, lancs, mes).filter((x) => !x.lancamento);
   const aReceber = pend.filter((x) => x.fixo.carteira === "conta" && x.fixo.tipo === "entrada").reduce((t, x) => t + x.fixo.valor, 0);
   const aPagar = pend.filter((x) => x.fixo.carteira === "conta" && x.fixo.tipo === "saida").reduce((t, x) => t + x.fixo.valor, 0);
-  const comVale = new Set<Carteira>([...doMes.map((l) => l.carteira), ...fixosDoMes(fixos, lancs, mes).map((x) => x.fixo.carteira)]);
+  const comVale = new Set<Carteira>([...lancs.filter((l) => mesDe(l.data) <= mes).map((l) => l.carteira), ...fixosDoMes(fixos, lancs, mes).map((x) => x.fixo.carteira)]);
   const vales = CARTEIRAS.filter((c) => c.id !== "conta" && comVale.has(c.id)).map(({ id }) => {
     const e = soma(id, "entrada"), s = soma(id, "saida");
-    return { carteira: id, entrou: e, saiu: s, saldo: e - s };
+    return { carteira: id, entrou: e, saiu: s, saldo: saldoAte(lancs, id, mes) };
   });
-  return { entrou, saiu, saldo: entrou - saiu, previsto: entrou - saiu + aReceber - aPagar, aReceber, aPagar, vales };
+  const acumulado = saldoAte(lancs, "conta", mes);
+  return { entrou, saiu, saldo: entrou - saiu, previsto: entrou - saiu + aReceber - aPagar, aReceber, aPagar, acumulado, anterior: saldoAte(lancs, "conta", somarMes(mes, -1)), previstoAcumulado: acumulado + aReceber - aPagar, vales };
 }
 
 /** Gastos do mês por categoria (todas as carteiras), do maior para o menor, com a fração do total. */
 export function porCategoria(lancs: Lancamento[], mes: string): { categoria: string; total: number; fracao: number }[] {
   const m = new Map<string, number>();
-  for (const l of lancs) if (l.tipo === "saida" && mesDe(l.data) === mes) m.set(l.categoria, (m.get(l.categoria) ?? 0) + l.valor);
+  for (const l of lancs) if (l.tipo === "saida" && mesDe(l.data) === mes && real(l)) m.set(l.categoria, (m.get(l.categoria) ?? 0) + l.valor);
   const total = [...m.values()].reduce((t, v) => t + v, 0);
   return [...m].map(([categoria, v]) => ({ categoria, total: v, fracao: total ? v / total : 0 })).sort((a, b) => b.total - a.total);
 }
@@ -134,7 +152,77 @@ export function porDia(lancs: Lancamento[], mes: string): { data: string; itens:
 
 /** Diferença de gasto (conta + vales) contra o mês anterior, em fração. null sem gasto no mês anterior. */
 export function comparaMesAnterior(lancs: Lancamento[], mes: string): number | null {
-  const gasto = (m: string) => lancs.filter((l) => l.tipo === "saida" && mesDe(l.data) === m).reduce((t, l) => t + l.valor, 0);
+  const gasto = (m: string) => lancs.filter((l) => l.tipo === "saida" && mesDe(l.data) === m && real(l)).reduce((t, l) => t + l.valor, 0);
   const antes = gasto(somarMes(mes, -1));
   return antes ? gasto(mes) / antes - 1 : null;
 }
+
+// ------------------------------------------------------------------ gráficos
+
+export interface PontoMes { mes: string; entrou: number; saiu: number; acumulado: number }
+
+/** Os `n` meses até `mes` (conta): entrou, saiu e o acumulado no fim de cada um. */
+export function serieMeses(lancs: Lancamento[], mes: string, n: number): PontoMes[] {
+  return Array.from({ length: n }, (_, i) => {
+    const m = somarMes(mes, i - n + 1);
+    let entrou = 0, saiu = 0;
+    for (const l of lancs) if (l.carteira === "conta" && mesDe(l.data) === m && real(l)) l.tipo === "entrada" ? (entrou += l.valor) : (saiu += l.valor);
+    return { mes: m, entrou, saiu, acumulado: saldoAte(lancs, "conta", m) };
+  });
+}
+
+export const diasNoMes = (mes: string) => { const [a, m] = mes.split("-").map(Number); return new Date(a, m, 0).getDate(); };
+
+/** Gasto acumulado dia a dia no mês (todas as carteiras): posição i = total gasto até o dia i+1. */
+export function gastoPorDia(lancs: Lancamento[], mes: string): number[] {
+  const n = diasNoMes(mes), dia = new Array(n).fill(0);
+  for (const l of lancs) if (l.tipo === "saida" && mesDe(l.data) === mes && real(l)) dia[Number(l.data.slice(8)) - 1] += l.valor;
+  for (let i = 1; i < n; i++) dia[i] += dia[i - 1];
+  return dia;
+}
+
+export interface Ritmo {
+  /** Gasto até hoje e no mesmo dia do mês anterior (comparar no mesmo ponto do mês, não o mês inteiro). */
+  ateHoje: number;
+  mesmoDiaAntes: number | null;
+  /** No ritmo de agora, quanto o mês fecha gastando. */
+  projecao: number;
+  /** Dias que faltam (com hoje). */
+  diasRestantes: number;
+  /** Quanto dá para gastar por dia até o fim do mês sem ficar negativo (acumulado + a receber − a pagar), 0 se já não sobra. */
+  porDia: number;
+}
+
+/** Só faz sentido no mês corrente (`hoje` dentro de `mes`). */
+export function ritmoDoMes(lancs: Lancamento[], fixos: Fixo[], mes: string, hoje: string): Ritmo | null {
+  if (mesDe(hoje) !== mes) return null;
+  const d = Number(hoje.slice(8)), n = diasNoMes(mes);
+  const atual = gastoPorDia(lancs, mes), antes = gastoPorDia(lancs, somarMes(mes, -1));
+  const ateHoje = atual[d - 1];
+  const temAntes = antes[antes.length - 1] > 0;
+  const r = resumoMes(lancs, fixos, mes);
+  const diasRestantes = n - d + 1;
+  return {
+    ateHoje,
+    mesmoDiaAntes: temAntes ? antes[Math.min(d, antes.length) - 1] : null,
+    projecao: Math.round((ateHoje / d) * n),
+    diasRestantes,
+    porDia: Math.max(0, Math.floor(r.previstoAcumulado / diasRestantes)),
+  };
+}
+
+/** Lançamento que leva o saldo da conta (até hoje) ao valor informado. null se já está igual. */
+export function ajusteDeSaldo(lancs: Lancamento[], carteira: Carteira, valorReal: number, data: string): Omit<Lancamento, "id" | "_m"> | null {
+  const atual = lancs.filter((l) => l.carteira === carteira && l.data <= data).reduce((t, l) => t + (l.tipo === "entrada" ? l.valor : -l.valor), 0);
+  const dif = valorReal - atual;
+  if (!dif) return null;
+  return { tipo: dif > 0 ? "entrada" : "saida", valor: Math.abs(dif), descricao: "Ajuste de saldo", categoria: AJUSTE, carteira, data, fixoId: null };
+}
+
+/** Rótulo curto para eixo: "R$ 850", "R$ 1,2 mil", "−R$ 40". */
+export function reaisCurto(c: number): string {
+  const v = Math.abs(c) / 100;
+  const t = v >= 1000 ? `${(Math.round(v / 100) / 10).toString().replace(".", ",")} mil` : String(Math.round(v));
+  return `${c < 0 ? "−" : ""}R$ ${t}`;
+}
+export const mesCurto = (mes: string) => nomeMes(mes).slice(0, 3);

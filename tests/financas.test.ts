@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Fixo, Lancamento } from "../src/data/types.ts";
-import { formatarDias, lerDias, comparaMesAnterior, dataDoFixo, fixosDoMes, lerValor, porCategoria, porDia, reais, resumoMes, somarMes } from "../src/modules/financas/logica.ts";
+import { AJUSTE, ajusteDeSaldo, reaisCurto, gastoPorDia, ritmoDoMes, saldoAte, serieMeses, formatarDias, lerDias, comparaMesAnterior, dataDoFixo, fixosDoMes, lerValor, porCategoria, porDia, reais, resumoMes, somarMes } from "../src/modules/financas/logica.ts";
 
 test("lê valores em reais e devolve centavos", () => {
   assert.equal(lerValor("1.234,56"), 123456);
@@ -65,4 +65,48 @@ test("dia do fixo: dia certo ou faixa 05-10", () => {
   assert.equal(formatarDias({ dia: 5 }), "05");
   const [x] = fixosDoMes([F("sal", "entrada", 1000, 25, { diaMax: 31 })], [], "2026-11");
   assert.deepEqual([x.data, x.ate], ["2026-11-25", "2026-11-30"]);
+});
+
+test("acumulado: o que sobra passa para o mês seguinte (conta e vales)", () => {
+  const lancs = [
+    L("out", "entrada", 80000, "2026-10-05"),
+    L("gasto-out", "saida", 30000, "2026-10-20"),
+    L("vr-out", "entrada", 40000, "2026-10-01", { carteira: "vr" }),
+    L("nov", "entrada", 10000, "2026-11-05"),
+    L("gasto-nov", "saida", 5000, "2026-11-06"),
+  ];
+  assert.equal(saldoAte(lancs, "conta", "2026-10"), 50000);
+  const r = resumoMes(lancs, [F("aluguel", "saida", 20000, 10)], "2026-11");
+  assert.equal(r.anterior, 50000);
+  assert.equal(r.acumulado, 55000);
+  assert.equal(r.previstoAcumulado, 35000);
+  assert.deepEqual(r.vales, [{ carteira: "vr", entrou: 0, saiu: 0, saldo: 40000 }]); // sobra de VR de outubro aparece em novembro
+  assert.deepEqual(serieMeses(lancs, "2026-11", 3).map((p) => [p.mes, p.entrou, p.saiu, p.acumulado]),
+    [["2026-09", 0, 0, 0], ["2026-10", 80000, 30000, 50000], ["2026-11", 10000, 5000, 55000]]);
+  const g = gastoPorDia(lancs, "2026-11");
+  assert.equal(g.length, 30);
+  assert.equal(g[4], 0);
+  assert.equal(g[5], 5000);
+  assert.equal(g[29], 5000);
+  const rt = ritmoDoMes(lancs, [F("aluguel", "saida", 20000, 10)], "2026-11", "2026-11-10")!;
+  assert.equal(rt.ateHoje, 5000);
+  assert.equal(rt.mesmoDiaAntes, 0);
+  assert.equal(rt.projecao, 15000);
+  assert.equal(rt.diasRestantes, 21);
+  assert.equal(rt.porDia, Math.floor(35000 / 21));
+  assert.equal(ritmoDoMes(lancs, [], "2026-10", "2026-11-10"), null);
+});
+
+test("ajustar saldo mexe só no acumulado", () => {
+  const lancs = [L("a", "entrada", 10000, "2026-11-02")];
+  const aj = ajusteDeSaldo(lancs, "conta", 60000, "2026-11-10")!;
+  assert.deepEqual([aj.tipo, aj.valor, aj.categoria], ["entrada", 50000, AJUSTE]);
+  const com = [...lancs, { ...aj, id: "aj", _m: 1 } as Lancamento];
+  const r = resumoMes(com, [], "2026-11");
+  assert.equal(r.entrou, 10000);
+  assert.equal(r.acumulado, 60000);
+  assert.equal(ajusteDeSaldo(com, "conta", 60000, "2026-11-10"), null);
+  assert.equal(ajusteDeSaldo(com, "conta", 55000, "2026-11-10")!.tipo, "saida");
+  assert.equal(reaisCurto(123456), "R$ 1,2 mil");
+  assert.equal(reaisCurto(85000), "R$ 850");
 });
