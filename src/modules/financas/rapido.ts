@@ -38,6 +38,11 @@ export function lerRapido(texto: string, historico: Lancamento[], hoje: string):
   let tipo: Lancamento["tipo"] = "saida";
   if (/^\+/.test(t)) { tipo = "entrada"; t = t.slice(1); }
   else if (/^-/.test(t)) t = t.slice(1);
+  // data: "06/11", "6/11/2026", "06/11/26" ou "dia 6" (tirada antes do valor, senão "06/11" viraria dinheiro)
+  let data = hoje;
+  const dt = lerData(t, hoje);
+  if (dt === "invalida") return null;
+  if (dt) { data = dt.data; t = (t.slice(0, dt.inicio) + " " + t.slice(dt.fim)).replace(/\s+/g, " ").trim(); }
   // valor: o último número da linha ("2 coxinhas 9,50" → 9,50)
   const nums = [...t.matchAll(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\S*[a-z])/gi)];
   const m = nums.at(-1);
@@ -52,7 +57,6 @@ export function lerRapido(texto: string, historico: Lancamento[], hoje: string):
     carteira = v.startsWith("alimenta") ? "va" : v.startsWith("refei") ? "vr" : "vt";
     return " ";
   }).replace(/\s+/g, " ").trim();
-  let data = hoje;
   const palavras = t.split(" ").filter((p) => {
     const s = semAcento(p);
     if (s === "ontem") { data = somarDias(hoje, -1); return false; }
@@ -78,4 +82,31 @@ export function lerRapido(texto: string, historico: Lancamento[], hoje: string):
   const categoria = Object.entries(tabela).find(([, ps]) => chave.some((p) => ps.includes(p)))?.[0]
     ?? (tipo === "entrada" && carteira !== "conta" ? "Vale" : carteira === "vr" || carteira === "va" ? "Alimentação" : carteira === "vt" ? "Transporte" : "Outros");
   return { tipo, valor, descricao: desc, categoria, carteira, data, aprendeu: false };
+}
+
+/**
+ * Acha uma data na linha. Sem ano: o ano de hoje, e se cair no futuro, o ano anterior (em janeiro, "28/12" é do ano passado).
+ * "dia 6": este mês; se o dia 6 ainda não chegou, o mês anterior. "invalida" = parece data mas não existe (31/02).
+ */
+export function lerData(t: string, hoje: string): { data: string; inicio: number; fim: number } | "invalida" | null {
+  const [ah, mh, dh] = hoje.split("-").map(Number);
+  const existe = (a: number, m: number, d: number) => m >= 1 && m <= 12 && d >= 1 && d <= new Date(a, m, 0).getDate();
+  const fmt = (a: number, m: number, d: number) => `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const m1 = /(?<![\d,.])(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?(?![\d/])/.exec(t);
+  if (m1) {
+    const d = Number(m1[1]), m = Number(m1[2]);
+    let a = m1[3] ? Number(m1[3].length === 2 ? `20${m1[3]}` : m1[3]) : ah;
+    if (!m1[3] && fmt(a, m, d) > hoje) a -= 1;
+    if (!existe(a, m, d)) return "invalida";
+    return { data: fmt(a, m, d), inicio: m1.index, fim: m1.index + m1[0].length };
+  }
+  const m2 = /\bdia\s+(\d{1,2})\b/i.exec(t);
+  if (m2) {
+    const d = Number(m2[1]);
+    let a = ah, m = mh;
+    if (d > dh) { m -= 1; if (m === 0) { m = 12; a -= 1; } }
+    if (!existe(a, m, d)) return "invalida";
+    return { data: fmt(a, m, d), inicio: m2.index, fim: m2.index + m2[0].length };
+  }
+  return null;
 }

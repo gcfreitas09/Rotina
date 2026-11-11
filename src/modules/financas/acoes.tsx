@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Plus } from "../../components/icones.tsx";
 import type { Fixo, Lancamento } from "../../data/types.ts";
 import { config, excluir, lista, salvar } from "../../data/store.ts";
-import { hoje, somarDias } from "../../data/datas.ts";
+import { br, brCurta, hoje, somarDias } from "../../data/datas.ts";
 import { novoId } from "../../data/formato.ts";
 import { mostrarAviso } from "../../components/ui.tsx";
 import { cruzouLimite, curtoCarteira, mesDe, porCategoria, reais } from "./logica.ts";
@@ -76,14 +76,14 @@ export function LancarRapido({ compacto = false }: { compacto?: boolean }) {
         <button className="botao primario" aria-label="Lançar" disabled={!r}><Plus size={18} strokeWidth={2} /></button>
       </div>
       <p className="lancar-previa" id="lancar-rapido-previa" aria-live="polite">
-        {!t.trim() ? (compacto ? null : <span className="suave">Escreva o que foi e o valor. "+" ou "recebi" = entrada; "ontem" muda a data; "va" ou "vale alimentação" (e "vt", "vr") tira do vale.</span>)
+        {!t.trim() ? (compacto ? null : <span className="suave">Escreva o que foi e o valor. "+" ou "recebi" = entrada; "ontem" ou "06/11" muda a data; "va" ou "vale alimentação" (e "vt", "vr") tira do vale.</span>)
           : r ? (
             <>
               <span className={`selo-tipo ${r.tipo}`}>{r.tipo === "entrada" ? "Entrada" : "Gasto"}</span>
               <span className="num">{reais(r.valor)}</span>
               <span>{r.categoria}{r.aprendeu && <small className="suave"> (como da última vez)</small>}</span>
               {r.carteira !== "conta" && <span className="selo-carteira">{curtoCarteira(r.carteira)}</span>}
-              {r.data !== h && <span className="suave">{r.data === somarDias(h, -1) ? "ontem" : "anteontem"}</span>}
+              {r.data !== h && <span className="selo-data num">{r.data === somarDias(h, -1) ? "ontem" : r.data === somarDias(h, -2) ? "anteontem" : r.data.slice(0, 4) === h.slice(0, 4) ? brCurta(r.data) : br(r.data)}</span>}
             </>
           ) : <span className="suave">Faltou o valor, como 12,50.</span>}
       </p>

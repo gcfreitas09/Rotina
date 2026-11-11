@@ -1324,3 +1324,4 @@ kbd { font: 600 11px var(--f-numero); padding: 1px 6px; border-radius: 4px; bord
 .contas-hoje .atrasada .conta-quando { color: var(--atraso); font-weight: 600; }
 .contas-hoje .dinheiro { font-size: 15px; font-weight: 600; }
 .resumo-pronto { font-size: 14px; font-weight: 600; color: var(--musgo); margin-top: 4px; }
+.selo-data { font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--papel-2); }

@@ -150,6 +150,8 @@ Saúde (Dieta + Treino) e Mais (Horários + Configurações). Usado no celular v
   mesma descrição já lançada (aprende), depois palavras. Só aparece no mês atual (lança com a data de hoje).
   Vale: sigla ("va", "vt", "vr") ou por extenso ("vale alimentação", "vale-transporte") em qualquer lugar da linha; o extenso é tirado
   ANTES de procurar sinais de entrada (senão "vale" virava entrada na conta — bug de 10/11/2026). Preposição solta nas pontas ("no va") sai.
+  Data na linha (`lerData`): "06/11", "6/11/2026", "06/11/26", "dia 6"; tirada ANTES do valor (senão "06/11" vira dinheiro). Sem ano e no
+  futuro = ano anterior; "dia N" que ainda não chegou = mês anterior; data que não existe (31/02) recusa a linha.
   **Números do topo** (pedido de 10/11/2026, não voltar aos antigos Entrou/Saiu/Saldo/Na conta): Salário (categoria Salário no mês
   + "falta receber" dos fixos de salário, `salarioDoMes`), Vale-alimentação e Vale-transporte (saldo acumulado + "usou X de Y",
   `valeNoMes`) e Saldo do mês (entrou − saiu da conta, com "na conta" acumulado embaixo e "Ajustar saldo"). O VR, se usado,

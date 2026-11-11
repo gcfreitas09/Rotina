@@ -196,3 +196,17 @@ test("lançar rápido: vale por sigla ou por extenso, em qualquer lugar da linha
   assert.deepEqual(r("almoço 30 vale refeição"), ["saida", 3000, "Almoço", "Alimentação", "vr"]);
   assert.deepEqual(r("recebi 600 vale alimentação"), ["entrada", 60000, "Vale-alimentação", "Vale", "va"]);
 });
+
+test("lançar rápido: data na linha (06/11, 6/11/2026, dia 6)", () => {
+  const h = "2026-11-10";
+  const r = (t: string, hj = h) => { const x = lerRapido(t, [], hj); return x && [x.valor, x.descricao, x.categoria, x.carteira, x.data]; };
+  assert.deepEqual(r("VA Salgado 15 06/11"), [1500, "Salgado", "Alimentação", "va", "2026-11-06"]);
+  assert.deepEqual(r("06/11 salgado 15 va"), [1500, "Salgado", "Alimentação", "va", "2026-11-06"]);
+  assert.deepEqual(r("uber 18 6/11/2026"), [1800, "Uber", "Transporte", "conta", "2026-11-06"]);
+  assert.deepEqual(r("uber 18 06/11/26"), [1800, "Uber", "Transporte", "conta", "2026-11-06"]);
+  assert.deepEqual(r("lanche 12,50 dia 6"), [1250, "Lanche", "Alimentação", "conta", "2026-11-06"]);
+  assert.deepEqual(r("lanche 12,50 dia 25"), [1250, "Lanche", "Alimentação", "conta", "2026-10-25"]); // dia 25 ainda não chegou: outubro
+  assert.deepEqual(r("chocolate 50 28/12", "2027-01-05"), [5000, "Chocolate", "Alimentação", "conta", "2026-12-28"]); // sem ano e no futuro: ano passado
+  assert.equal(lerRapido("salgado 15 31/02", [], h), null);
+  assert.equal(lerRapido("salgado 06/11", [], h), null); // só a data, sem valor
+});
